@@ -84,11 +84,11 @@ if(isset($_POST['email'])) {
     $email_message .= "Comments: ".clean_string($comments)."\n";
 
 // create email headers
-/*
-$headers = 'From: '.$email_from."\r\n".
-'Reply-To: '.$email_from."\r\n" .
+
+$headers = 'From: '.$email_to."\r\n".
+'Reply-To: '.$email_to."\r\n" .
 'X-Mailer: PHP/' . phpversion();
-*/
+
 @mail($email_to, $email_subject, $email_message, $headers);
 ?>
 
