@@ -7,7 +7,7 @@
 
 /* =======================================================
 *
-* 	Template Style 
+* 	Template Style
 *	Edit this section
 *
 * ======================================================= */
@@ -19,7 +19,7 @@ body {
   color: rgba(0, 0, 0, 0.7); }
   @media screen and (max-width: 992px) {
     body {
-      font-size: 16px; } }
+      font-size: 22px; } }
 
 a {
   color: #2c98f0;
