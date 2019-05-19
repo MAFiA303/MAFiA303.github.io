@@ -96,14 +96,6 @@
 			    <input type="number" id="btn2" value="3">
 			  </span>
 			  <br>
-			  <span> Poly3
-			    <input type="number" id="btn3" value="0">
-			  </span>
-			  <br>
-			  <span> Poly4
-			    <input type="number" id="btn4" value="0">
-			  </span>
-			  <br>
 			  <span> speed
 			    <input type="float" id="btn5" value="3">
 			  </span>
@@ -119,14 +111,10 @@
 			  <script>
 			  var poly1 = 0
 			  var poly2 = 0
-			  var poly3 = 0
-			  var poly4 = 0
 			  var speed = 0.03
 			function myFunction() {
 			  poly1 = document.getElementById("btn1").value;
 			  poly2 = document.getElementById("btn2").value;
-			  poly3 = document.getElementById("btn3").value;
-			  poly4 = document.getElementById("btn4").value;
 			  speed = parseFloat(document.getElementById("btn5").value)/100;
 			}
 
@@ -191,27 +179,6 @@
 			      ctx.translate(0, radius*0.7);
 			      ctx.rotate(-ang);
 			    }
-
-			    for(num = 0; num < poly3; num++){
-			      ang = num * 2*Math.PI / poly3;
-			      ctx.rotate(ang);
-			      ctx.translate(0, -radius*0.5);
-			      ctx.rotate(-ang);
-			      ctx.fillText((num+1).toString(), 0, 0);
-			      ctx.rotate(ang);
-			      ctx.translate(0, radius*0.5);
-			      ctx.rotate(-ang);
-			    }
-			    for(num = 0; num < poly4; num++){
-			      ang = num * 2*Math.PI / poly4;
-			      ctx.rotate(ang);
-			      ctx.translate(0, -radius*0.3);
-			      ctx.rotate(-ang);
-			      ctx.fillText((num+1).toString(), 0, 0);
-			      ctx.rotate(ang);
-			      ctx.translate(0, radius*0.3);
-			      ctx.rotate(-ang);
-			    }
 			  }
 			      var time = -1 * speed;
 			      function drawTime(ctx, radius){
@@ -223,12 +190,6 @@
 			        beep();
 			      };
 			      if (precise(time % (2*Math.PI/poly2 )) < speed){
-			        beep();
-			      };
-			      if (precise(time % (2*Math.PI/poly3 )) < speed){
-			        beep();
-			      };
-			      if (precise(time % (2*Math.PI/poly4 )) < speed){
 			        beep();
 			      };
 			  }
