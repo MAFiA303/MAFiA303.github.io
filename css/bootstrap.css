@@ -3584,6 +3584,7 @@ tbody.collapse.in {
   min-height: 55px;
   margin-bottom: 20px;
   border: 1px solid transparent;
+  overflow-y: scroll;
 }
 .navbar:before, .navbar:after {
   content: " ";
