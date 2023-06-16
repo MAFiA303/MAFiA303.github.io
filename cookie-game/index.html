@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    </head>
+    <body>
+    <div class="game-area">
+        <div id="timer" style="position: fixed; top: 0; left: 0; font-size: 2em; z-index: 3;"></div>
+        <div class="falling-cookie" id="falling-cookie-1"></div>
+        <div class="falling-cookie" id="falling-cookie-2"></div>
+        <div class="falling-cookie" id="falling-cookie-3"></div>
+        <div class="falling-cookie" id="falling-cookie-4"></div>
+        <div class="falling-cookie" id="falling-cookie-5"></div>
+
+        <div id="modal-start" class="modal">
+            <div class="modal-content">
+                <h2>Welcome to Save the Fox</h2>
+                <h3>Game Rules</h3>
+                <p>
+                    Your goal is to do 10 upgrades. <br>
+                    if you click on browser other than firefox, you will lose the game. <br>
+                    if you click on decoys, your credit will reset to 0. <br>
+                    if you click on upgrade without enough, your credit will reset to 0. <br>
+                    the smaller the firefox logo, the more credit you will get. <br>
+                    fastest to upgrade wins
+                </p>
+                <h3>About the Creators</h3>
+                <p>This game was developed by @mafia303 and OpenAI's GPT-4. We hope you enjoy playing it as much as we enjoyed making it.</p>
+                <button id="start-game">Start Game</button>
+            </div>
+        </div>
+        
+
+    <audio id="click-sound" src="assets/audio/click-sound.mp3" preload="auto"></audio>
+
+        <div class="score">
+            Users: <span id="score">0</span>
+        </div>
+
+        <div class="upgrades">
+            Upgrade cost: <span id="upgrade-cost">10</span> users
+            <button id="upgrade-button" class="upgrade-button">Upgrade</button>
+            <p></p><span id="upgrades-left"></span></div></p>
+        </div>
+        <button id="cookie-button" class="cookie-button">
+            <img id="cookie-img" src="assets/images/cookie.png">
+        </button>
+    </div>
+    <div id="congratulations">
+        <h1 id="congrats-message">Congratulations! You won the game!</h1>
+    </div>
+    
+    
+    <span id="top-score"></span>    
+    <script src="game.js"></script>
+</body>
+</html>
