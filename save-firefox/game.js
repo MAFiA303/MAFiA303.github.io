@@ -310,7 +310,16 @@ document.getElementById('start-game').addEventListener('click', function() {
     
 
     
+    document.addEventListener('wheel', function (e) {
+        if (e.ctrlKey) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 
+    window.addEventListener('dblclick', function(e){
+        e.preventDefault();
+    });
+    
     
 });
 
