@@ -34,13 +34,15 @@
 <body>
 
 <h1>Privacy Policy</h1>
-<p class="meta">Chain Reaction for Android &middot; Last updated 8 August 2026</p>
+<p class="meta">Chain Reaction for Android &middot; Last updated 24 September 2026</p>
 
 <div class="box">
-  <strong>Short version:</strong> the game is playable entirely offline and
-  collects nothing while you just play. If you choose to sign in with Google
-  Play Games to post a score, your gamer tag and that score are published on a
-  public leaderboard. That is the only thing that ever leaves your device.
+  <strong>Short version:</strong> campaign, Challenge, Zen, and Designer play all
+  work offline. Optional online features send only the information needed for
+  Play Games leaderboards, Cloud Save sync, and the curated Community level collection.
+  Anonymous gameplay metrics help balance puzzle difficulty. Optional video ads,
+  which you choose to watch for an extra hint, reshuffle or continue, are served
+  by Google AdMob. Nothing is sold.
 </div>
 
 <h2>Who this covers</h2>
@@ -53,14 +55,14 @@
 
 <h2>Information collected</h2>
 <p>
-  <strong>Nothing at all, unless you sign in.</strong> You can install the game,
-  play every mode, and finish every level without an account, without a network
-  connection, and without anything being collected or transmitted.
+  You can install the game, play its offline modes, and finish every built-in
+  level without creating an account or using a network connection. Information
+  is sent off your device only when an optional online feature is used or an
+  existing Play Games session is restored for leaderboards.
 </p>
 <p>
-  Signing in is offered in one place — a "Sign in to post scores" control on the
-  main menu and in the side menu — and exists for one purpose: the Challenge
-  world leaderboard. If you use it, the following is collected:
+  <strong>Leaderboards.</strong> If Play Games has already authorised the app, or
+  you choose to sign in and post a Challenge score, the following is collected:
 </p>
 <ul>
   <li><strong>A Google Play Games player identifier and your gamer tag.</strong>
@@ -75,22 +77,62 @@
       believed. It is stored privately and is never shown to other players —
       publishing it would hand everyone the solution to a board every player
       shares.</li>
+  <li><strong>Submission and verification metadata,</strong> such as timestamps
+      and whether a submitted score passed replay verification.</li>
 </ul>
 <p>
   Your gamer tag, score and move count are <strong>public</strong>: that is what
   a leaderboard is. Anyone using the app can see them. The tap log is not.
 </p>
 <p>
-  There is no advertising, no advertising identifier, no analytics, no crash
-  reporting, no location, no contacts, and no tracking across other apps or
-  websites.
+  <strong>Community levels.</strong> Anyone can browse published Community
+  levels. If you submit a level, Firebase Authentication creates an anonymous
+  account identifier when needed, and the following is collected:
+</p>
+<ul>
+  <li>The author name you enter, the level name, board layout, target par, and
+      the data needed to reconstruct and verify the puzzle</li>
+  <li>Your Firebase account identifier, submission status, and timestamps</li>
+</ul>
+<p>
+  A submission is private to the developer while it is reviewed. If it is
+  accepted and published, its level name, layout, par, and author name become
+  <strong>public</strong> in the Community collection. The account identifier
+  is retained for ownership and moderation but is not displayed as your author
+  name.
+</p>
+<p>
+  Google Firebase services may also process technical authentication and
+  security information, including an IP address, app/SDK identifiers, and user
+  agent information, to operate and protect the service.
+</p>
+<p>
+  <strong>Optional ads.</strong> When you choose to watch a video ad &mdash; for
+  an extra hint or reshuffle once the day's are spent, or to continue a run
+  &mdash; the ad is served by <strong>Google AdMob</strong>. No ad plays unless
+  you press a button that says so. To serve and measure ads, AdMob collects the
+  device's advertising identifier, an IP address, and information about the
+  device and the ad interaction, and may use it to personalise ads where you
+  have allowed that. If you are in the European Economic Area, the UK or
+  Switzerland you are asked for consent first, and can change your answer at
+  any time under <em>Privacy choices</em> in the side menu. On any Android
+  device you can reset or delete the advertising identifier in the system
+  settings under <em>Privacy &rarr; Ads</em>.
+</p>
+<p>
+  There is no crash reporting, no location, and no contacts. The game's own
+  analytics do not use the advertising identifier.
 </p>
 
 <h2>Permissions requested</h2>
 <p>
   The app declares <code>INTERNET</code> and <code>ACCESS_NETWORK_STATE</code>.
-  These exist solely for the leaderboard. No permission that Android considers
-  sensitive — location, camera, microphone, contacts, storage — is requested.
+  These exist for leaderboards, cloud sync, analytics, Community levels and the
+  optional ads. The Google Mobile Ads SDK also declares
+  <code>com.google.android.gms.permission.AD_ID</code>, which lets it read the
+  advertising identifier described above. No permission that
+  Android considers sensitive — location, camera, microphone, contacts, storage
+  — is requested.
 </p>
 
 <h2>What is stored on your device</h2>
@@ -104,6 +146,7 @@
   <li>Your best chain score for each level, for Challenge mode, for Zen mode,
       and for each custom board size you have played</li>
   <li>Your saved Zen board, so you can pick it up where you left off</li>
+  <li>Your locally saved Designer levels and drafts</li>
   <li>Your settings: theme, cascade speed, sound on/off, and the cascade rule toggle</li>
 </ul>
 <p>
@@ -125,22 +168,29 @@
 
 <h2>Third parties</h2>
 <p>
-  There is no advertising SDK, no analytics SDK, no crash-reporting SDK, and no
-  in-app purchases. The leaderboard is built on two Google services, and they
-  are used only when you sign in:
+  There is no crash-reporting SDK and there are no in-app purchases. Optional
+  online features, ads and telemetry are built on these Google services:
 </p>
 <ul>
   <li><strong>Google Play Games Services</strong> — signs you in and supplies
       your gamer tag.</li>
-  <li><strong>Google Firebase</strong> (Authentication and Cloud Firestore) —
-      stores the leaderboard. Google processes this data on the developer's
+  <li><strong>Google Firebase</strong> (Authentication, Cloud Firestore, and Google Analytics for Firebase) —
+      stores leaderboard records, Community submissions, published
+      Community levels, and processes pseudonymous gameplay metrics (such as level completion,
+      move counts, and hint usage) to help balance puzzle difficulty. Google processes this data on the developer's
       behalf under the
       <a href="https://firebase.google.com/support/privacy">Firebase Privacy
       and Security</a> terms.</li>
+  <li><strong>Google AdMob</strong> &mdash; serves the optional video ads, and
+      asks for consent where the law requires it. See
+      <a href="https://policies.google.com/technologies/partner-sites">how Google
+      uses information from sites or apps that use its services</a>.</li>
 </ul>
 <p>
-  Nothing is sold, and nothing is shared with anyone beyond what is needed to
-  run the leaderboard.
+  Nothing is sold. Google processes data as a service provider to run these
+  features, and as described in its own policy for the ads it serves. The leaderboard and published-level fields explicitly described as
+  public above can be seen by other players; private tap logs and account
+  identifiers cannot.
 </p>
 <p>
   Google Play itself collects information when you download or update any app,
@@ -148,45 +198,46 @@
   <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.
 </p>
 
-<h2>Keeping, and deleting, your leaderboard data</h2>
+<h2>Keeping and deleting online data</h2>
 <p>
   A leaderboard entry is kept for as long as it stands, so that records last.
-  You can sign out at any time from the side menu, which stops anything further
-  being posted.
+  Community submissions and published levels are kept so they can be reviewed,
+  moderated, and made available to players. You can sign out of Play Games at
+  any time from the side menu, which stops further leaderboard posts.
 </p>
 <p>
-  To have your leaderboard entry and its stored tap log deleted, email the
-  address at the bottom of this page from the account you signed in with, or
-  include your gamer tag. It will be removed. Deleting the app alone does not
-  remove an entry that has already been posted, because the leaderboard lives on
-  a server rather than on your phone.
+  To have a leaderboard entry, stored tap log, Community submission, published
+  level, or associated account record deleted, email the address at the bottom
+  of this page and include the gamer tag or Community author/level name needed to
+  identify it. It will be removed after ownership is verified. Deleting the app
+  alone does not remove information already posted because it lives on a server,
+  not only on your phone.
 </p>
 
 <h2>Children</h2>
 <p>
   The app is suitable for all ages but is not directed at children under 13 as a
-  target audience. Nothing is collected from anyone who does not sign in, and
-  signing in requires a Google Play Games profile, which Google governs by its
-  own age rules.
+  target audience. Its online features are optional. Play Games profiles are
+  governed by Google's age rules, and Community submissions must not contain
+  personal information.
 </p>
 
 <h2>Your rights</h2>
 <p>
-  If you have never signed in, no data about you exists off your device and
-  there is nothing to access, correct or delete — clearing the app's storage or
-  uninstalling it removes everything.
+  If you have never used the online features, clearing the app's storage or
+  uninstalling it removes the locally stored game data described above.
 </p>
 <p>
-  If you have signed in, rights of access, correction, deletion and portability
-  apply to your leaderboard entry and its tap log. Use the contact address below
-  and they will be honoured.
+  Rights of access, correction, deletion and portability apply to your online
+  leaderboard and Community data. Use the contact address below and they will be
+  honoured after the record can be identified and ownership verified.
 </p>
 
 <h2>Changes to this policy</h2>
 <p>
-  If a future version of the app changes what it stores or starts using a network
-  connection, this page will be updated before that version is released, and the
-  date at the top will change.
+  If a future version changes what the app stores or how an online feature uses
+  data, this page will be updated before that version is released, and the date
+  at the top will change.
 </p>
 
 <h2>Contact</h2>
@@ -196,7 +247,7 @@
 </p>
 
 <footer>
-  Chain Reaction &middot; Privacy Policy &middot; 8 August 2026
+  Chain Reaction &middot; Privacy Policy &middot; 13 August 2026
 </footer>
 
 </body>
