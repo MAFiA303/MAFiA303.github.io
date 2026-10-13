@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Shift the Riemann zeta function so the critical line sits on the imaginary axis, watch the grid morph into the output, and check the zeros numerically.">
+<title>Zeta Shift Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,500;0,600;1,500&display=swap">
+<style>
+/* Layout: a lab notebook. One instrument panel (the complex plane) up top, a strip chart of the critical line under it,
+   then the numeric checks and a short reading column on what the shift does. */
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --plane: #fbfbfd;
+  --ink: #131722;
+  --ink-2: #474f61;
+  --muted: #767e90;
+  --hair: #e0e3ea;
+  --axis: #b3b9c6;
+  --grid-re: #2a78d6;
+  --grid-im: #eda100;
+  --crit: #e34948;
+  --good: #0ca30c;
+  --f-display: "STIX Two Text", "STIX Two", "Cambria Math", Georgia, serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1117; --surface: #151922; --plane: #11141b; --ink: #edf0f5; --ink-2: #b6bdca; --muted: #8890a1;
+    --hair: #252a35; --axis: #3b4251; --grid-re: #3987e5; --grid-im: #b38f00; --crit: #e2507c; --good: #0ca30c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1117; --surface: #151922; --plane: #11141b; --ink: #edf0f5; --ink-2: #b6bdca; --muted: #8890a1;
+  --hair: #252a35; --axis: #3b4251; --grid-re: #3987e5; --grid-im: #b38f00; --crit: #e2507c; --good: #0ca30c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: 36px 64px; display: grid; gap: 28px; }
+.top { display: grid; gap: 8px; max-width: 70ch; }
+.eyebrow { margin: 0; font: 500 12px/1.4 var(--f-mono); letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+h1 { margin: 0; font: 600 clamp(2.1rem, 5vw, 3.1rem)/1.05 var(--f-display); letter-spacing: -0.01em; text-wrap: balance; }
+h1 i, h2 i { font-weight: 500; }
+.lede { margin: 0; font-size: 17px; color: var(--ink-2); max-width: 65ch; }
+h2 { margin: 0; font: 600 1.45rem/1.2 var(--f-display); text-wrap: balance; }
+h3 { margin: 0; font: 600 1.08rem/1.3 var(--f-display); }
+p { margin: 0; }
+.math { font-family: var(--f-display); font-style: italic; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--radius); padding: clamp(14px, 2.4vw, 22px); display: grid; gap: 16px; min-width: 0; }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: flex-end; }
+.ctl { display: grid; gap: 6px; min-width: 0; }
+.ctl-label { font: 500 11px/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: var(--radius); overflow: hidden; background: var(--plane); }
+.seg button { appearance: none; border: 0; background: transparent; color: var(--ink-2); font: 500 13.5px/1 var(--f-body); padding: 9px 13px; cursor: pointer; white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--hair); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--hair); }
+.seg .math { font-size: 15px; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--grid-re); outline-offset: 2px; }
+.shift-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+input[type="range"] { accent-color: var(--ink); width: 180px; max-width: 100%; }
+output, .val { font: 500 13.5px/1 var(--f-mono); font-variant-numeric: tabular-nums; min-width: 4.5ch; color: var(--ink); }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; padding-bottom: 7px; }
+.check input { accent-color: var(--ink); width: 16px; height: 16px; }
+
+.formula { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; padding-top: 2px; border-top: 1px solid var(--hair); padding-block: 12px 0; }
+.formula-main { font: 500 1.35rem/1.3 var(--f-display); white-space: nowrap; }
+.formula-notes { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--ink-2); }
+.formula-notes span { white-space: nowrap; }
+.formula-notes b { font-weight: 500; color: var(--ink); font-family: var(--f-mono); font-size: 13px; }
+
+/* the plane */
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 10; max-width: 100%; border: 1px solid var(--hair); border-radius: var(--radius); background: var(--plane); overflow: hidden; }
+@media (max-width: 640px) { .stage { aspect-ratio: 4 / 5; } }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
+.zoom { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.zoom button { appearance: none; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); border-radius: var(--radius); font: 500 14px/1 var(--f-mono); min-width: 34px; height: 32px; padding: 0 10px; cursor: pointer; }
+.zoom button:hover { border-color: var(--axis); }
+.busy { position: absolute; left: 10px; top: 10px; font: 500 12px/1 var(--f-mono); background: var(--surface); color: var(--ink-2); border: 1px solid var(--hair); border-radius: var(--radius); padding: 7px 9px; }
+
+.morph { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.morph input[type="range"] { flex: 1 1 220px; width: auto; }
+.play { appearance: none; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); border-radius: var(--radius); font: 500 13.5px/1 var(--f-body); padding: 9px 14px; cursor: pointer; }
+.play:hover { opacity: 0.88; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sw { display: inline-block; width: 20px; height: 0; border-top: 2px solid; }
+.sw.thick { border-top-width: 3px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--crit); box-shadow: 0 0 0 2px var(--plane); }
+.ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--crit); }
+.cross { font: 600 14px/1 var(--f-mono); color: var(--ink); width: 10px; text-align: center; }
+.wheel { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(from 90deg, #e7738a, #d99a3d, #9fb33f, #3fbf8f, #3fb3c9, #6f97e6, #b27be0, #e7738a); }
+
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; margin: 0; padding-top: 12px; border-top: 1px solid var(--hair); }
+.readout div { min-width: 0; display: grid; gap: 2px; }
+.readout dt { font: 500 11px/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.readout dd { margin: 0; font: 400 14px/1.4 var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* critical line chart */
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.panel p.note { color: var(--ink-2); max-width: 72ch; }
+.zstage { position: relative; height: 250px; }
+.zstage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--hair); border-radius: var(--radius); padding: 8px 10px; font: 400 12.5px/1.5 var(--f-mono); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.08); white-space: nowrap; }
+.tip .k { color: var(--muted); }
+
+/* checks */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+th { text-align: left; font: 500 11px/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--hair); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 13px; white-space: nowrap; }
+.status { display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 var(--f-body); color: var(--ink); white-space: nowrap; }
+.status svg { width: 14px; height: 14px; }
+
+/* reading column */
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px 32px; }
+.notes article { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.notes p { color: var(--ink-2); }
+.foot { font-size: 13px; color: var(--muted); max-width: 80ch; }
+.foot a { color: inherit; }
+
+/* lines and regions */
+.tools { display: grid; gap: 16px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.tools-head { display: grid; gap: 4px; }
+.tools-head p { font-size: 13.5px; color: var(--ink-2); max-width: 78ch; }
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px 28px; }
+.tool { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--hair); border-radius: 999px; padding: 5px 11px 5px 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; background: var(--plane); }
+.chip input { accent-color: var(--ink); margin: 0; width: 14px; height: 14px; }
+.chip:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+.linkrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.ghost { appearance: none; border: 1px solid var(--hair); background: transparent; color: var(--ink); border-radius: var(--radius); font: 500 12.5px/1.2 var(--f-body); padding: 7px 10px; cursor: pointer; text-align: left; }
+.ghost:hover { border-color: var(--axis); background: var(--plane); }
+.form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); }
+.form input[type="text"], .form select { font: 400 13px/1.2 var(--f-mono); color: var(--ink); background: var(--plane); border: 1px solid var(--hair); border-radius: var(--radius); padding: 7px 8px; width: 7.5ch; }
+.form select { width: auto; }
+.form .math { color: var(--ink); }
+.add { appearance: none; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); border-radius: var(--radius); font: 500 12.5px/1 var(--f-body); padding: 8px 11px; cursor: pointer; }
+.add:hover { opacity: 0.88; }
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.items li { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--axis); border-radius: var(--radius); padding: 3px 3px 3px 10px; font: 400 12.5px/1.35 var(--f-mono); color: var(--ink); background: var(--surface); max-width: 100%; }
+.items li.empty { border: 0; padding: 0; font-family: var(--f-body); color: var(--muted); background: none; }
+.items button { appearance: none; border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 4px 7px; cursor: pointer; border-radius: 4px; }
+.items button:hover { color: var(--ink); background: var(--hair); }
+.err { font-size: 13px; color: var(--crit); }
+.err:empty { display: none; }
+.sw.cased { border-top: 3px solid var(--ink); box-shadow: 0 0 0 2px var(--plane); }
+.box { display: inline-block; width: 13px; height: 9px; border: 1.5px solid var(--ink); opacity: 0.75; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Riemann ζ · change of variable <span class="math" style="text-transform:none">s = w + c</span></p>
+    <h1>Zeta Shift Lab</h1>
+    <p class="lede">Slide the input by <span class="math">c</span> and watch the grid fold under ζ. At <span class="math">c</span> = ½ the critical line lands on the imaginary axis, so the line of symmetry sits at 0. Every value here is computed live in your browser and checked against published numbers below.</p>
+  </header>
+
+  <section class="panel" aria-label="Complex plane explorer">
+    <div class="controls">
+      <div class="ctl">
+        <span class="ctl-label">View</span>
+        <div class="seg" role="group" aria-label="View">
+          <button id="v-grid" aria-pressed="true">Grid morph</button>
+          <button id="v-phase" aria-pressed="false">Phase portrait</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span class="ctl-label">Function</span>
+        <div class="seg" role="group" aria-label="Function">
+          <button id="f-zeta" aria-pressed="true"><span class="math">ζ</span></button>
+          <button id="f-xi" aria-pressed="false"><span class="math">ξ</span> completed</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label class="ctl-label" for="shift">Input shift c</label>
+        <div class="shift-row">
+          <div class="seg" role="group" aria-label="Shift presets" id="presets">
+            <button data-c="0" aria-pressed="false">0</button>
+            <button data-c="0.5" aria-pressed="true">½</button>
+            <button data-c="1" aria-pressed="false">1</button>
+          </div>
+          <input type="range" id="shift" min="-1" max="1.5" step="0.05" value="0.5">
+          <output id="shift-val" for="shift">0.50</output>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="sub1"> Subtract 1 from the output</label>
+    </div>
+
+    <div class="formula">
+      <div class="formula-main" id="formula"></div>
+      <div class="formula-notes" id="landmarks"></div>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="plane" role="img" aria-label="Complex plane: input grid lines and their images under the chosen function"></canvas>
+      <div class="zoom">
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zorigin">Near 0</button>
+        <button id="zreset">Reset</button>
+      </div>
+      <div class="busy" id="busy" hidden>Computing…</div>
+    </div>
+
+    <div class="morph" id="morph-row">
+      <button class="play" id="play">Play morph</button>
+      <span class="ctl-label">Input w</span>
+      <input type="range" id="tau" min="0" max="1" step="0.001" value="1" aria-label="Morph from input to output">
+      <span class="ctl-label">Output F(w)</span>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <dl class="readout">
+      <div><dt>Pointer w</dt><dd id="r-w">move over the plane</dd></div>
+      <div><dt>s = w + c</dt><dd id="r-s">–</dd></div>
+      <div><dt>F(w)</dt><dd id="r-f">–</dd></div>
+      <div><dt>|F(w)|</dt><dd id="r-m">–</dd></div>
+    </dl>
+
+    <div class="tools" id="tools">
+      <div class="tools-head">
+        <h3>Lines and regions</h3>
+        <p>Positions here are in <span class="math">s</span>, the original variable, so a region stays on the same part of ζ when you move the shift. On the plane it appears moved left by <span class="math">c</span> (now <b class="mono" id="c-now">0.50</b>). Leave a box empty for no limit.</p>
+      </div>
+      <div class="tool-grid">
+        <div class="tool">
+          <span class="ctl-label">Show</span>
+          <div class="chips" id="layers">
+            <label class="chip"><input type="checkbox" id="lay-re" data-layer="re" checked><i class="sw" style="border-color:var(--grid-re)"></i>Re w grid</label>
+            <label class="chip"><input type="checkbox" id="lay-im" data-layer="im" checked><i class="sw" style="border-color:var(--grid-im)"></i>Im w grid</label>
+            <label class="chip"><input type="checkbox" id="lay-crit" data-layer="crit" checked><i class="sw thick" style="border-color:var(--crit)"></i>Critical line</label>
+            <label class="chip"><input type="checkbox" id="lay-edge" data-layer="edge" checked><i class="sw" style="border-color:var(--ink-2)"></i>Re s = 1</label>
+            <label class="chip"><input type="checkbox" id="lay-fine" data-layer="fine" checked>Finer regions</label>
+            <label class="chip"><input type="checkbox" id="lay-mine" data-layer="mine" checked><i class="sw cased"></i>Your lines</label>
+            <label class="chip"><input type="checkbox" id="lay-marks" data-layer="marks" checked><i class="dot"></i>Zeros and pole</label>
+          </div>
+          <div class="linkrow">
+            <button class="ghost" type="button" data-solo="all">Show everything</button>
+            <button class="ghost" type="button" data-solo="crit">Only the critical line</button>
+            <button class="ghost" type="button" data-solo="mine">Only my lines and regions</button>
+          </div>
+          <span class="ctl-label">Main grid spacing</span>
+          <div class="seg" role="group" aria-label="Main grid spacing" id="spacing">
+            <button type="button" data-step="0" aria-pressed="true">Auto</button>
+            <button type="button" data-step="2" aria-pressed="false">2</button>
+            <button type="button" data-step="1" aria-pressed="false">1</button>
+            <button type="button" data-step="0.5" aria-pressed="false">½</button>
+          </div>
+        </div>
+
+        <div class="tool">
+          <span class="ctl-label">Finer grid in a region</span>
+          <div class="linkrow" id="region-presets">
+            <button class="ghost" type="button" data-preset="0">Re s ≥ 1, Im s from −2 to 2</button>
+            <button class="ghost" type="button" data-preset="1">Re s from 1 to 4, every height</button>
+            <button class="ghost" type="button" data-preset="2">Critical strip, |Im s| ≤ 30</button>
+          </div>
+          <form class="form" id="rform" novalidate>
+            <span class="math">Re s</span>
+            <input type="text" inputmode="decimal" id="r-re0" placeholder="−∞" aria-label="Re s from"> to
+            <input type="text" inputmode="decimal" id="r-re1" placeholder="∞" aria-label="Re s to">
+            <span class="math">Im s</span>
+            <input type="text" inputmode="decimal" id="r-im0" placeholder="−∞" aria-label="Im s from"> to
+            <input type="text" inputmode="decimal" id="r-im1" placeholder="∞" aria-label="Im s to">
+            every
+            <select id="r-step" aria-label="Line spacing inside the region">
+              <option value="0.5">0.5</option><option value="0.25" selected>0.25</option><option value="0.1">0.1</option><option value="0.05">0.05</option>
+            </select>
+            <button class="add" type="submit">Add region</button>
+          </form>
+          <p class="err" id="r-err" role="status"></p>
+          <ul class="items" id="rlist"></ul>
+        </div>
+
+        <div class="tool">
+          <span class="ctl-label">Your own lines</span>
+          <div class="linkrow" id="line-presets">
+            <button class="ghost" type="button" data-line="re:1">Re s = 1</button>
+            <button class="ghost" type="button" data-line="re:2">Re s = 2</button>
+            <button class="ghost" type="button" data-line="im:14.134725141734693">Im s = 14.13, height of the first zero</button>
+          </div>
+          <form class="form" id="lform" novalidate>
+            <select id="l-kind" aria-label="Line direction"><option value="re">Re s =</option><option value="im">Im s =</option></select>
+            <input type="text" inputmode="decimal" id="l-val" value="2" aria-label="Line position">
+            for <span class="math" id="l-other">Im s</span>
+            <input type="text" inputmode="decimal" id="l-from" placeholder="−∞" aria-label="Line starts at"> to
+            <input type="text" inputmode="decimal" id="l-to" placeholder="∞" aria-label="Line ends at">
+            <button class="add" type="submit">Add line</button>
+          </form>
+          <p class="err" id="l-err" role="status"></p>
+          <ul class="items" id="llist"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="z-title">
+    <div class="panel-head">
+      <h2 id="z-title">Walking up the critical line</h2>
+      <div class="seg" role="group" aria-label="Height range" id="zrange">
+        <button data-t="50" aria-pressed="true">t ≤ 50</button>
+        <button data-t="100" aria-pressed="false">t ≤ 100</button>
+        <button data-t="200" aria-pressed="false">t ≤ 200</button>
+      </div>
+    </div>
+    <p class="note">Hardy's <span class="math">Z(t) = e<sup>iθ(t)</sup> ζ(½ + it)</span> has the same size as ζ on the critical line but is real, so each zero on the line shows up as a crossing of the axis. With <span class="math">c</span> = ½ this is the function along the imaginary axis <span class="math">w = it</span>. Red dots mark the zeros the page found.</p>
+    <div class="zstage" id="zstage">
+      <canvas id="zchart" role="img" aria-label="Hardy Z function along the critical line, crossing zero at each Riemann zero"></canvas>
+      <div class="tip" id="ztip" hidden></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="c-title">
+    <div class="panel-head"><h2 id="c-title">Checking the output</h2><span class="ctl-label" id="c-time"></span></div>
+    <p class="note"><span class="math">G(w) = ξ(½ + w)</span> is the completed function in your shifted coordinates. The symmetry rows compute both sides straight from the definition, without using the functional equation, so agreement is a real test.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Computed</th><th>Expected</th><th>Error</th><th>Result</th></tr></thead>
+        <tbody id="checks"><tr><td colspan="5">Running…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="notes" aria-label="What the shift does">
+    <article>
+      <h3>The shift relabels the plane</h3>
+      <p>Writing <span class="math">s = w + c</span> moves every point by the same amount. Zeros, the pole and the critical line all slide together, and the folded picture keeps its shape. That is why the zeros still land on 0 for any <span class="math">c</span>: try dragging the slider while the morph sits at the output end.</p>
+    </article>
+    <article>
+      <h3>Why ζ alone is lopsided</h3>
+      <p>The symmetry is between <span class="math">s</span> and <span class="math">1 − s</span>, a mirror at Re <span class="math">s</span> = ½. The line Re <span class="math">s</span> = 1 is where the sum 1 + 2<sup>−s</sup> + 3<sup>−s</sup> + … stops converging, and <span class="math">s</span> = 1 is the pole. ζ itself carries extra gamma factors, so it is not mirror-symmetric. The completed <span class="math">ξ(s) = ½ s(s−1) π<sup>−s/2</sup> Γ(s/2) ζ(s)</span> is. Switch to ξ in the phase portrait at <span class="math">c</span> = ½ to see it mirror left-right and top-bottom.</p>
+    </article>
+    <article>
+      <h3>Riemann made the same move in 1859</h3>
+      <p>His paper works with <span class="math">Ξ(t) = ξ(½ + it)</span>. In this page's coordinates that is <span class="math">G(it)</span>: shift by ½, then rotate a quarter turn. <span class="math">G</span> is even and real on the imaginary axis, and the Riemann Hypothesis becomes the statement that every zero of <span class="math">Ξ</span> is real.</p>
+    </article>
+    <article>
+      <h3>Where current research sits</h3>
+      <p>The de Bruijn–Newman constant <span class="math">Λ</span> measures how far a heat-flow deformation of <span class="math">Ξ</span> can go before its zeros leave the real line. RH is equivalent to <span class="math">Λ ≤ 0</span>. Rodgers and Tao proved <span class="math">Λ ≥ 0</span> in 2018, and the best upper bound is <span class="math">Λ ≤ 0.2</span> (Platt and Trudgian, 2021). If RH is true, it holds with no room to spare.</p>
+    </article>
+    <article>
+      <h3>Shifting the output is different</h3>
+      <p>Subtracting 1 moves where things land instead of relabelling where they start. The points that now map to 0 are the solutions of <span class="math">ζ(s) = 1</span>, which are not the Riemann zeros. Tick the box and watch the red dots stop at −1.</p>
+    </article>
+  </section>
+
+  <p class="foot">Method: Borwein's accelerated alternating series for Re <span class="math">s</span> ≥ ½, the functional equation for Re <span class="math">s</span> &lt; ½, Lanczos log-gamma, double precision. Accurate to about 10<sup>−13</sup> for |Im <span class="math">s</span>| ≤ 350; the plane is not computed above that height. Drag to pan; pinch, Ctrl + scroll or the + and − buttons to zoom.</p>
+</div>
+
+<script src="zeta-core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const Z = window.ZetaCore;
+  const $ = (id) => document.getElementById(id);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const IM_LIMIT = 350;
+  const PUBLISHED = [14.134725141734693, 21.022039638771555, 25.010857580145688, 30.424876125859513, 32.935061587739189,
+    37.586178158825671, 40.918719012147495, 43.327073280914999, 48.005150881167159, 49.773832477672302];
+
+  const S = { view: 'grid', fn: 'zeta', c: 0.5, sub1: false, tau: 1, cx: 0, cy: 7, upp: 0.03, W: 0, H: 0, hover: null, ready: false,
+    show: { re: true, im: true, crit: true, edge: true, fine: true, mine: true, marks: true },
+    mainStep: 0,      // 0 = automatic spacing
+    regions: [],      // finer-grid boxes, in s coordinates; null = no limit
+    lines: [] };      // your own lines, in s coordinates
+
+  // ---------- theme tokens ----------
+  let T = {};
+  function readTokens() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['bg', 'surface', 'plane', 'ink', 'ink-2', 'muted', 'hair', 'axis', 'grid-re', 'grid-im', 'crit', 'good'])
+      T[k] = cs.getPropertyValue('--' + k).trim();
+    T.mono = cs.getPropertyValue('--f-mono').trim();
+  }
+
+  // ---------- formatting ----------
+  const minus = (s) => s.replace(/-/g, '−');
+  function fnum(x, d = 4) {
+    if (!Number.isFinite(x)) return '∞';
+    const a = Math.abs(x);
+    if (a !== 0 && (a < 1e-4 || a >= 1e6)) return minus(x.toExponential(3));
+    return minus(x.toFixed(d));
+  }
+  const fcx = (re, im) => (!Number.isFinite(re) || !Number.isFinite(im)) ? '∞ (pole)' : `${fnum(re)} ${im < 0 || Object.is(im, -0) ? '−' : '+'} ${fnum(Math.abs(im))}i`;
+  function fc(c) {
+    const r = Math.round(c * 100) / 100;
+    const named = { '0': '0', '0.5': '½', '1': '1', '-0.5': '−½', '1.5': '3/2', '-1': '−1' };
+    return named[String(r)] ?? minus(r.toFixed(2));
+  }
+
+  // ---------- the function being explored ----------
+  function F(wr, wi) {
+    if (Math.abs(wi) > IM_LIMIT) return [NaN, NaN];
+    const sr = wr + S.c;
+    const v = S.fn === 'xi' ? Z.xi(sr, wi) : Z.zeta(sr, wi);
+    return S.sub1 ? [v[0] - 1, v[1]] : v;
+  }
+
+  // ---------- zeros on the critical line (found, not looked up) ----------
+  let zeros = Z.criticalZeros(0.5, 120);
+  let zerosTo = 120;
+
+  // ---------- plane geometry ----------
+  const cv = $('plane'), stage = $('stage');
+  let ctx = cv.getContext('2d');
+  const toSX = (re) => (re - S.cx) / S.upp + S.W / 2;
+  const toSY = (im) => S.H / 2 - (im - S.cy) / S.upp;
+  const toRe = (sx) => S.cx + (sx - S.W / 2) * S.upp;
+  const toIm = (sy) => S.cy - (sy - S.H / 2) * S.upp;
+  function bounds(m) {
+    const hw = S.W * S.upp / 2 * (1 + m), hh = S.H * S.upp / 2 * (1 + m);
+    return { x0: S.cx - hw, x1: S.cx + hw, y0: S.cy - hh, y1: S.cy + hh };
+  }
+  function niceStep(raw) {
+    const p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+  }
+  function sizeCanvas(c, w, h) {
+    const d = window.devicePixelRatio || 1;
+    c.width = Math.max(1, Math.round(w * d));
+    c.height = Math.max(1, Math.round(h * d));
+    const k = c.getContext('2d');
+    k.setTransform(d, 0, 0, d, 0, 0);
+    return k;
+  }
+  function resetView() {
+    S.upp = 12 / S.H;
+    S.cx = 0.5;
+    S.cy = 2;
+  }
+
+  // ---------- grid morph data ----------
+  let grid = null;
+  function sampleLine(kind, x0, y0, x1, y1, n) {
+    const xs = new Float64Array(n + 1), ys = new Float64Array(n + 1), us = new Float64Array(n + 1), vs = new Float64Array(n + 1);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, f = F(x, y);
+      xs[i] = x; ys[i] = y; us[i] = f[0]; vs[i] = f[1];
+    }
+    return { kind, n, xs, ys, us, vs };
+  }
+  // Input lines cover the view plus a fixed home box around the critical strip, so zooming in on the
+  // output still shows where the first zeros' worth of the critical line lands.
+  const HOME = { x0: -4, x1: 6, y0: -32, y1: 32 };
+  function buildGrid() {
+    const v = bounds(0.15), spanX = S.W * S.upp, spanY = S.H * S.upp;
+    const near = v.y0 < HOME.y1 && v.y1 > HOME.y0 && v.x0 < HOME.x1 + 40 && v.x1 > HOME.x0 - 40;
+    const b = near ? { x0: Math.min(v.x0, HOME.x0), x1: Math.max(v.x1, HOME.x1), y0: Math.min(v.y0, HOME.y0), y1: Math.max(v.y1, HOME.y1) } : v;
+    const y0 = Math.max(b.y0, -IM_LIMIT), y1 = Math.min(b.y1, IM_LIMIT);
+    let step = S.mainStep || Math.max(niceStep(spanX / 24), niceStep((b.x1 - b.x0) / 60), niceStep((y1 - y0) / 80));
+    while ((b.x1 - b.x0) / step > 200 || (y1 - y0) / step > 200) step *= 2;
+    const res = Math.max(S.upp * 2, 0.004);
+    const nV = nFor(y1 - y0, res, 200, 1000), nH = nFor(b.x1 - b.x0, res, 200, 1000);
+    const lines = [], sh = S.show;
+    if (sh.im) for (let k = Math.ceil(y0 / step); k * step <= y1; k++) lines.push(sampleLine('im', b.x0, k * step, b.x1, k * step, nH));
+    if (sh.re) for (let k = Math.ceil(b.x0 / step); k * step <= b.x1; k++) lines.push(sampleLine('re', k * step, y0, k * step, y1, nV));
+    if (sh.fine) for (const rg of S.regions) regionLines(rg, b, y0, y1, lines);
+    if (S.fn === 'zeta' && sh.edge) lines.push(sampleLine('edge', 1 - S.c, y0, 1 - S.c, y1, Math.min(3000, nV * 3)));
+    if (sh.crit) lines.push(sampleLine('crit', 0.5 - S.c, y0, 0.5 - S.c, y1, Math.min(3000, nV * 3)));
+    if (sh.mine) for (const L of S.lines) userLine(L, b, y0, y1, lines);
+    grid = { lines, step, R: 60 * Math.max(spanX, spanY) };
+  }
+  const nFor = (len, res, lo, hi) => Math.round(Math.min(hi, Math.max(lo, len / res)));
+  // Positions a..b every st. Anchored ranges start exactly at a (so "from 1" draws Re s = 1, 1.25, …) and keep b.
+  function stepsFrom(a, b, st, anchored, keepEnd) {
+    const out = [];
+    if (anchored) for (let k = 0; a + k * st <= b + 1e-9; k++) out.push(a + k * st);
+    else for (let k = Math.ceil(a / st - 1e-9); k * st <= b + 1e-9; k++) out.push(k * st);
+    if (keepEnd && out.length && b - out[out.length - 1] > 1e-9) out.push(b);
+    return out;
+  }
+  // A finer-grid region. Bounds are in s; b is the input box in w; open bounds run to the edge of that box.
+  function regionLines(rg, b, y0, y1, out) {
+    const r0 = rg.re0 ?? b.x0 + S.c, r1 = rg.re1 ?? b.x1 + S.c;
+    const i0 = Math.max(rg.im0 ?? y0, -IM_LIMIT), i1 = Math.min(rg.im1 ?? y1, IM_LIMIT);
+    if (!(r1 > r0 && i1 > i0)) { rg.used = rg.step; return; }
+    let st = rg.step;
+    while ((r1 - r0) / st > 240 || (i1 - i0) / st > 240) st *= 2;
+    rg.used = st;
+    const res = Math.max(S.upp * 1.5, 0.003);
+    for (const x of stepsFrom(r0, r1, st, rg.re0 != null, rg.re1 != null)) out.push(sampleLine('fre', x - S.c, i0, x - S.c, i1, nFor(i1 - i0, res, 60, 1000)));
+    for (const y of stepsFrom(i0, i1, st, rg.im0 != null, rg.im1 != null)) out.push(sampleLine('fim', r0 - S.c, y, r1 - S.c, y, nFor(r1 - r0, res, 60, 1000)));
+  }
+  function userLine(L, b, y0, y1, out) {
+    const res = Math.max(S.upp * 0.75, 0.002);
+    if (L.kind === 're') {
+      const a = Math.max(L.from ?? y0, -IM_LIMIT), z = Math.min(L.to ?? y1, IM_LIMIT);
+      if (z > a) out.push(sampleLine('user', L.value - S.c, a, L.value - S.c, z, nFor(z - a, res, 200, 4000)));
+    } else {
+      const a = L.from ?? b.x0 + S.c, z = L.to ?? b.x1 + S.c;
+      if (z > a) out.push(sampleLine('user', a - S.c, L.value, z - S.c, L.value, nFor(z - a, res, 200, 4000)));
+    }
+  }
+
+  // ---------- phase portrait data ----------
+  const LUT = (() => {
+    const n = 512, out = new Uint8ClampedArray(n * 3);
+    const enc = (x) => { x = Math.min(1, Math.max(0, x)); return 255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055); };
+    for (let i = 0; i < n; i++) {
+      const h = (i / n) * 2 * Math.PI, L = 0.74, C = 0.12, a = C * Math.cos(h), b = C * Math.sin(h);
+      const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3, m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3, s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+      out[i * 3] = enc(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s);
+      out[i * 3 + 1] = enc(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s);
+      out[i * 3 + 2] = enc(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s);
+    }
+    return out;
+  })();
+  const phase = { cv: document.createElement('canvas'), img: null, view: null, row: 0, id: 0, w: 0, h: 0, res: 1 };
+  function startPhase() {
+    const res = Math.max(1, Math.sqrt((S.W * S.H) / 110000));
+    const w = Math.ceil(S.W / res), h = Math.ceil(S.H / res);
+    phase.cv.width = w; phase.cv.height = h;
+    phase.img = phase.cv.getContext('2d').createImageData(w, h);
+    phase.w = w; phase.h = h; phase.res = res; phase.row = 0;
+    phase.view = { cx: S.cx, cy: S.cy, upp: S.upp, W: S.W, H: S.H };
+    const id = ++phase.id;
+    $('busy').hidden = false;
+    requestAnimationFrame(() => phaseStep(id));
+  }
+  function phaseStep(id) {
+    if (id !== phase.id || S.view !== 'phase') return;
+    const v = phase.view, d = phase.img.data, t0 = performance.now();
+    while (phase.row < phase.h && performance.now() - t0 < 14) {
+      const j = phase.row, im = v.cy - ((j + 0.5) * phase.res - v.H / 2) * v.upp;
+      for (let i = 0; i < phase.w; i++) {
+        const re = v.cx + ((i + 0.5) * phase.res - v.W / 2) * v.upp, f = F(re, im), p = (j * phase.w + i) * 4;
+        const m = Math.hypot(f[0], f[1]);
+        if (!Number.isFinite(m)) { d[p] = d[p + 1] = d[p + 2] = 128; d[p + 3] = 255; continue; }
+        const k = ((((Math.atan2(f[1], f[0]) / (2 * Math.PI)) % 1) + 1) % 1 * 512) | 0;
+        const lg = Math.log2(m), shade = 0.7 + 0.3 * (lg - Math.floor(lg));
+        d[p] = LUT[k * 3] * shade; d[p + 1] = LUT[k * 3 + 1] * shade; d[p + 2] = LUT[k * 3 + 2] * shade; d[p + 3] = 255;
+      }
+      phase.row++;
+    }
+    phase.cv.getContext('2d').putImageData(phase.img, 0, 0);
+    draw();
+    if (phase.row < phase.h) {
+      $('busy').textContent = `Computing ${Math.round((100 * phase.row) / phase.h)}%`;
+      requestAnimationFrame(() => phaseStep(id));
+    } else $('busy').hidden = true;
+  }
+
+  // ---------- drawing ----------
+  function drawAxes(c, b) {
+    c.lineWidth = 1;
+    c.strokeStyle = T.axis;
+    c.beginPath();
+    c.moveTo(0, Math.round(toSY(0)) + 0.5); c.lineTo(S.W, Math.round(toSY(0)) + 0.5);
+    c.moveTo(Math.round(toSX(0)) + 0.5, 0); c.lineTo(Math.round(toSX(0)) + 0.5, S.H);
+    c.stroke();
+  }
+  function drawTicks(c) {
+    let step = niceStep((S.W * S.upp) / 24);
+    while (step / S.upp < 44) step *= step.toString().startsWith('2') ? 2.5 : 2;
+    const b = bounds(0);
+    c.font = `11px ${T.mono}`;
+    c.lineJoin = 'round';
+    c.lineWidth = 3;
+    c.strokeStyle = T.plane;
+    c.fillStyle = T.muted;
+    const dec = step < 1 ? (step < 0.1 ? 2 : 1) : 0;
+    c.textAlign = 'center'; c.textBaseline = 'bottom';
+    for (let k = Math.ceil(b.x0 / step); k * step <= b.x1; k++) {
+      const x = toSX(k * step); if (x < 30 || x > S.W - 20) continue;
+      const s = minus((k * step).toFixed(dec));
+      c.strokeText(s, x, S.H - 6); c.fillText(s, x, S.H - 6);
+    }
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    for (let k = Math.ceil(b.y0 / step); k * step <= b.y1; k++) {
+      const y = toSY(k * step); if (y < 14 || y > S.H - 24) continue;
+      const s = minus((k * step).toFixed(dec)) + 'i';
+      c.strokeText(s, 8, y); c.fillText(s, 8, y);
+    }
+    c.textAlign = 'right'; c.textBaseline = 'bottom';
+    c.strokeText('Re w', S.W - 8, S.H - 20); c.fillText('Re w', S.W - 8, S.H - 20);
+  }
+  function strokeLine(c, L, tau, R) {
+    c.beginPath();
+    let pen = false;
+    for (let i = 0; i <= L.n; i++) {
+      const u = L.us[i], v = L.vs[i];
+      if (!(Number.isFinite(u) && Number.isFinite(v)) || tau * Math.abs(u) > R || tau * Math.abs(v) > R) { pen = false; continue; }
+      const x = toSX(L.xs[i] + tau * (u - L.xs[i])), y = toSY(L.ys[i] + tau * (v - L.ys[i]));
+      if (pen) c.lineTo(x, y); else { c.moveTo(x, y); pen = true; }
+    }
+    c.stroke();
+  }
+  function marker(c, x, y, kind) {
+    if (x < -10 || x > S.W + 10 || y < -10 || y > S.H + 10) return;
+    c.beginPath();
+    if (kind === 'zero') {
+      c.arc(x, y, 4.2, 0, 2 * Math.PI);
+      c.fillStyle = T.crit; c.fill();
+      c.lineWidth = 2; c.strokeStyle = T.plane; c.stroke();
+    } else if (kind === 'trivial') {
+      c.arc(x, y, 4.5, 0, 2 * Math.PI);
+      c.lineWidth = 2; c.strokeStyle = T.crit; c.stroke();
+    } else if (kind === 'pole') {
+      c.lineWidth = 2; c.strokeStyle = T.ink;
+      c.moveTo(x - 5, y - 5); c.lineTo(x + 5, y + 5); c.moveTo(x + 5, y - 5); c.lineTo(x - 5, y + 5);
+      c.stroke();
+    } else if (kind === 'zero-outline') {
+      c.arc(x, y, 6, 0, 2 * Math.PI);
+      c.lineWidth = 3.5; c.strokeStyle = T.plane; c.stroke();
+      c.beginPath(); c.arc(x, y, 6, 0, 2 * Math.PI);
+      c.lineWidth = 1.75; c.strokeStyle = T.ink; c.stroke();
+    }
+  }
+  // Images of the special points: computed, so "zeros go to 0" is shown, not assumed.
+  let markCache = { key: '', pts: [] };
+  function specialPoints() {
+    const key = `${S.fn}|${S.c}|${S.sub1}|${zeros.length}`;
+    if (markCache.key === key) return markCache.pts;
+    const pts = [], xr = 0.5 - S.c;
+    for (const g of zeros) for (const y of [g, -g]) { const f = F(xr, y); pts.push({ kind: 'zero', x: xr, y, u: f[0], v: f[1] }); }
+    if (S.fn === 'zeta') {
+      for (let k = 1; k <= 60; k++) { const x = -2 * k - S.c, f = F(x, 0); pts.push({ kind: 'trivial', x, y: 0, u: f[0], v: f[1] }); }
+      pts.push({ kind: 'pole', x: 1 - S.c, y: 0, u: NaN, v: NaN });
+    }
+    markCache = { key, pts };
+    return pts;
+  }
+
+  function draw() {
+    if (!S.ready) return;
+    const c = ctx, b = bounds(0);
+    c.fillStyle = T.plane;
+    c.fillRect(0, 0, S.W, S.H);
+    if (S.view === 'grid') {
+      drawAxes(c, b);
+      if (grid) {
+        const tau = S.tau;
+        c.lineCap = 'round'; c.lineJoin = 'round';
+        // [colour token, opacity, width]. Finer-region lines keep the grid colours but are drawn thinner.
+        const STY = { im: ['grid-im', 0.6, 1.1], re: ['grid-re', 0.6, 1.1], fim: ['grid-im', 0.8, 0.75], fre: ['grid-re', 0.8, 0.75],
+          edge: ['ink-2', 0.9, 1.75], crit: ['crit', 1, 2.75], user: ['ink', 1, 2.25] };
+        for (const L of grid.lines) {
+          const [col, a, w] = STY[L.kind];
+          if (L.kind === 'user') { c.globalAlpha = 1; c.strokeStyle = T.plane; c.lineWidth = 6; strokeLine(c, L, tau, grid.R); }
+          c.strokeStyle = T[col]; c.globalAlpha = a; c.lineWidth = w;
+          strokeLine(c, L, tau, grid.R);
+        }
+        c.globalAlpha = 1;
+        for (const p of S.show.marks ? specialPoints() : []) {
+          if (p.kind === 'pole') { if (tau < 0.98) { c.globalAlpha = 1 - tau; marker(c, toSX(p.x), toSY(p.y), 'pole'); c.globalAlpha = 1; } continue; }
+          marker(c, toSX(p.x + tau * (p.u - p.x)), toSY(p.y + tau * (p.v - p.y)), p.kind);
+        }
+      }
+    } else {
+      if (phase.view) {
+        const v = phase.view, k = v.upp / S.upp;
+        const x = toSX(v.cx - (v.W / 2) * v.upp), y = toSY(v.cy + (v.H / 2) * v.upp);
+        c.imageSmoothingEnabled = true;
+        c.drawImage(phase.cv, 0, 0, phase.w, phase.row || 1, x, y, phase.w * phase.res * k, (phase.row || 1) * phase.res * k);
+      }
+      c.globalAlpha = 0.55; drawAxes(c, b); c.globalAlpha = 1;
+      if (S.show.fine) {
+        c.lineWidth = 1.25; c.strokeStyle = T.ink; c.globalAlpha = 0.75;
+        for (const rg of S.regions) {
+          const xa = rg.re0 == null ? -20 : toSX(rg.re0 - S.c), xb = rg.re1 == null ? S.W + 20 : toSX(rg.re1 - S.c);
+          const ya = rg.im1 == null ? -20 : toSY(rg.im1), yb = rg.im0 == null ? S.H + 20 : toSY(rg.im0);
+          c.strokeRect(xa, ya, xb - xa, yb - ya);
+        }
+        c.globalAlpha = 1;
+      }
+      if (S.show.crit) {
+        c.lineWidth = 2.25; c.strokeStyle = T.crit;
+        c.beginPath(); c.moveTo(toSX(0.5 - S.c), 0); c.lineTo(toSX(0.5 - S.c), S.H); c.stroke();
+      }
+      if (S.fn === 'zeta' && S.show.edge) {
+        c.lineWidth = 1.25; c.strokeStyle = T['ink-2'];
+        c.beginPath(); c.moveTo(toSX(1 - S.c), 0); c.lineTo(toSX(1 - S.c), S.H); c.stroke();
+      }
+      if (S.show.mine) for (const L of S.lines) {
+        let x0, y0, x1, y1;
+        if (L.kind === 're') { x0 = x1 = toSX(L.value - S.c); y0 = L.to == null ? -20 : toSY(L.to); y1 = L.from == null ? S.H + 20 : toSY(L.from); }
+        else { y0 = y1 = toSY(L.value); x0 = L.from == null ? -20 : toSX(L.from - S.c); x1 = L.to == null ? S.W + 20 : toSX(L.to - S.c); }
+        for (const [col, w] of [[T.plane, 6], [T.ink, 2.25]]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+      }
+      for (const p of S.show.marks ? specialPoints() : []) marker(c, toSX(p.x), toSY(p.y), p.kind === 'pole' ? 'pole' : 'zero-outline');
+    }
+    if (S.hover) {
+      const { wr, wi, f } = S.hover;
+      const ix = toSX(wr), iy = toSY(wi);
+      c.lineWidth = 1.5; c.strokeStyle = T.ink;
+      c.beginPath(); c.arc(ix, iy, 6, 0, 2 * Math.PI); c.stroke();
+      if (S.view === 'grid' && S.tau > 0 && Number.isFinite(f[0])) {
+        const ox = toSX(wr + S.tau * (f[0] - wr)), oy = toSY(wi + S.tau * (f[1] - wi));
+        c.globalAlpha = 0.5; c.beginPath(); c.moveTo(ix, iy); c.lineTo(ox, oy); c.stroke(); c.globalAlpha = 1;
+        c.beginPath(); c.arc(ox, oy, 4.5, 0, 2 * Math.PI); c.fillStyle = T.ink; c.fill();
+        c.lineWidth = 2; c.strokeStyle = T.plane; c.stroke();
+      }
+    }
+    drawTicks(c);
+  }
+
+  // ---------- text that follows the state ----------
+  function updateText() {
+    const name = S.fn === 'xi' ? 'ξ' : 'ζ';
+    const arg = Math.abs(S.c) < 1e-9 ? 'w' : `w ${S.c < 0 ? '−' : '+'} ${fc(Math.abs(S.c))}`;
+    $('formula').innerHTML = `<span class="math">F(w) = ${name}(${arg})${S.sub1 ? ' − 1' : ''}</span>`;
+    const crit = 0.5 - S.c;
+    const notes = [`<span>Critical line Re s = ½ sits at <b>Re w = ${fc(crit)}</b></span>`];
+    if (S.fn === 'zeta') {
+      notes.push(`<span>Series converges for <b>Re w &gt; ${fc(1 - S.c)}</b></span>`);
+      notes.push(`<span>Pole at <b>w = ${fc(1 - S.c)}</b></span>`);
+    } else {
+      notes.push(Math.abs(crit) < 1e-9 ? `<span>Symmetry <b>F(−w) = F(w)</b></span>` : `<span>Mirror line <b>Re w = ${fc(crit)}</b></span>`);
+    }
+    $('landmarks').innerHTML = notes.join('');
+    $('shift-val').textContent = minus(S.c.toFixed(2));
+    for (const bt of $('presets').querySelectorAll('button')) bt.setAttribute('aria-pressed', String(Math.abs(+bt.dataset.c - S.c) < 1e-9));
+    $('v-grid').setAttribute('aria-pressed', String(S.view === 'grid'));
+    $('v-phase').setAttribute('aria-pressed', String(S.view === 'phase'));
+    $('f-zeta').setAttribute('aria-pressed', String(S.fn === 'zeta'));
+    $('f-xi').setAttribute('aria-pressed', String(S.fn === 'xi'));
+    $('morph-row').hidden = S.view !== 'grid';
+    const L = [], sh = S.show, isZ = S.fn === 'zeta', hasRegions = sh.fine && S.regions.length > 0;
+    if (S.view === 'grid') {
+      if (sh.re) L.push(`<span><i class="sw" style="border-color:var(--grid-re)"></i>Re w = constant</span>`);
+      if (sh.im) L.push(`<span><i class="sw" style="border-color:var(--grid-im)"></i>Im w = constant</span>`);
+      if (hasRegions) L.push(`<span>Finer regions: same colours, thinner lines</span>`);
+    } else {
+      L.push(`<span><i class="wheel"></i>Hue: angle of F(w)</span>`);
+      L.push(`<span>Bands: |F| doubles at each edge</span>`);
+      if (hasRegions) L.push(`<span><i class="box"></i>Finer-grid regions</span>`);
+    }
+    if (sh.crit) L.push(`<span><i class="sw thick" style="border-color:var(--crit)"></i>Critical line Re s = ½</span>`);
+    if (isZ && sh.edge) L.push(`<span><i class="sw" style="border-color:var(--ink-2)"></i>Re s = 1</span>`);
+    if (sh.mine && S.lines.length) L.push(`<span><i class="sw cased"></i>Your lines</span>`);
+    if (sh.marks) {
+      L.push(S.view === 'grid' ? `<span><i class="dot"></i>Zeros on the critical line</span>` : `<span><i class="ring" style="border-color:var(--ink)"></i>Zeros of ζ</span>`);
+      if (isZ) {
+        if (S.view === 'grid') L.push(`<span><i class="ring"></i>Trivial zeros −2, −4, …</span>`);
+        L.push(`<span><i class="cross">×</i>Pole s = 1</span>`);
+      }
+    }
+    if (!L.length) L.push(`<span>Nothing is switched on. Use the Show options below.</span>`);
+    $('legend').innerHTML = L.join('');
+  }
+  function updateReadout() {
+    if (!S.hover) return;
+    const { wr, wi, f } = S.hover;
+    $('r-w').textContent = fcx(wr, wi);
+    $('r-s').textContent = fcx(wr + S.c, wi);
+    $('r-f').textContent = Math.abs(wi) > IM_LIMIT ? 'not computed above |Im| 350' : fcx(f[0], f[1]);
+    $('r-m').textContent = fnum(Math.hypot(f[0], f[1]), 6);
+  }
+
+  // ---------- rebuild scheduling ----------
+  let pending = false;
+  function requestRebuild() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      if (S.view === 'grid') {
+        buildGrid(); draw();
+        const sig = S.regions.map((r) => r.used).join();
+        if (sig !== usedSig) { usedSig = sig; renderTools(); }
+      } else startPhase();
+      if (S.hover) { S.hover.f = F(S.hover.wr, S.hover.wi); updateReadout(); }
+    });
+  }
+  let usedSig = '';
+  function setState(patch) {
+    Object.assign(S, patch);
+    markCache.key = '';
+    updateText();
+    renderTools();
+    requestRebuild();
+  }
+
+  // ---------- controls ----------
+  $('v-grid').onclick = () => setState({ view: 'grid' });
+  $('v-phase').onclick = () => setState({ view: 'phase' });
+  $('f-zeta').onclick = () => setState({ fn: 'zeta' });
+  $('f-xi').onclick = () => setState({ fn: 'xi' });
+  for (const bt of $('presets').querySelectorAll('button')) bt.onclick = () => { $('shift').value = bt.dataset.c; setState({ c: +bt.dataset.c }); };
+  $('shift').addEventListener('input', (e) => setState({ c: Math.round(+e.target.value * 100) / 100 }));
+  $('sub1').addEventListener('change', (e) => setState({ sub1: e.target.checked }));
+  $('tau').addEventListener('input', (e) => { stopAnim(); S.tau = +e.target.value; draw(); });
+
+  let anim = 0;
+  function stopAnim() { if (anim) cancelAnimationFrame(anim); anim = 0; }
+  $('play').onclick = () => {
+    stopAnim();
+    if (reduceMotion) { S.tau = 1; $('tau').value = 1; draw(); return; }
+    const t0 = performance.now(), dur = 2800;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      S.tau = e; $('tau').value = e; draw();
+      anim = p < 1 ? requestAnimationFrame(tick) : 0;
+    };
+    S.tau = 0;
+    anim = requestAnimationFrame(tick);
+  };
+
+  function clampView() {
+    S.upp = Math.min(0.6, Math.max(2e-4, S.upp));
+    const hh = (S.H * S.upp) / 2;
+    S.cy = Math.max(-IM_LIMIT + hh * 0.2, Math.min(IM_LIMIT - hh * 0.2, S.cy));
+    S.cx = Math.max(-400, Math.min(400, S.cx));
+  }
+  function zoomAt(sx, sy, factor) {
+    const wr = toRe(sx), wi = toIm(sy);
+    S.upp *= factor; clampView();
+    S.cx = wr - (sx - S.W / 2) * S.upp;
+    S.cy = wi + (sy - S.H / 2) * S.upp;
+    clampView();
+  }
+  $('zin').onclick = () => { zoomAt(S.W / 2, S.H / 2, 1 / 1.6); draw(); requestRebuild(); };
+  $('zout').onclick = () => { zoomAt(S.W / 2, S.H / 2, 1.6); draw(); requestRebuild(); };
+  $('zreset').onclick = () => { resetView(); draw(); requestRebuild(); };
+  $('zorigin').onclick = () => { S.upp = 5 / S.H; S.cx = 0.5; S.cy = 0; draw(); requestRebuild(); };
+
+  let wheelTimer = 0;
+  cv.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return; // plain scroll keeps scrolling the page; trackpad pinch arrives as ctrl+wheel
+    e.preventDefault();
+    const r = cv.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(Math.max(-60, Math.min(60, e.deltaY)) * 0.004));
+    draw();
+    clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(requestRebuild, 140);
+  }, { passive: false });
+
+  const ptrs = new Map();
+  let drag = null, pinch = null;
+  const local = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  cv.addEventListener('pointerdown', (e) => {
+    cv.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, local(e));
+    if (ptrs.size === 1) { const p = local(e); drag = { x: p.x, y: p.y, cx: S.cx, cy: S.cy, moved: false }; pinch = null; }
+    else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), upp: S.upp, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, wr: toRe((a.x + b.x) / 2), wi: toIm((a.y + b.y) / 2) };
+      drag = null;
+    }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    const p = local(e);
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, p);
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      S.upp = pinch.upp * pinch.d / Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)); clampView();
+      S.cx = pinch.wr - (pinch.mx - S.W / 2) * S.upp; S.cy = pinch.wi + (pinch.my - S.H / 2) * S.upp; clampView();
+      draw(); return;
+    }
+    if (drag) {
+      if (Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y) > 3) drag.moved = true;
+      S.cx = drag.cx - (p.x - drag.x) * S.upp; S.cy = drag.cy + (p.y - drag.y) * S.upp; clampView();
+    }
+    const wr = toRe(p.x), wi = toIm(p.y);
+    S.hover = { wr, wi, f: F(wr, wi) };
+    updateReadout();
+    draw();
+  });
+  const endPtr = (e) => {
+    ptrs.delete(e.pointerId);
+    if ((drag && drag.moved) || pinch) requestRebuild();
+    drag = null;
+    if (ptrs.size < 2) pinch = null;
+  };
+  cv.addEventListener('pointerup', endPtr);
+  cv.addEventListener('pointercancel', endPtr);
+  cv.addEventListener('pointerleave', (e) => { if (!ptrs.size && e.pointerType === 'mouse') { S.hover = null; draw(); } });
+
+  // ---------- lines and regions ----------
+  const REGION_PRESETS = [
+    { re0: 1, re1: null, im0: -2, im1: 2, step: 0.25 },     // where the series converges, near the real axis
+    { re0: 1, re1: 4, im0: null, im1: null, step: 0.5 },    // a vertical strip, every height
+    { re0: 0, re1: 1, im0: -30, im1: 30, step: 0.25 },      // the critical strip
+  ];
+  function parseNum(str) {
+    const t = String(str).trim().replace(/[−–]/g, '-').replace(/½/g, '0.5');
+    if (!t || /^[+-]?(∞|inf(inity)?)$/i.test(t)) return null;
+    const fr = t.match(/^([+-]?\d*\.?\d+)\s*\/\s*(\d*\.?\d+)$/);
+    const v = fr ? Number(fr[1]) / Number(fr[2]) : Number(t);
+    return Number.isFinite(v) ? v : NaN;
+  }
+  const fmtB = (v) => minus(String(Math.round(v * 1e4) / 1e4));
+  function fmtRange(a, b) {
+    if (a == null && b == null) return 'any';
+    if (b == null) return `≥ ${fmtB(a)}`;
+    if (a == null) return `≤ ${fmtB(b)}`;
+    return `${fmtB(a)} to ${fmtB(b)}`;
+  }
+  function listItem(text, label, onRemove) {
+    const li = document.createElement('li');
+    li.append(text);
+    const x = document.createElement('button');
+    x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + label); x.onclick = onRemove;
+    li.append(x);
+    return li;
+  }
+  function emptyItem(text) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = text; return li; }
+  function renderTools() {
+    $('c-now').textContent = minus(S.c.toFixed(2));
+    for (const k in S.show) $('lay-' + k).checked = S.show[k];
+    $('lay-edge').disabled = S.fn !== 'zeta';
+    for (const bt of $('spacing').querySelectorAll('button')) bt.setAttribute('aria-pressed', String(+bt.dataset.step === S.mainStep));
+    const rl = $('rlist'); rl.innerHTML = '';
+    if (!S.regions.length) rl.append(emptyItem('No regions yet. Pick a preset or type one.'));
+    S.regions.forEach((rg, i) => {
+      let t = `Re s ${fmtRange(rg.re0, rg.re1)} · Im s ${fmtRange(rg.im0, rg.im1)} · every ${fmtB(rg.step)}`;
+      if (rg.used && rg.used !== rg.step) t += ` (widened to ${fmtB(rg.used)} to stay fast)`;
+      rl.append(listItem(t, 'region ' + (i + 1), () => { S.regions.splice(i, 1); changed(); }));
+    });
+    const ll = $('llist'); ll.innerHTML = '';
+    if (!S.lines.length) ll.append(emptyItem('No lines yet.'));
+    S.lines.forEach((L, i) => {
+      let t = `${L.kind === 're' ? 'Re' : 'Im'} s = ${fmtB(L.value)}`;
+      if (L.from != null || L.to != null) t += ` · ${L.kind === 're' ? 'Im' : 'Re'} s ${fmtRange(L.from, L.to)}`;
+      ll.append(listItem(t, t, () => { S.lines.splice(i, 1); changed(); }));
+    });
+  }
+  function changed() { markCache.key = ''; updateText(); renderTools(); requestRebuild(); }
+
+  for (const el of $('layers').querySelectorAll('input')) el.addEventListener('change', () => { S.show[el.dataset.layer] = el.checked; changed(); });
+  for (const bt of document.querySelectorAll('[data-solo]')) bt.onclick = () => {
+    const m = bt.dataset.solo;
+    for (const k in S.show) S.show[k] = m === 'all' || (m === 'crit' && (k === 'crit' || k === 'marks')) || (m === 'mine' && (k === 'fine' || k === 'mine'));
+    changed();
+  };
+  for (const bt of $('spacing').querySelectorAll('button')) bt.onclick = () => { S.mainStep = +bt.dataset.step; changed(); };
+  for (const bt of $('region-presets').querySelectorAll('button')) bt.onclick = () => {
+    S.regions.push({ ...REGION_PRESETS[+bt.dataset.preset] }); S.show.fine = true; changed();
+  };
+  $('rform').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = ['r-re0', 'r-re1', 'r-im0', 'r-im1'].map((id) => parseNum($(id).value)), err = $('r-err');
+    if (v.some(Number.isNaN)) { err.textContent = 'Use plain numbers like 1, -2.5 or 1/2, or leave a box empty for no limit.'; return; }
+    if ((v[0] != null && v[1] != null && v[0] >= v[1]) || (v[2] != null && v[3] != null && v[2] >= v[3])) { err.textContent = 'Put the smaller number first in each range.'; return; }
+    err.textContent = '';
+    S.regions.push({ re0: v[0], re1: v[1], im0: v[2], im1: v[3], step: +$('r-step').value });
+    S.show.fine = true; changed();
+  });
+  $('l-kind').addEventListener('change', () => { $('l-other').textContent = $('l-kind').value === 're' ? 'Im s' : 'Re s'; });
+  function addLine(kind, value, from, to) { S.lines.push({ kind, value, from, to }); S.show.mine = true; changed(); }
+  $('lform').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const kind = $('l-kind').value, val = parseNum($('l-val').value), from = parseNum($('l-from').value), to = parseNum($('l-to').value), err = $('l-err');
+    if (val == null || [val, from, to].some(Number.isNaN)) { err.textContent = 'Type where the line sits, like 2 or 1/2. The range boxes can stay empty.'; return; }
+    if (from != null && to != null && from >= to) { err.textContent = 'Put the smaller number first in the range.'; return; }
+    if (kind === 'im' && Math.abs(val) > IM_LIMIT) { err.textContent = `Heights above ${IM_LIMIT} are not computed. Pick a value between −${IM_LIMIT} and ${IM_LIMIT}.`; return; }
+    err.textContent = '';
+    addLine(kind, val, from, to);
+  });
+  for (const bt of $('line-presets').querySelectorAll('button')) bt.onclick = () => { const [k, v] = bt.dataset.line.split(':'); addLine(k, +v, null, null); };
+
+  // ---------- Hardy Z chart ----------
+  const zcv = $('zchart'), zstage = $('zstage'), ztip = $('ztip');
+  let zctx = zcv.getContext('2d');
+  const ZC = { T: 50, ts: null, vs: null, ymax: 4, W: 0, H: 0, pad: { l: 46, r: 14, t: 14, b: 30 }, hover: null };
+  function buildZ() {
+    const N = Math.round(Math.min(3200, ZC.T * 24));
+    ZC.ts = new Float64Array(N + 1); ZC.vs = new Float64Array(N + 1);
+    let mx = 0;
+    for (let i = 0; i <= N; i++) { const t = (ZC.T * i) / N; ZC.ts[i] = t; ZC.vs[i] = Z.hardyZ(t).re; mx = Math.max(mx, Math.abs(ZC.vs[i])); }
+    ZC.ymax = Math.max(1, Math.ceil(mx * 1.05));
+  }
+  const zx = (t) => ZC.pad.l + (t / ZC.T) * (ZC.W - ZC.pad.l - ZC.pad.r);
+  const zy = (v) => ZC.pad.t + (1 - (v + ZC.ymax) / (2 * ZC.ymax)) * (ZC.H - ZC.pad.t - ZC.pad.b);
+  function drawZ() {
+    if (!ZC.ts) return;
+    const c = zctx, { l, r, t, b } = ZC.pad;
+    c.clearRect(0, 0, ZC.W, ZC.H);
+    c.font = `11px ${T.mono}`; c.fillStyle = T.muted;
+    c.lineWidth = 1;
+    const yStep = ZC.ymax <= 4 ? 1 : ZC.ymax <= 8 ? 2 : 5;
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (let v = -Math.floor(ZC.ymax / yStep) * yStep; v <= ZC.ymax; v += yStep) {
+      const y = Math.round(zy(v)) + 0.5;
+      c.strokeStyle = v === 0 ? T.axis : T.hair;
+      c.beginPath(); c.moveTo(l, y); c.lineTo(ZC.W - r, y); c.stroke();
+      c.fillText(minus(String(v)), l - 8, y);
+    }
+    const xStep = niceStep(ZC.T / 8);
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    for (let v = 0; v <= ZC.T + 1e-9; v += xStep) c.fillText(String(v), zx(v), ZC.H - b + 9);
+    c.textAlign = 'right'; c.fillText('t', ZC.W - r, ZC.H - b + 9);
+    // area + line
+    const y0 = zy(0);
+    c.beginPath(); c.moveTo(zx(0), y0);
+    for (let i = 0; i < ZC.ts.length; i++) c.lineTo(zx(ZC.ts[i]), zy(ZC.vs[i]));
+    c.lineTo(zx(ZC.T), y0); c.closePath();
+    c.globalAlpha = 0.1; c.fillStyle = T['grid-re']; c.fill(); c.globalAlpha = 1;
+    c.beginPath();
+    for (let i = 0; i < ZC.ts.length; i++) { const x = zx(ZC.ts[i]), y = zy(ZC.vs[i]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+    c.lineWidth = 2; c.strokeStyle = T['grid-re']; c.lineJoin = 'round'; c.stroke();
+    // zeros
+    for (const g of zeros) {
+      if (g > ZC.T) break;
+      c.beginPath(); c.arc(zx(g), y0, 4, 0, 2 * Math.PI);
+      c.fillStyle = T.crit; c.fill(); c.lineWidth = 2; c.strokeStyle = T.surface; c.stroke();
+    }
+    if (zeros.length) {
+      c.font = `12px ${T.mono}`; c.fillStyle = T['ink-2']; c.textAlign = 'center'; c.textBaseline = 'bottom';
+      c.fillText('γ₁ = 14.1347', zx(zeros[0]), zy(ZC.ymax * 0.62));
+      c.strokeStyle = T.axis; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(zx(zeros[0]), zy(ZC.ymax * 0.6)); c.lineTo(zx(zeros[0]), y0 - 7); c.stroke();
+    }
+    if (ZC.hover != null) {
+      const x = zx(ZC.hover.t);
+      c.strokeStyle = T.axis; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(Math.round(x) + 0.5, t); c.lineTo(Math.round(x) + 0.5, ZC.H - b); c.stroke();
+      c.beginPath(); c.arc(x, zy(ZC.hover.z), 4.5, 0, 2 * Math.PI);
+      c.fillStyle = T['grid-re']; c.fill(); c.lineWidth = 2; c.strokeStyle = T.surface; c.stroke();
+    }
+  }
+  function sizeZ() {
+    const r = zstage.getBoundingClientRect();
+    ZC.W = r.width; ZC.H = r.height;
+    zctx = sizeCanvas(zcv, r.width, r.height);
+    drawZ();
+  }
+  zcv.addEventListener('pointermove', (e) => {
+    const r = zcv.getBoundingClientRect(), x = e.clientX - r.left;
+    const t = Math.max(0, Math.min(ZC.T, ((x - ZC.pad.l) / (ZC.W - ZC.pad.l - ZC.pad.r)) * ZC.T));
+    const h = Z.hardyZ(t);
+    ZC.hover = { t, z: h.re };
+    let near = null, k = -1;
+    zeros.forEach((g, i) => { if (near == null || Math.abs(g - t) < Math.abs(near - t)) { near = g; k = i; } });
+    ztip.innerHTML = '';
+    const rows = [['t', t.toFixed(4)], ['Z(t)', fnum(h.re, 5)], ['|ζ(½+it)|', fnum(Math.abs(h.re), 5)]];
+    if (near != null) rows.push([`nearest γ${k + 1}`, near.toFixed(6)]);
+    for (const [kk, vv] of rows) { const d = document.createElement('div'); const s = document.createElement('span'); s.className = 'k'; s.textContent = kk + '  '; d.append(s, vv); ztip.append(d); }
+    ztip.hidden = false;
+    const tw = ztip.offsetWidth;
+    ztip.style.left = (x + 14 + tw > ZC.W ? x - 14 - tw : x + 14) + 'px';
+    ztip.style.top = '8px';
+    drawZ();
+  });
+  zcv.addEventListener('pointerleave', () => { ZC.hover = null; ztip.hidden = true; drawZ(); });
+  for (const bt of $('zrange').querySelectorAll('button')) bt.onclick = () => {
+    ZC.T = +bt.dataset.t;
+    for (const o of $('zrange').querySelectorAll('button')) o.setAttribute('aria-pressed', String(o === bt));
+    buildZ(); drawZ();
+  };
+
+  // ---------- numeric checks ----------
+  function runChecks() {
+    const t0 = performance.now();
+    const rows = [];
+    const add = (name, got, want, err, tol = 1e-9) => rows.push({ name, got, want, err, pass: err <= tol });
+    const z2 = Z.zeta(2, 0)[0]; add('ζ(2) = π²/6', fnum(z2, 15), fnum(Math.PI ** 2 / 6, 15), Math.abs(z2 - Math.PI ** 2 / 6));
+    const zm1 = Z.zeta(-1, 0)[0]; add('ζ(−1) = −1/12', fnum(zm1, 15), fnum(-1 / 12, 15), Math.abs(zm1 + 1 / 12));
+    const zh = Z.zeta(0.5, 0)[0]; add('ζ(½)', fnum(zh, 15), '−1.460354508809587', Math.abs(zh + 1.4603545088095868));
+    const zm2 = Z.zeta(-2, 0); add('ζ(−2) = 0, first trivial zero', fnum(Math.hypot(...zm2), 3), '0', Math.hypot(...zm2));
+    let md = 0; PUBLISHED.forEach((g, i) => { md = Math.max(md, Math.abs((zeros[i] ?? Infinity) - g)); });
+    add('First 10 zeros vs published table (Odlyzko)', `γ₁ = ${zeros[0].toFixed(12)}`, `γ₁ = ${PUBLISHED[0].toFixed(12)}`, md);
+    const g1 = Z.zeta(0.5, zeros[0]); add('|F(iγ₁)| with c = ½', fnum(Math.hypot(...g1), 3), '0', Math.hypot(...g1));
+    const n100 = zeros.filter((g) => g < 100).length; add('Zeros with 0 < t < 100', String(n100), '29', Math.abs(n100 - 29), 0);
+    for (const [a, b] of [[0.3, 7], [0.17, -22.5]]) {
+      const L = Z.xiFromDef(0.5 + a, b), R = Z.xiFromDef(0.5 - a, -b);
+      add(`G(w) = G(−w) at w = ${fcx(a, b).replace(/\.?0+(?=\s|i)/g, '')}`, fcx(L[0], L[1]), fcx(R[0], R[1]), Math.hypot(L[0] - R[0], L[1] - R[1]) / Math.hypot(...L));
+    }
+    const gi = Z.xiFromDef(0.5, 20); add('G(20i) is real', fcx(gi[0], gi[1]), 'imaginary part 0', Math.abs(gi[1]) / Math.hypot(...gi));
+    let mi = 0; for (let k = 1; k <= 400; k++) { const h = Z.hardyZ(k * 0.25); mi = Math.max(mi, Math.abs(h.im) / Math.max(1e-3, Math.abs(h.re))); }
+    add('Hardy Z(t) is real, 400 points t ≤ 100', 'max |Im Z| / |Z|', '0', mi);
+    const ok = `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="${T.good}"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const bad = `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="${T.crit}"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+    const tb = $('checks'); tb.innerHTML = '';
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const cells = [r.name, r.got, r.want, r.err === 0 ? '0' : r.err.toExponential(1).replace('-', '−')];
+      cells.forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i) td.className = 'num'; tr.append(td); });
+      const td = document.createElement('td'); td.innerHTML = `<span class="status">${r.pass ? ok : bad}${r.pass ? 'Pass' : 'Fail'}</span>`; tr.append(td);
+      tb.append(tr);
+    }
+    $('c-time').textContent = `${rows.filter((r) => r.pass).length} of ${rows.length} pass · ${Math.round(performance.now() - t0)} ms`;
+  }
+
+  // ---------- sizing, theme, boot ----------
+  function sizePlane() {
+    const r = stage.getBoundingClientRect();
+    const first = !S.W;
+    S.W = r.width; S.H = r.height;
+    ctx = sizeCanvas(cv, S.W, S.H);
+    if (first) resetView();
+    S.ready = true;
+    requestRebuild();
+  }
+  const ro = new ResizeObserver(() => { sizePlane(); sizeZ(); });
+  const retheme = () => { readTokens(); draw(); drawZ(); runChecks(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  readTokens();
+  updateText();
+  renderTools();
+  buildZ();
+  ro.observe(stage);
+  ro.observe(zstage);
+  setTimeout(runChecks, 60);
+  // find the rest of the zeros up to the computed height limit, in the background
+  setTimeout(() => {
+    const more = Z.criticalZeros(zerosTo, IM_LIMIT);
+    zeros = zeros.concat(more); zerosTo = IM_LIMIT; markCache.key = '';
+    draw(); drawZ();
+  }, 400);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { draw(); drawZ(); });
+})();
+</script>
+</body>
+</html>
