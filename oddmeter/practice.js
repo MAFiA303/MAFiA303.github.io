@@ -1,0 +1,151 @@
+import { makeLanePulses } from './rhythm.js';
+import { soundOptions } from './sounds.js';
+
+// Tempo references are measured in quarter notes, independently of the meter.
+export const tempoBeats = [
+  [1, 'Quarter note'],
+  [0.5, 'Eighth note'],
+  [1.5, 'Dotted quarter'],
+  [2, 'Half note'],
+];
+
+export const standardPresets = [
+  { id: 'four-four', label: '4/4', beats: 4, unit: 4, groups: [4] },
+  { id: 'three-four', label: '3/4', beats: 3, unit: 4, groups: [3] },
+  { id: 'six-eight', label: '6/8', beats: 6, unit: 8, groups: [3, 3] },
+  { id: 'five-eight', label: '5/8', beats: 5, unit: 8, groups: [3, 2] },
+  { id: 'seven-eight', label: '7/8', beats: 7, unit: 8, groups: [2, 2, 3] },
+  { id: 'nine-eight', label: '9/8', beats: 9, unit: 8, groups: [3, 3, 3] },
+  { id: 'eleven-eight', label: '11/8', beats: 11, unit: 8, groups: [3, 3, 3, 2] },
+];
+
+const presetLane = (count, span = 'beat', enabled = true, offbeatsOnly = false, accents = [0]) =>
+  ({ count, span, enabled, offbeatsOnly, accents });
+
+export const rhythmPresets = [
+  ...standardPresets.map((preset) => ({
+    ...preset,
+    lanes: [presetLane(1, 'beat', true, false, groupStarts(preset.groups)), presetLane(1, 'beat', true, true, []), presetLane(1, 'beat', true, true, [])],
+  })),
+  { id: 'eighths', label: 'Eighths', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1), presetLane(2, 'beat', true, true, []), presetLane(1, 'beat', true, true, [])] },
+  { id: 'triplets', label: 'Triplets', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1), presetLane(3, 'beat', true, true, []), presetLane(1, 'beat', true, true, [])] },
+  { id: 'three-four-bar', label: '3:4 per bar', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1, 'beat', false), presetLane(3, 'bar'), presetLane(4, 'bar')] },
+  { id: 'five-four-bar', label: '5:4 per bar', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1, 'beat', false), presetLane(5, 'bar'), presetLane(4, 'bar')] },
+  { id: 'seven-four-bar', label: '7:4 per bar', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1, 'beat', false), presetLane(7, 'bar'), presetLane(4, 'bar')] },
+  { id: 'three-four-beat', label: '3:4 per beat', beats: 4, unit: 4, groups: [4],
+    lanes: [presetLane(1, 'beat', false), presetLane(3), presetLane(4)] },
+];
+
+export function parseGrouping(text, beats) {
+  if (typeof text !== 'string' || !Number.isInteger(beats) || beats < 1) return null;
+  if (!/^\s*[1-9]\d*\s*(?:\+\s*[1-9]\d*\s*)*$/.test(text)) return null;
+  const groups = text.split('+').map(Number);
+  if (groups.some((group) => group > 32)) return null;
+  return groups.reduce((sum, group) => sum + group, 0) === beats ? groups : null;
+}
+
+export function groupStarts(groups) {
+  let index = 0;
+  return groups.map((group) => {
+    const start = index;
+    index += group;
+    return start;
+  });
+}
+
+const validSounds = new Set(soundOptions.map(([id]) => id));
+const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const validIndex = (key, max) => /^(0|[1-9]\d*)$/.test(key) && Number(key) < max;
+
+function readMarkerState(value) {
+  const source = object(value);
+  const state = { accented: source.accented === true, rest: source.rest === true };
+  if (validSounds.has(source.sound)) state.sound = source.sound;
+  return state.accented || state.rest || state.sound ? state : null;
+}
+
+// Semantic positions retain edits when a tuplet part is temporarily hidden.
+// Unmapped indices preserve dormant settings from older, flat marker arrays.
+export function readMarkerMemory(value) {
+  const source = object(value);
+  const read = (entries, validKey) => Object.fromEntries(Object.entries(object(entries)).flatMap(([key, value]) => {
+    const state = readMarkerState(value);
+    return validKey(key) && state ? [[key, state]] : [];
+  }));
+  const beat = read(source.beat, (key) => {
+    const parts = key.split(':');
+    return parts.length === 2 && validIndex(parts[0], 32) && validIndex(parts[1], 16);
+  });
+  const bar = read(source.bar, (key) => validIndex(key, 16));
+  const unmapped = {
+    beat: read(source.unmapped?.beat, (key) => validIndex(key, 512)),
+    bar: read(source.unmapped?.bar, (key) => validIndex(key, 512)),
+  };
+  const seen = Object.fromEntries(['beat', 'bar'].map((span) => [span,
+    source.seen?.[span] === true || Object.keys(span === 'beat' ? beat : bar).length > 0 || Object.keys(unmapped[span]).length > 0,
+  ]));
+  return { beat, bar, unmapped, seen };
+}
+
+const spanOf = (lane) => lane.span === 'bar' ? 'bar' : 'beat';
+const markerKey = (span, pulse) => span === 'bar' ? String(pulse.index) : `${pulse.beat}:${pulse.part}`;
+
+// Mutates a validated lane. The callback edits count, span, beatCounts, or
+// offbeatsOnly; visible marker edits must remain in the lane's flat arrays.
+export function editRhythmLane(lane, change) {
+  const memory = readMarkerMemory(lane.markerMemory);
+  const previousSpan = spanOf(lane);
+  const before = makeLanePulses({ ...lane, enabled: true }, 32);
+  const flat = new Map();
+  const indices = new Set([...lane.accents, ...lane.rests, ...Object.keys(lane.pulseSounds).map(Number)]);
+  for (const index of indices) {
+    if (!Number.isInteger(index) || index < 0 || index >= 512) continue;
+    const state = readMarkerState({ accented: lane.accents.includes(index), rest: lane.rests.includes(index), sound: lane.pulseSounds[index] });
+    if (state) flat.set(index, state);
+  }
+  const available = new Set(before.map(({ index }) => index));
+  for (const pulse of before) {
+    const key = markerKey(previousSpan, pulse);
+    const state = flat.get(pulse.index);
+    if (state) memory[previousSpan][key] = state;
+    else delete memory[previousSpan][key];
+  }
+  memory.unmapped[previousSpan] = Object.fromEntries([...flat].filter(([index]) => !available.has(index)));
+  memory.seen[previousSpan] = true;
+
+  change(lane);
+  const span = spanOf(lane);
+  const after = makeLanePulses({ ...lane, enabled: true }, 32);
+  const byIndex = new Map(after.map((pulse) => [pulse.index, pulse]));
+  if (!memory.seen[span]) {
+    for (const [index, state] of flat) {
+      const pulse = byIndex.get(index);
+      if (pulse) memory[span][markerKey(span, pulse)] = { ...state };
+      else memory.unmapped[span][index] = { ...state };
+    }
+    memory.seen[span] = true;
+  }
+  const result = new Map();
+  for (const pulse of after) {
+    const key = markerKey(span, pulse);
+    const unknown = memory.unmapped[span][pulse.index];
+    if (unknown) {
+      memory[span][key] ??= unknown;
+      delete memory.unmapped[span][pulse.index];
+    }
+    const state = memory[span][key];
+    if (state) result.set(pulse.index, state);
+  }
+  for (const [index, state] of Object.entries(memory.unmapped[span])) result.set(Number(index), state);
+  const ordered = [...result].sort(([a], [b]) => a - b);
+  lane.accents = ordered.filter(([, state]) => state.accented).map(([index]) => index);
+  lane.rests = ordered.filter(([, state]) => state.rest).map(([index]) => index);
+  lane.pulseSounds = Object.fromEntries(ordered.filter(([, state]) => state.sound).map(([index, state]) => [index, state.sound]));
+  lane.markerMemory = memory;
+  return lane;
+}

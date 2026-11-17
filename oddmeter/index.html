@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="A practice metronome for beat subdivisions, polyrhythms, and odd meters.">
+  <title>Oddmeter — Practice Metronome</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div class="wordmark"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>ODDMETER</div>
+      <div class="status" id="status" role="status"><span class="status-light"></span><span id="status-text">Ready</span><span id="position" aria-hidden="true"></span></div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="intro" aria-labelledby="title">
+      <h1 id="title"><span class="mode-title">Practice</span> <span>metronome</span></h1>
+    </section>
+
+    <div class="console">
+      <section class="tempo-panel" aria-label="Tempo">
+        <div class="tempo-dial">
+          <button type="button" class="step tempo-step" id="tempo-down" aria-label="Decrease tempo">−</button>
+          <div class="tempo-readout">
+            <input id="bpm" class="bpm" type="number" aria-label="Tempo in selected beats per minute" min="20" max="300" step="1" value="70" inputmode="numeric">
+            <span class="label tempo-unit" aria-hidden="true">BPM</span>
+          </div>
+          <button type="button" class="step tempo-step" id="tempo-up" aria-label="Increase tempo">+</button>
+        </div>
+        <input class="range" id="tempo-range" type="range" min="20" max="300" value="70" aria-label="Tempo slider">
+        <button type="button" class="tap-button" id="tap" aria-label="Tap tempo" aria-keyshortcuts="T" title="Tap tempo (T)">Tap</button>
+      </section>
+
+      <section class="rhythm-panel" aria-labelledby="rhythm-title">
+        <div class="section-header rhythm-header">
+          <div><h2 id="rhythm-title">Beat grid</h2><output id="cycle-length" class="label cycle-length">2.57 s / bar</output></div>
+          <div class="meter-setting"><span class="label" id="meter-label">Time signature</span><div class="meter" role="group" aria-labelledby="meter-label"><select id="meter-beats" aria-label="Time signature numerator"></select><span aria-hidden="true">/</span><select id="meter-unit" aria-label="Time signature denominator"></select></div></div>
+        </div>
+        <div class="ruler-row" aria-hidden="true"><span class="label">Beats</span><div class="timeline-scroll ruler-scroll" data-timeline-scroll><div class="ruler-track"><div class="ruler" id="ruler"></div></div></div></div>
+        <section class="lane lane-a" data-lane="0" aria-label="Beat">
+          <div class="lane-controls"><h3 class="lane-name">Beat</h3><button type="button" class="lane-enabled icon-button" aria-label="Mute beat" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button></div>
+          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Beat timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts" hidden></div><div class="playhead" aria-hidden="true"></div></div></div></div>
+          <output class="lane-summary" hidden></output>
+        </section>
+        <section class="lane lane-b" data-lane="1" aria-label="Subdivision 1">
+          <div class="lane-controls"><h3 class="lane-name">Subdiv 1</h3><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 1" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 1 count">‹</button><select class="lane-count" aria-label="Subdivision 1 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 1 count">›</button></div></div>
+          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 1 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts" ></div><div class="playhead" aria-hidden="true"></div></div></div></div>
+          <output class="lane-summary" hidden></output>
+        </section>
+        <section class="lane lane-c" data-lane="2" aria-label="Subdivision 2">
+          <div class="lane-controls"><h3 class="lane-name">Subdiv 2</h3><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 2" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 2 count">‹</button><select class="lane-count" aria-label="Subdivision 2 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 2 count">›</button></div></div>
+          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 2 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts" ></div><div class="playhead" aria-hidden="true"></div></div></div></div>
+          <output class="lane-summary" hidden></output>
+        </section>
+        <span id="pulse-hint" hidden>Click to cycle sounds and rest. Shift-click to toggle accent.</span>
+        <output id="pulse-feedback" class="visually-hidden" role="status"></output>
+        <details class="advanced-settings"><summary>More</summary>
+    <div class="rhythm-toolbar">
+      <label class="preset-picker"><span class="label">Preset</span><select id="preset" aria-label="Practice preset"><option value="">Custom</option></select></label>
+      <div class="sound-controls" role="group" aria-label="Click sounds">
+        <label><span class="label">Beat</span><select id="sound-a" aria-label="Beat sound"></select></label>
+        <label><span class="label">Subdiv 1</span><select id="sound-b" aria-label="Subdivision 1 sound"></select></label>
+        <label><span class="label">Subdiv 2</span><select id="sound-c" aria-label="Subdivision 2 sound"></select></label>
+      </div>
+    </div>
+
+<label class="tempo-reference"><span class="label">Tempo beat</span><select id="tempo-beat" aria-label="Tempo beat unit"></select></label>
+          <div class="editing-options">
+            <button type="button" id="edit-sounds" class="edit-accents" aria-pressed="false">Edit sounds</button>
+            <div class="pulse-editor" id="pulse-editor" hidden><label id="pulse-editor-label" for="pulse-sound">Marker sound</label><select id="pulse-sound"></select><button type="button" id="close-editor">Done</button></div>
+          </div>
+          <div class="grouping-setting"><label class="label" for="grouping">Beat grouping</label><div class="grouping-entry"><input id="grouping" type="text" value="4" autocomplete="off" spellcheck="false" aria-describedby="grouping-help grouping-error"><button type="button" id="apply-grouping">Apply accents</button></div><span id="grouping-help">Group starts are accented.</span><span id="grouping-error" role="alert" hidden></span></div>
+            <fieldset class="subdiv-options" id="subdiv-1-options"><legend>Subdivision 1</legend>
+              <label>Fit clicks <select class="lane-span" aria-label="Subdivision 1 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
+              <label><input type="checkbox" class="offbeats-only">Offbeats only</label>
+              <button type="button" class="reset-counts">Reset custom counts</button>
+            </fieldset>
+            <fieldset class="subdiv-options" id="subdiv-2-options"><legend>Subdivision 2</legend>
+              <label>Fit clicks <select class="lane-span" aria-label="Subdivision 2 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
+              <label><input type="checkbox" class="offbeats-only">Offbeats only</label>
+              <button type="button" class="reset-counts">Reset custom counts</button>
+            </fieldset>
+      <label class="count-control">
+        <input type="checkbox" id="count-in">
+        <span class="switch" aria-hidden="true"></span>
+        <span title="One bar of clicks in the time signature’s denominator unit">Count-in <small>1 bar</small></span>
+      </label>
+          <p class="advanced-help">Per-note counts fit inside equal beats. Per-bar counts spread across the whole bar.</p>
+        </details>
+      </section>
+    </div>
+
+    <section class="transport" aria-label="Playback controls">
+      <div class="play-controls">
+        <button type="button" id="play" class="play" aria-keyshortcuts="Space"><span class="play-icon" aria-hidden="true"></span><span id="play-label">Start</span></button>
+      </div>
+      <div class="volume-control">
+        <button type="button" id="mute-all" class="icon-button" aria-label="Mute master volume" title="Mute master volume" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button>
+        <input class="range" type="range" id="volume" min="0" max="200" value="160" aria-label="Master volume">
+        <output id="volume-value" for="volume">160%</output>
+      </div>
+    </section>
+    <p id="message" class="message" role="alert" hidden></p>
+  </main>
+</body>
+</html>
