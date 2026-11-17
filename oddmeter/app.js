@@ -1,7 +1,7 @@
 import { beatUnits, clampInt, limits, makeLanePulses, measureSeconds, subdivisionName } from './rhythm.js';
 import { pulseSoundOptions, soundOptions } from './sounds.js';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, editRhythmLane } from './practice.js';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=share1';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -46,7 +46,7 @@ function save() {
 }
 
 let shareFeedbackTimer;
-ui.share.addEventListener('click', async () => {
+ui.share?.addEventListener('click', async () => {
   const link = makeSetupLink(window.location.href, settings);
   try {
     await window.navigator.clipboard.writeText(link);
@@ -745,7 +745,7 @@ ui.muteAll.addEventListener('click', () => {
 });
 ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => { for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft; }));
 document.addEventListener('keydown', (event) => {
-  if (ui.shareDialog.open) return;
+  if (ui.shareDialog?.open) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
   if (event.key === 'Escape' && selectedPulse) { ui.closeEditor.click(); event.preventDefault(); return; }
   if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable]')) return;
