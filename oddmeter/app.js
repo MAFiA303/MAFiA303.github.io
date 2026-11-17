@@ -39,10 +39,32 @@ try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch { /* Storage
 const setupHash = window.location.hash.startsWith(setupLinkPrefix);
 const shared = readSetupLink(window.location.hash);
 const settings = shared ?? readSettings(saved);
+const saveLocally = !shared || window.history.state?.oddmeterLocalSetup === true;
+let urlUpdateTimer;
+let lastUrlEdit = -Infinity;
+
+function updateSetupUrl() {
+  const link = makeSetupLink(window.location.href, settings);
+  if (link === window.location.href) return;
+  window.history.replaceState({ ...window.history.state, oddmeterLocalSetup: saveLocally }, '', link);
+}
+
+function queueSetupUrl() {
+  window.clearTimeout(urlUpdateTimer);
+  const delay = 400 - (performance.now() - lastUrlEdit);
+  const update = () => {
+    lastUrlEdit = performance.now();
+    updateSetupUrl();
+  };
+  if (delay <= 0) update();
+  else urlUpdateTimer = window.setTimeout(update, delay);
+}
 
 function save() {
-  if (shared) return;
-  try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Playback works without storage. */ }
+  if (saveLocally) {
+    try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Playback works without storage. */ }
+  }
+  queueSetupUrl();
 }
 
 let shareFeedbackTimer;
@@ -64,8 +86,11 @@ ui.share?.addEventListener('click', async () => {
     ui.shareLink.select();
   }
 });
-window.addEventListener('hashchange', () => {
-  if (setupHash || window.location.hash.startsWith(setupLinkPrefix)) window.location.reload();
+window.addEventListener('hashchange', (event) => {
+  if (new URL(event.oldURL).hash.startsWith(setupLinkPrefix) || window.location.hash.startsWith(setupLinkPrefix)) {
+    window.clearTimeout(urlUpdateTimer);
+    window.location.reload();
+  }
 });
 
 let context;
@@ -762,3 +787,4 @@ renderRhythms();
 renderSummary();
 renderVolume();
 if (setupHash && !shared) showMessage('This setup link could not be loaded.');
+else updateSetupUrl();
