@@ -49,6 +49,20 @@ export function parseGrouping(text, beats) {
   return groups.reduce((sum, group) => sum + group, 0) === beats ? groups : null;
 }
 
+// Quick grouping choices for odd and compound meters: every ordering of 2s and
+// 3s that fills the bar, plus the whole bar and the current custom grouping.
+export function groupingChoices(beats, current = [beats]) {
+  const choices = [[beats]];
+  const build = (left, prefix) => {
+    if (left === 0) { choices.push(prefix); return; }
+    for (const part of [2, 3]) if (part <= left) build(left - part, [...prefix, part]);
+  };
+  if (beats >= 5 && beats <= 13) build(beats, []);
+  const key = current.join('+');
+  if (!choices.some((choice) => choice.join('+') === key)) choices.push([...current]);
+  return choices;
+}
+
 export function groupStarts(groups) {
   let index = 0;
   return groups.map((group) => {
