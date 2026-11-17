@@ -4,6 +4,7 @@ import { defaultSounds, soundOptions } from './sounds.js';
 
 export const storageKey = 'oddmeter-settings-v1';
 export const defaultVolume = 100;
+export const setupLinkPrefix = '#setup=';
 const starterSettings = {
   schemaVersion: 3,
   bpm: 70,
@@ -166,4 +167,34 @@ export function readSettings(value) {
     masterMuted: saved.masterMuted === true,
     countIn: saved.countIn === true,
   };
+}
+
+export function makeSetupLink(base, settings) {
+  const { schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn } = settings;
+  const snapshot = {
+    schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn,
+    lanes: settings.lanes.map(({ count, span, enabled, muted, offbeatsOnly, beatCounts, accents, rests, pulseSounds }) => ({
+      count, span, enabled, muted, offbeatsOnly, accents, rests, pulseSounds,
+      beatCounts: beatCounts.slice(0, beatCounts.findLastIndex((value) => value !== null) + 1),
+    })),
+  };
+  const encoded = btoa(JSON.stringify(snapshot)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  const url = new URL(base);
+  url.search = '';
+  url.hash = setupLinkPrefix + encoded;
+  return url.href;
+}
+
+export function readSetupLink(hash) {
+  if (!hash.startsWith(setupLinkPrefix) || hash.length > 65536) return null;
+  const encoded = hash.slice(setupLinkPrefix.length);
+  if (!/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
+  try {
+    const snapshot = JSON.parse(atob(encoded.replaceAll('-', '+').replaceAll('_', '/')));
+    if (snapshot?.schemaVersion !== 3 || !Array.isArray(snapshot.lanes) || snapshot.lanes.length !== 3 ||
+        !snapshot.lanes.every((lane) => lane && record(lane) === lane)) return null;
+    return readSettings(snapshot);
+  } catch {
+    return null;
+  }
 }

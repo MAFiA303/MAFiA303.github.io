@@ -13,7 +13,11 @@
   <header class="site-header">
     <div class="shell header-inner">
       <div class="wordmark"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>ODDMETER</div>
-      <div class="status" id="status" role="status"><span class="status-light"></span><span id="status-text">Ready</span><span id="position" aria-hidden="true"></span></div>
+      <div class="header-actions">
+        <div class="status" id="status" role="status"><span class="status-light"></span><span id="status-text">Ready</span><span id="position" aria-hidden="true"></span></div>
+        <button type="button" id="share" class="share-button" aria-label="Share current setup">Share</button>
+        <span id="share-feedback" class="visually-hidden" role="status"></span>
+      </div>
     </div>
   </header>
 
@@ -107,5 +111,12 @@
     </section>
     <p id="message" class="message" role="alert" hidden></p>
   </main>
+  <dialog id="share-dialog" class="share-dialog" aria-labelledby="share-title">
+    <form method="dialog">
+      <label id="share-title" for="share-link">Copy setup link</label>
+      <input type="url" id="share-link" readonly>
+      <button type="submit">Done</button>
+    </form>
+  </dialog>
 </body>
 </html>

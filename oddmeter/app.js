@@ -1,7 +1,7 @@
 import { beatUnits, clampInt, limits, makeLanePulses, measureSeconds, subdivisionName } from './rhythm.js';
 import { pulseSoundOptions, soundOptions } from './sounds.js';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, editRhythmLane } from './practice.js';
-import { readSettings, storageKey, defaultVolume } from './settings.js';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -17,6 +17,7 @@ const ui = {
   pulseEditor: byId('pulse-editor'), pulseEditorLabel: byId('pulse-editor-label'), pulseSound: byId('pulse-sound'), closeEditor: byId('close-editor'),
   duration: byId('cycle-length'), play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
+  share: byId('share'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'),
   scrolls: [...document.querySelectorAll('[data-timeline-scroll]')],
 };
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
@@ -35,11 +36,37 @@ const soundNames = new Map(pulseSoundOptions);
 const unitNames = { 2: 'half note', 4: 'quarter note', 8: 'eighth note', 16: 'sixteenth note' };
 let saved;
 try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch { /* Storage is optional. */ }
-const settings = readSettings(saved);
+const setupHash = window.location.hash.startsWith(setupLinkPrefix);
+const shared = readSetupLink(window.location.hash);
+const settings = shared ?? readSettings(saved);
 
 function save() {
+  if (shared) return;
   try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Playback works without storage. */ }
 }
+
+let shareFeedbackTimer;
+ui.share.addEventListener('click', async () => {
+  const link = makeSetupLink(window.location.href, settings);
+  try {
+    await window.navigator.clipboard.writeText(link);
+    ui.share.textContent = 'Copied';
+    ui.shareFeedback.textContent = 'Setup link copied.';
+    clearTimeout(shareFeedbackTimer);
+    shareFeedbackTimer = window.setTimeout(() => {
+      ui.share.textContent = 'Share';
+      ui.shareFeedback.textContent = '';
+    }, 1600);
+  } catch {
+    ui.shareLink.value = link;
+    if (!ui.shareDialog.open) ui.shareDialog.showModal();
+    ui.shareLink.focus();
+    ui.shareLink.select();
+  }
+});
+window.addEventListener('hashchange', () => {
+  if (setupHash || window.location.hash.startsWith(setupLinkPrefix)) window.location.reload();
+});
 
 let context;
 let processor;
@@ -718,6 +745,7 @@ ui.muteAll.addEventListener('click', () => {
 });
 ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => { for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft; }));
 document.addEventListener('keydown', (event) => {
+  if (ui.shareDialog.open) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
   if (event.key === 'Escape' && selectedPulse) { ui.closeEditor.click(); event.preventDefault(); return; }
   if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable]')) return;
@@ -733,3 +761,4 @@ renderMeter();
 renderRhythms();
 renderSummary();
 renderVolume();
+if (setupHash && !shared) showMessage('This setup link could not be loaded.');

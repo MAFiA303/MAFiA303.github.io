@@ -33,6 +33,7 @@ button:not(:disabled):hover { border-color: var(--line-strong); background: #282
 
 .site-header { border-bottom: 1px solid var(--line); }
 .header-inner { display: flex; min-height: 68px; justify-content: space-between; align-items: center; gap: 12px; }
+.header-actions { display: flex; align-items: center; gap: clamp(8px, 2vw, 18px); }
 .wordmark { display: inline-flex; align-items: center; gap: 11px; font-size: .98rem; font-weight: 800; letter-spacing: .105em; }
 .mark { width: 28px; height: 28px; display: flex; gap: 3px; align-items: flex-end; justify-content: center; padding: 5px; background: var(--accent); }
 .mark i { width: 4px; background: #151515; height: 9px; }
@@ -42,6 +43,13 @@ button:not(:disabled):hover { border-color: var(--line-strong); background: #282
 .status-light { height: 7px; width: 7px; background: #888684; }
 .status[data-active] { color: var(--text); }
 .status[data-active] .status-light { background: var(--accent); }
+#position:empty { display: none; }
+.share-button { width: 64px; min-height: 36px; color: var(--text); font: 600 .75rem/1 var(--mono); }
+.share-dialog { width: min(380px, calc(100% - 32px)); padding: 16px; color: var(--text); background: var(--panel); border: 1px solid var(--line-strong); }
+.share-dialog::backdrop { background: #0009; }
+.share-dialog form { display: grid; gap: 10px; }
+.share-dialog input { width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid var(--line-strong); background: var(--well); }
+.share-dialog button { justify-self: end; min-height: 36px; padding-inline: 12px; }
 
 .intro { position: relative; isolation: isolate; margin-top: 28px; padding: 8px 0 20px; }
 .intro::before {
@@ -232,6 +240,11 @@ kbd { display: inline-block; background: var(--well); border: 1px solid var(--li
 @media (max-width: 360px) {
   .shell { width: calc(100% - 16px); }
   .transport, .message { left: 8px; right: 8px; }
+}
+@media (max-width: 400px) {
+  .header-inner { gap: 6px; }
+  .status { display: grid; grid-template-columns: auto auto; gap: 2px 5px; }
+  #position { grid-column: 2; }
 }
 @media (prefers-reduced-motion: reduce) {
   .console[data-playing] .playhead { display: none; }
