@@ -4,40 +4,75 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      const saved = localStorage.getItem('color-scheme');
+      if (saved === 'light' || saved === 'dark') {
+        document.querySelector('meta[name="color-scheme"]').content = saved;
+      }
+    } catch {}
+  </script>
   <meta name="description" content="Saad Kay (mafium.com) — Science, Music, Games, Photography, and AI.">
   <title>Saad Kay — mafium</title>
   <link rel="icon" href="./favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,500;0,600;1,500&display=swap">
-  <link rel="stylesheet" href="./home.css?v=6">
-  <script type="module" src="./home.js?v=6"></script>
+  <link rel="stylesheet" href="./home.css?v=8">
+  <script type="module" src="./home.js?v=8"></script>
 </head>
 <body>
+  <div id="scroll-progress" class="scroll-progress" aria-hidden="true"></div>
   <a class="skip-link visually-hidden" href="#work">Skip to work</a>
 
   <header class="masthead">
     <div class="frame masthead-inner">
-      <a class="wordmark" href="./" aria-current="page">
+      <a class="wordmark" href="#top" aria-label="MAFIUM top">
         <span class="wordmark-dot" aria-hidden="true"></span>
         <span>MAFIUM</span>
       </a>
-      <span class="masthead-meta">California · Dubai · Amman</span>
-      <nav class="masthead-nav" aria-label="Primary">
+
+      <nav class="masthead-nav" aria-label="Sections">
         <ul>
-          <li><a href="#work">Work</a></li>
+          <li><a href="#science">Science</a></li>
+          <li><a href="#music">Music</a></li>
+          <li><a href="#games">Games</a></li>
+          <li><a href="#photography">Photography</a></li>
+          <li><a href="#ai">AI</a></li>
           <li><a href="#about">About</a></li>
-          <li><a href="#contact">Contact</a></li>
-          <li><a href="https://github.com/MAFiA303/" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
         </ul>
       </nav>
+
+      <div class="masthead-tools">
+        <button type="button" id="theme-toggle" class="theme-toggle">
+          <span class="theme-opt theme-opt-to-light">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <span class="theme-label">Light</span>
+            <span class="visually-hidden">Switch to light theme</span>
+          </span>
+          <span class="theme-opt theme-opt-to-dark">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M12.6 10.2A5.2 5.2 0 0 1 5.8 3.4a5.4 5.4 0 1 0 6.8 6.8Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+            <span class="theme-label">Dark</span>
+            <span class="visually-hidden">Switch to dark theme</span>
+          </span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="frame">
+  <main id="top" class="frame">
     <section class="frontispiece" aria-label="Profile">
       <div class="front-copy">
         <div class="front-head">
+          <div class="front-eyebrow">
+            <span>California · Dubai · Amman</span>
+            <span>mafium.com</span>
+          </div>
           <h1 class="front-title">Saad Kay</h1>
           <p class="front-roles">Digital Bedouin · Data Scientist · Musician · Photographer</p>
         </div>
@@ -47,6 +82,7 @@
           <li><a href="https://www.instagram.com/mafia303/" target="_blank" rel="noopener noreferrer">Instagram @mafia303 ↗</a></li>
           <li><a href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">Music @mafyxia ↗</a></li>
           <li><a href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">Fuzia on Play ↗</a></li>
+          <li><a href="https://github.com/MAFiA303/" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
         </ul>
       </div>
 
@@ -61,354 +97,478 @@
       </figure>
     </section>
 
-    <section id="work" class="index-section" aria-labelledby="work-heading">
-      <div class="index-bar">
-        <h2 id="work-heading">Sections</h2>
-        <p class="index-hint">Science · Music · Games · Photography · AI</p>
+    <section id="work" class="work-shell" aria-label="Work and Projects">
+      <div class="control-deck" role="region" aria-label="Filter and view options">
+        <div class="filter-bar" role="group" aria-label="Filter sections">
+          <button type="button" class="filter-btn" data-filter="all" aria-pressed="true">
+            <span>All</span>
+            <span class="filter-count">5</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="science" aria-pressed="false">
+            <span class="filter-num">01</span><span>Science</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="music" aria-pressed="false">
+            <span class="filter-num">02</span><span>Music</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="games" aria-pressed="false">
+            <span class="filter-num">03</span><span>Games</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="photography" aria-pressed="false">
+            <span class="filter-num">04</span><span>Photography</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="ai" aria-pressed="false">
+            <span class="filter-num">05</span><span>AI</span>
+          </button>
+        </div>
+
+        <div class="view-switch" role="group" aria-label="Layout density">
+          <button type="button" class="view-btn" data-view="showcase" aria-pressed="true">Showcase</button>
+          <button type="button" class="view-btn" data-view="index" aria-pressed="false">Compact</button>
+        </div>
       </div>
 
-      <div class="tabs">
-        <div class="tablist" role="tablist" focusgroup="tablist nomemory" aria-label="Categories">
-          <button type="button" role="tab" id="tab-science" aria-selected="true" focusgroupstart tabindex="0" data-tab="science">
-            <span class="tab-label"><span class="tab-num">01</span><span>Science</span></span>
-            <span class="tab-status">Zeta</span>
-          </button>
-          <button type="button" role="tab" id="tab-music" aria-selected="false" tabindex="-1" data-tab="music">
-            <span class="tab-label"><span class="tab-num">02</span><span>Music</span></span>
-            <span class="tab-status">3</span>
-          </button>
-          <button type="button" role="tab" id="tab-games" aria-selected="false" tabindex="-1" data-tab="games">
-            <span class="tab-label"><span class="tab-num">03</span><span>Games</span></span>
-            <span class="tab-status">Fuzia</span>
-          </button>
-          <button type="button" role="tab" id="tab-photography" aria-selected="false" tabindex="-1" data-tab="photography">
-            <span class="tab-label"><span class="tab-num">04</span><span>Photography</span></span>
-            <span class="tab-status">IG</span>
-          </button>
-          <button type="button" role="tab" id="tab-ai" aria-selected="false" tabindex="-1" data-tab="ai">
-            <span class="tab-label"><span class="tab-num">05</span><span>AI</span></span>
-            <span class="tab-status">Later</span>
-          </button>
-        </div>
-
-        <div class="tab-panels">
-          <!-- 01 · SCIENCE -->
-          <div role="tabpanel" aria-labelledby="tab-science" tabindex="0">
-            <div class="panel-sheet">
-              <article class="entry panel-block">
-                <div class="entry-copy">
-                  <div class="entry-head">
-                    <ul class="entry-meta">
-                      <li>01 · <strong>Riemann Zeta</strong></li>
-                      <li>/zeta/</li>
-                    </ul>
-                    <h3 class="entry-title"><a href="./zeta/">Zeta Shift Lab</a></h3>
-                    <p class="entry-desc">
-                      Shifts the Riemann zeta function by ½ so the critical line sits on the imaginary axis. Morph the complex grid into ζ(s + ½) and verify non-trivial zeros numerically.
-                    </p>
-                  </div>
-
-                  <dl class="entry-specs">
-                    <div>
-                      <dt>Function</dt>
-                      <dd>ζ(s + ½) on Re(s) = 0</dd>
-                    </div>
-                    <div>
-                      <dt>First zero</dt>
-                      <dd>t ≈ 14.134725</dd>
-                    </div>
-                  </dl>
-
-                  <div class="entry-actions">
-                    <a class="entry-action" href="./zeta/">
-                      <span>Open Zeta Shift Lab</span>
-                      <span class="arrow" aria-hidden="true">→</span>
-                    </a>
-                  </div>
-                </div>
-
-                <div class="entry-specimen">
-                  <div class="specimen-bar">
-                    <span>Hardy Z(t) · Critical Line</span>
-                    <span id="zeta-readout" class="specimen-readout">t = 14.13 · Z(t) = 0.00</span>
-                  </div>
-                  <div class="specimen-canvas-wrap">
-                    <canvas id="zeta-specimen" aria-label="Plot of Hardy's Z function showing the first six non-trivial Riemann zeta zeros"></canvas>
-                  </div>
-                  <div class="specimen-foot">
-                    <span>Move pointer to inspect t</span>
-                    <span>Zeros: 14.13 · 21.02 · 25.01 · 30.42 · 32.94 · 37.59</span>
-                  </div>
-                </div>
-              </article>
+      <div id="work-stream" class="work-stream" data-view="showcase">
+        <!-- 01 · SCIENCE -->
+        <section id="science" class="work-band" data-category="science" tabindex="-1" aria-labelledby="heading-science" style="view-transition-name: band-science">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">01</span>
+              <h2 id="heading-science">Science</h2>
             </div>
+            <span class="band-tag">/zeta/ · Riemann Zeta</span>
           </div>
 
-          <!-- 02 · MUSIC (Oddmeter + YouTube @Mafyxia + Instagram @mafyxia) -->
-          <div role="tabpanel" aria-labelledby="tab-music" hidden="until-found">
-            <div class="panel-sheet">
-              <article class="entry panel-block">
-                <div class="entry-copy">
-                  <div class="entry-head">
-                    <ul class="entry-meta">
-                      <li>02.1 · <strong>Metronome</strong></li>
-                      <li>/oddmeter/</li>
-                    </ul>
-                    <h3 class="entry-title"><a href="./oddmeter/">Oddmeter</a></h3>
-                    <p class="entry-desc">
-                      Practice metronome for odd time signatures, beat groupings (2+2+3 in 7/8), polyrhythms, and per-beat subdivisions on one Web Audio clock.
-                    </p>
-                  </div>
-
-                  <dl class="entry-specs">
-                    <div>
-                      <dt>Meters</dt>
-                      <dd>1–32 beats · /2 /4 /8 /16</dd>
-                    </div>
-                    <div>
-                      <dt>Sharing</dt>
-                      <dd>Live URL setup links</dd>
-                    </div>
-                  </dl>
-
-                  <div class="entry-actions">
-                    <a class="entry-action" href="./oddmeter/">
-                      <span>Open Oddmeter</span>
-                      <span class="arrow" aria-hidden="true">→</span>
-                    </a>
-                  </div>
+          <div class="band-sheet">
+            <article class="entry">
+              <div class="entry-copy">
+                <div class="entry-head">
+                  <ul class="entry-meta">
+                    <li>Interactive Math</li>
+                    <li>/zeta/</li>
+                  </ul>
+                  <h3 class="entry-title"><a href="./zeta/">Zeta Shift Lab</a></h3>
+                  <p class="entry-desc">
+                    Shifts the Riemann zeta function by ½ so the critical line sits on the imaginary axis. Morph the complex grid into ζ(s + ½) and verify non-trivial zeros numerically.
+                  </p>
                 </div>
 
-                <div class="entry-specimen">
-                  <div class="specimen-bar">
-                    <span>Beat · Subdiv 1 · Subdiv 2</span>
-                    <span id="rhythm-readout" class="specimen-readout">3/4 · BEAT 1 · ×3/2/2 &amp; ×4/5/5</span>
+                <dl class="entry-specs">
+                  <div>
+                    <dt>Function</dt>
+                    <dd>ζ(s + ½) on Re(s) = 0</dd>
                   </div>
-                  <div class="specimen-canvas-wrap">
-                    <canvas id="rhythm-specimen" aria-label="Three-row pulse diagram of Oddmeter in 3/4"></canvas>
+                  <div>
+                    <dt>First zero</dt>
+                    <dd>t ≈ 14.134725</dd>
                   </div>
-                  <div class="specimen-foot">
-                    <span>Move pointer to scrub phase</span>
-                    <span>Shared AudioWorklet clock</span>
-                  </div>
-                </div>
-              </article>
+                </dl>
 
-              <section class="media-block panel-block" aria-labelledby="yt-heading">
-                <div class="media-block-head">
-                  <div class="media-block-title">
-                    <h3 id="yt-heading">YouTube — @Mafyxia</h3>
-                    <p>Guitar covers, metal &amp; jazz jams — “Expert at making bad music!”</p>
-                  </div>
-                  <a class="inline-link" href="https://www.youtube.com/@Mafyxia" target="_blank" rel="noopener noreferrer">Open Channel ↗</a>
-                </div>
-
-                <div class="video-grid">
-                  <a class="video-card" href="https://www.youtube.com/watch?v=GlRzS5Uxo7w" target="_blank" rel="noopener noreferrer">
-                    <div class="video-thumb">
-                      <img src="./images/showcase/yt-eternal.jpg" alt="Eternal flowers guitar video on YouTube @Mafyxia" loading="lazy">
-                      <span class="video-play">2:44</span>
-                    </div>
-                    <div class="video-meta">
-                      <p class="video-title">أزهار دائمة — Eternal flowers</p>
-                      <p class="video-sub">youtube.com/@Mafyxia</p>
-                    </div>
-                  </a>
-
-                  <a class="video-card" href="https://www.youtube.com/watch?v=iB9R8k9_TkY" target="_blank" rel="noopener noreferrer">
-                    <div class="video-thumb">
-                      <img src="./images/showcase/yt-lost.jpg" alt="LP Lost on you Jason Becker style solo on YouTube @Mafyxia" loading="lazy">
-                      <span class="video-play">1:46</span>
-                    </div>
-                    <div class="video-meta">
-                      <p class="video-title">LP — Lost on you (Jason Becker style solo)</p>
-                      <p class="video-sub">youtube.com/@Mafyxia</p>
-                    </div>
-                  </a>
-
-                  <a class="video-card" href="https://www.youtube.com/watch?v=pwfVfYi_ick" target="_blank" rel="noopener noreferrer">
-                    <div class="video-thumb">
-                      <img src="./images/showcase/yt-deadhead.jpg" alt="Devin Townsend Deadhead cover on YouTube @Mafyxia" loading="lazy">
-                      <span class="video-play">2:09</span>
-                    </div>
-                    <div class="video-meta">
-                      <p class="video-title">Deadhead — Devin Townsend cover</p>
-                      <p class="video-sub">youtube.com/@Mafyxia</p>
-                    </div>
-                  </a>
-
-                  <a class="video-card" href="https://www.youtube.com/watch?v=nFn0EBenNl0" target="_blank" rel="noopener noreferrer">
-                    <div class="video-thumb">
-                      <img src="./images/showcase/yt-dalida.jpg" alt="A jam for Dalida on YouTube @Mafyxia" loading="lazy">
-                      <span class="video-play">2:46</span>
-                    </div>
-                    <div class="video-meta">
-                      <p class="video-title">A jam for Dalida</p>
-                      <p class="video-sub">youtube.com/@Mafyxia</p>
-                    </div>
+                <div class="entry-actions">
+                  <a class="entry-action" href="./zeta/">
+                    <span>Open Zeta Shift Lab</span>
+                    <span class="arrow" aria-hidden="true">→</span>
                   </a>
                 </div>
-              </section>
+              </div>
 
-              <section class="media-block panel-block" aria-labelledby="ig-music-heading">
-                <div class="media-block-head">
-                  <div class="media-block-title">
-                    <h3 id="ig-music-heading">Instagram — @mafyxia</h3>
-                    <p>Guitar solos, riffs &amp; tabs — “dream big and dare to fail”</p>
+              <div class="entry-specimen">
+                <div class="specimen-bar">
+                  <span>Hardy Z(t) · Critical Line</span>
+                  <span id="zeta-readout" class="specimen-readout">t = 14.13 · Z(t) = 0.00</span>
+                </div>
+                <div class="specimen-canvas-wrap">
+                  <canvas id="zeta-specimen" aria-label="Plot of Hardy's Z function showing the first six non-trivial Riemann zeta zeros"></canvas>
+                </div>
+                <div class="specimen-controls">
+                  <div class="chip-row" role="group" aria-label="Jump to non-trivial zero">
+                    <button type="button" class="micro-btn" data-zero="14.1347" aria-pressed="true">γ₁ 14.13</button>
+                    <button type="button" class="micro-btn" data-zero="21.022" aria-pressed="false">γ₂ 21.02</button>
+                    <button type="button" class="micro-btn" data-zero="25.0109" aria-pressed="false">γ₃ 25.01</button>
+                    <button type="button" class="micro-btn" data-zero="30.4249" aria-pressed="false">γ₄ 30.42</button>
+                    <button type="button" class="micro-btn" data-zero="32.9351" aria-pressed="false">γ₅ 32.94</button>
+                    <button type="button" class="micro-btn" data-zero="37.5862" aria-pressed="false">γ₆ 37.59</button>
                   </div>
-                  <a class="inline-link" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">Open @mafyxia ↗</a>
+                  <span class="specimen-hint">Scrub or click a zero</span>
                 </div>
+              </div>
+            </article>
+          </div>
+        </section>
 
-                <div class="photo-grid photo-grid-3">
-                  <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/ig-mafyxia-1.jpg" alt="Guitar reel on Instagram @mafyxia" loading="lazy">
-                    <span class="photo-cap"><span>@mafyxia</span><span>Reel ↗</span></span>
-                  </a>
-                  <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/ig-mafyxia-2.jpg" alt="Guitar solo with tab on Instagram @mafyxia" loading="lazy">
-                    <span class="photo-cap"><span>@mafyxia</span><span>Tab ↗</span></span>
-                  </a>
-                  <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/ig-mafyxia-3.jpg" alt="Lost on you guitar solo on Instagram @mafyxia" loading="lazy">
-                    <span class="photo-cap"><span>@mafyxia</span><span>Solo ↗</span></span>
-                  </a>
-                </div>
-              </section>
+        <!-- 02 · MUSIC -->
+        <section id="music" class="work-band" data-category="music" tabindex="-1" aria-labelledby="heading-music" style="view-transition-name: band-music">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">02</span>
+              <h2 id="heading-music">Music</h2>
             </div>
+            <span class="band-tag">/oddmeter/ · YouTube @Mafyxia · Instagram @mafyxia</span>
           </div>
 
-          <!-- 03 · GAMES (Fuzia on Google Play) -->
-          <div role="tabpanel" aria-labelledby="tab-games" hidden="until-found">
-            <div class="panel-sheet">
-              <article class="entry entry-games panel-block">
-                <div class="entry-copy">
-                  <div class="entry-head">
-                    <ul class="entry-meta">
-                      <li>03 · <strong>Android Puzzle Game</strong></li>
-                      <li>mafium Studios</li>
-                    </ul>
-                    <div class="entry-title-row">
-                      <img class="app-icon" src="./images/showcase/fuzia-icon.jpg" alt="Fuzia game icon" width="52" height="52">
-                      <h3 class="entry-title"><a href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">Fuzia: Rotate puzzle</a></h3>
-                    </div>
-                    <p class="entry-desc">
-                      A fresh puzzle: easy to solve, hard to 3-star. Rotate links, trigger cascading reactions, pop critters, build custom boards, or unwind in HexaZen mode.
-                    </p>
-                  </div>
-
-                  <dl class="entry-specs">
-                    <div>
-                      <dt>Platform</dt>
-                      <dd>Google Play · Android</dd>
-                    </div>
-                    <div>
-                      <dt>Modes</dt>
-                      <dd>Puzzles · Daily · Fuse · HexaZen</dd>
-                    </div>
-                    <div>
-                      <dt>Package</dt>
-                      <dd>com.mafium.chainreaction</dd>
-                    </div>
-                    <div>
-                      <dt>Privacy</dt>
-                      <dd><a href="./chainreaction/privacy-policy.html">Privacy policy</a></dd>
-                    </div>
-                  </dl>
-
-                  <div class="entry-actions">
-                    <a class="entry-action" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
-                      <span>Get Fuzia on Google Play</span>
-                      <span class="arrow" aria-hidden="true">↗</span>
-                    </a>
-                  </div>
+          <div class="band-sheet">
+            <article class="entry panel-block">
+              <div class="entry-copy">
+                <div class="entry-head">
+                  <ul class="entry-meta">
+                    <li>Metronome</li>
+                    <li>/oddmeter/</li>
+                  </ul>
+                  <h3 class="entry-title"><a href="./oddmeter/">Oddmeter</a></h3>
+                  <p class="entry-desc">
+                    Practice metronome for odd time signatures, beat groupings (2+2+3 in 7/8), polyrhythms, and per-beat subdivisions on one Web Audio clock.
+                  </p>
                 </div>
 
+                <dl class="entry-specs">
+                  <div>
+                    <dt>Meters</dt>
+                    <dd>1–32 beats · /2 /4 /8 /16</dd>
+                  </div>
+                  <div>
+                    <dt>Sharing</dt>
+                    <dd>Live URL setup links</dd>
+                  </div>
+                </dl>
+
+                <div class="entry-actions">
+                  <a class="entry-action" href="./oddmeter/">
+                    <span>Open Oddmeter</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                  </a>
+                </div>
+              </div>
+
+              <div class="entry-specimen">
+                <div class="specimen-bar">
+                  <span>Beat · Subdiv 1 · Subdiv 2</span>
+                  <span id="rhythm-readout" class="specimen-readout">3/4 · BEAT 1 · ×3/2/2 &amp; ×4/5/5</span>
+                </div>
+                <div class="specimen-canvas-wrap">
+                  <canvas id="rhythm-specimen" aria-label="Three-row rational pulse diagram of Oddmeter"></canvas>
+                </div>
+                <div class="specimen-controls">
+                  <div class="chip-row" role="group" aria-label="Preview meter preset">
+                    <button type="button" class="micro-btn" data-meter="3/4" aria-pressed="true">3/4 Polyrhythm</button>
+                    <button type="button" class="micro-btn" data-meter="7/8" aria-pressed="false">7/8 (2+2+3)</button>
+                    <button type="button" class="micro-btn" data-meter="5/4" aria-pressed="false">5/4 Tuplets</button>
+                  </div>
+                  <button type="button" id="rhythm-play" class="micro-btn micro-btn-accent" aria-pressed="false">Animate</button>
+                </div>
+              </div>
+            </article>
+
+            <div class="media-block panel-block" aria-labelledby="yt-heading">
+              <div class="media-block-head">
+                <div class="media-block-title">
+                  <h3 id="yt-heading">YouTube — @Mafyxia</h3>
+                  <p>Guitar covers, metal &amp; jazz jams — “Expert at making bad music!”</p>
+                </div>
+                <a class="inline-link" href="https://www.youtube.com/@Mafyxia" target="_blank" rel="noopener noreferrer">Open Channel ↗</a>
+              </div>
+
+              <div class="video-grid">
+                <a class="video-card" href="https://www.youtube.com/watch?v=GlRzS5Uxo7w" target="_blank" rel="noopener noreferrer">
+                  <div class="video-thumb">
+                    <img src="./images/showcase/yt-eternal.jpg" alt="Eternal flowers guitar video on YouTube @Mafyxia" loading="lazy">
+                    <span class="video-play">2:44</span>
+                  </div>
+                  <div class="video-meta">
+                    <p class="video-title">أزهار دائمة — Eternal flowers</p>
+                    <p class="video-sub">youtube.com/@Mafyxia</p>
+                  </div>
+                </a>
+
+                <a class="video-card" href="https://www.youtube.com/watch?v=iB9R8k9_TkY" target="_blank" rel="noopener noreferrer">
+                  <div class="video-thumb">
+                    <img src="./images/showcase/yt-lost.jpg" alt="LP Lost on you Jason Becker style solo on YouTube @Mafyxia" loading="lazy">
+                    <span class="video-play">1:46</span>
+                  </div>
+                  <div class="video-meta">
+                    <p class="video-title">LP — Lost on you (Jason Becker style solo)</p>
+                    <p class="video-sub">youtube.com/@Mafyxia</p>
+                  </div>
+                </a>
+
+                <a class="video-card" href="https://www.youtube.com/watch?v=pwfVfYi_ick" target="_blank" rel="noopener noreferrer">
+                  <div class="video-thumb">
+                    <img src="./images/showcase/yt-deadhead.jpg" alt="Devin Townsend Deadhead cover on YouTube @Mafyxia" loading="lazy">
+                    <span class="video-play">2:09</span>
+                  </div>
+                  <div class="video-meta">
+                    <p class="video-title">Deadhead — Devin Townsend cover</p>
+                    <p class="video-sub">youtube.com/@Mafyxia</p>
+                  </div>
+                </a>
+
+                <a class="video-card" href="https://www.youtube.com/watch?v=nFn0EBenNl0" target="_blank" rel="noopener noreferrer">
+                  <div class="video-thumb">
+                    <img src="./images/showcase/yt-dalida.jpg" alt="A jam for Dalida on YouTube @Mafyxia" loading="lazy">
+                    <span class="video-play">2:46</span>
+                  </div>
+                  <div class="video-meta">
+                    <p class="video-title">A jam for Dalida</p>
+                    <p class="video-sub">youtube.com/@Mafyxia</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <div class="media-block panel-block" aria-labelledby="ig-music-heading">
+              <div class="media-block-head">
+                <div class="media-block-title">
+                  <h3 id="ig-music-heading">Instagram — @mafyxia</h3>
+                  <p>Guitar solos, riffs &amp; tabs — “dream big and dare to fail”</p>
+                </div>
+                <a class="inline-link" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">Open @mafyxia ↗</a>
+              </div>
+
+              <div class="photo-grid photo-grid-3">
+                <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
+                  <img src="./images/showcase/ig-mafyxia-1.jpg" alt="Guitar reel on Instagram @mafyxia" loading="lazy">
+                  <span class="photo-cap"><span>@mafyxia</span><span>Reel ↗</span></span>
+                </a>
+                <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
+                  <img src="./images/showcase/ig-mafyxia-2.jpg" alt="Guitar solo with tab on Instagram @mafyxia" loading="lazy">
+                  <span class="photo-cap"><span>@mafyxia</span><span>Tab ↗</span></span>
+                </a>
+                <a class="photo-tile" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">
+                  <img src="./images/showcase/ig-mafyxia-3.jpg" alt="Lost on you guitar solo on Instagram @mafyxia" loading="lazy">
+                  <span class="photo-cap"><span>@mafyxia</span><span>Solo ↗</span></span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 03 · GAMES -->
+        <section id="games" class="work-band" data-category="games" tabindex="-1" aria-labelledby="heading-games" style="view-transition-name: band-games">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">03</span>
+              <h2 id="heading-games">Games</h2>
+            </div>
+            <span class="band-tag">Google Play · mafium Studios</span>
+          </div>
+
+          <div class="band-sheet">
+            <article class="entry entry-games">
+              <div class="entry-copy">
+                <div class="entry-head">
+                  <ul class="entry-meta">
+                    <li>Android Puzzle Game</li>
+                    <li>mafium Studios</li>
+                  </ul>
+                  <div class="entry-title-row">
+                    <img class="app-icon" src="./images/showcase/fuzia-icon.jpg" alt="Fuzia game icon" width="52" height="52">
+                    <h3 class="entry-title"><a href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">Fuzia: Rotate puzzle</a></h3>
+                  </div>
+                  <p class="entry-desc">
+                    A fresh puzzle: easy to solve, hard to 3-star. Rotate links, trigger cascading reactions, pop critters, build custom boards, or unwind in HexaZen mode.
+                  </p>
+                </div>
+
+                <dl class="entry-specs">
+                  <div>
+                    <dt>Platform</dt>
+                    <dd>Google Play · Android</dd>
+                  </div>
+                  <div>
+                    <dt>Modes</dt>
+                    <dd>Puzzles · Daily · Fuse · HexaZen</dd>
+                  </div>
+                  <div>
+                    <dt>Package</dt>
+                    <dd>com.mafium.chainreaction</dd>
+                  </div>
+                  <div>
+                    <dt>Privacy</dt>
+                    <dd><a href="./chainreaction/privacy-policy.html">Privacy policy</a></dd>
+                  </div>
+                </dl>
+
+                <div class="entry-actions">
+                  <a class="entry-action" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
+                    <span>Get Fuzia on Google Play</span>
+                    <span class="arrow" aria-hidden="true">↗</span>
+                  </a>
+                </div>
+              </div>
+
+              <div class="game-shots-wrap">
+                <div class="specimen-bar">
+                  <span>Gameplay Screenshots</span>
+                  <span>Click any shot to zoom</span>
+                </div>
                 <div class="game-shots">
-                  <a class="shot-card" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
+                  <button
+                    type="button"
+                    class="shot-card"
+                    data-lightbox-group="fuzia"
+                    data-lightbox-src="./images/showcase/fuzia-1.jpg"
+                    data-lightbox-title="Fuzia — Rotate & Connect"
+                    data-lightbox-sub="Critter cascade puzzle board"
+                    data-lightbox-href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction"
+                    data-lightbox-link-label="Open Fuzia on Google Play ↗"
+                    aria-label="Enlarge Fuzia screenshot: Rotate and connect critter board"
+                  >
                     <img src="./images/showcase/fuzia-1.jpg" alt="Fuzia gameplay screenshot: Rotate and connect critter board" loading="lazy">
-                  </a>
-                  <a class="shot-card" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
+                  </button>
+                  <button
+                    type="button"
+                    class="shot-card"
+                    data-lightbox-group="fuzia"
+                    data-lightbox-src="./images/showcase/fuzia-2.jpg"
+                    data-lightbox-title="Fuzia — Detonate Bombs & Ink"
+                    data-lightbox-sub="Special tiles, ink, and chain reactions"
+                    data-lightbox-href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction"
+                    data-lightbox-link-label="Open Fuzia on Google Play ↗"
+                    aria-label="Enlarge Fuzia screenshot: Bombs, ink and ice puzzles"
+                  >
                     <img src="./images/showcase/fuzia-2.jpg" alt="Fuzia gameplay screenshot: Bombs, ink and ice puzzles" loading="lazy">
-                  </a>
-                  <a class="shot-card" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
+                  </button>
+                  <button
+                    type="button"
+                    class="shot-card"
+                    data-lightbox-group="fuzia"
+                    data-lightbox-src="./images/showcase/fuzia-3.jpg"
+                    data-lightbox-title="Fuzia — Build & Share Puzzles"
+                    data-lightbox-sub="In-game level designer workbench"
+                    data-lightbox-href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction"
+                    data-lightbox-link-label="Open Fuzia on Google Play ↗"
+                    aria-label="Enlarge Fuzia screenshot: Level designer workbench"
+                  >
                     <img src="./images/showcase/fuzia-3.jpg" alt="Fuzia gameplay screenshot: Level designer workbench" loading="lazy">
-                  </a>
-                  <a class="shot-card" href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">
+                  </button>
+                  <button
+                    type="button"
+                    class="shot-card"
+                    data-lightbox-group="fuzia"
+                    data-lightbox-src="./images/showcase/fuzia-4.jpg"
+                    data-lightbox-title="Fuzia — HexaZen Mode"
+                    data-lightbox-sub="Infinite calm hexagonal cascade flow"
+                    data-lightbox-href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction"
+                    data-lightbox-link-label="Open Fuzia on Google Play ↗"
+                    aria-label="Enlarge Fuzia screenshot: HexaZen infinite hex flow"
+                  >
                     <img src="./images/showcase/fuzia-4.jpg" alt="Fuzia gameplay screenshot: HexaZen infinite hex flow" loading="lazy">
-                  </a>
+                  </button>
                 </div>
-              </article>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 04 · PHOTOGRAPHY -->
+        <section id="photography" class="work-band" data-category="photography" tabindex="-1" aria-labelledby="heading-photography" style="view-transition-name: band-photography">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">04</span>
+              <h2 id="heading-photography">Photography</h2>
             </div>
+            <span class="band-tag">Instagram · @mafia303 &amp; @mafyxia</span>
           </div>
 
-          <!-- 04 · PHOTOGRAPHY (@mafia303 & @mafyxia) -->
-          <div role="tabpanel" aria-labelledby="tab-photography" hidden="until-found">
-            <div class="panel-sheet">
-              <section class="media-block panel-block" aria-labelledby="photo-heading">
-                <div class="media-block-head">
-                  <div class="media-block-title">
-                    <h3 id="photo-heading">Photography — @mafia303</h3>
-                    <p>Portraits, live music &amp; events from Instagram (@mafia303 &amp; @mafyxia)</p>
-                  </div>
-                  <div class="entry-actions">
-                    <a class="inline-link" href="https://www.instagram.com/mafia303/" target="_blank" rel="noopener noreferrer">@mafia303 ↗</a>
-                    <a class="inline-link" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">@mafyxia ↗</a>
-                  </div>
+          <div class="band-sheet">
+            <div class="media-block">
+              <div class="media-block-head">
+                <div class="media-block-title">
+                  <h3>@mafia303 &amp; @mafyxia</h3>
+                  <p>Portraits, live stage &amp; events — click any frame to inspect full-size</p>
                 </div>
+                <div class="entry-actions">
+                  <a class="inline-link" href="https://www.instagram.com/mafia303/" target="_blank" rel="noopener noreferrer">@mafia303 ↗</a>
+                  <a class="inline-link" href="https://www.instagram.com/mafyxia/" target="_blank" rel="noopener noreferrer">@mafyxia ↗</a>
+                </div>
+              </div>
 
-                <div class="photo-grid">
-                  <a class="photo-tile" href="https://www.instagram.com/mafia303/p/DbiocLvjac4/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/photo-portrait.jpg" alt="Red hooded portrait photography by @mafia303" loading="lazy">
-                    <span class="photo-cap"><span>Portrait</span><span>@mafia303 ↗</span></span>
-                  </a>
-                  <a class="photo-tile" href="https://www.instagram.com/mafia303/p/DeXMTmQt3UW/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/photo-stage-2.jpg" alt="Live electric guitar stage photography on @mafia303" loading="lazy">
-                    <span class="photo-cap"><span>Live Stage</span><span>@mafia303 ↗</span></span>
-                  </a>
-                  <a class="photo-tile" href="https://www.instagram.com/mafia303/p/DenVO1GtETf/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/photo-stage-1.jpg" alt="Concert rehearsal with Marshall amps on @mafia303" loading="lazy">
-                    <span class="photo-cap"><span>Concert</span><span>@mafia303 ↗</span></span>
-                  </a>
-                  <a class="photo-tile" href="https://www.instagram.com/mafia303/" target="_blank" rel="noopener noreferrer">
-                    <img src="./images/showcase/photo-cosplay.jpg" alt="Event cosplay photography on @mafia303" loading="lazy">
-                    <span class="photo-cap"><span>Event</span><span>@mafia303 ↗</span></span>
-                  </a>
-                </div>
-              </section>
+              <div class="photo-grid">
+                <button
+                  type="button"
+                  class="photo-tile"
+                  data-lightbox-group="photography"
+                  data-lightbox-src="./images/showcase/photo-portrait.jpg"
+                  data-lightbox-title="Portrait"
+                  data-lightbox-sub="Instagram @mafia303"
+                  data-lightbox-href="https://www.instagram.com/mafia303/p/DbiocLvjac4/"
+                  data-lightbox-link-label="View Post on @mafia303 ↗"
+                  aria-label="Enlarge Portrait photograph from @mafia303"
+                >
+                  <img src="./images/showcase/photo-portrait.jpg" alt="Red hooded portrait photography by @mafia303" loading="lazy">
+                  <span class="photo-cap"><span>Portrait</span><span>Zoom</span></span>
+                </button>
+                <button
+                  type="button"
+                  class="photo-tile"
+                  data-lightbox-group="photography"
+                  data-lightbox-src="./images/showcase/photo-stage-2.jpg"
+                  data-lightbox-title="Live Stage"
+                  data-lightbox-sub="Instagram @mafia303"
+                  data-lightbox-href="https://www.instagram.com/mafia303/p/DeXMTmQt3UW/"
+                  data-lightbox-link-label="View Post on @mafia303 ↗"
+                  aria-label="Enlarge Live Stage photograph from @mafia303"
+                >
+                  <img src="./images/showcase/photo-stage-2.jpg" alt="Live electric guitar stage photography on @mafia303" loading="lazy">
+                  <span class="photo-cap"><span>Live Stage</span><span>Zoom</span></span>
+                </button>
+                <button
+                  type="button"
+                  class="photo-tile"
+                  data-lightbox-group="photography"
+                  data-lightbox-src="./images/showcase/photo-stage-1.jpg"
+                  data-lightbox-title="Concert"
+                  data-lightbox-sub="Instagram @mafia303"
+                  data-lightbox-href="https://www.instagram.com/mafia303/p/DenVO1GtETf/"
+                  data-lightbox-link-label="View Post on @mafia303 ↗"
+                  aria-label="Enlarge Concert photograph from @mafia303"
+                >
+                  <img src="./images/showcase/photo-stage-1.jpg" alt="Concert rehearsal with Marshall amps on @mafia303" loading="lazy">
+                  <span class="photo-cap"><span>Concert</span><span>Zoom</span></span>
+                </button>
+                <button
+                  type="button"
+                  class="photo-tile"
+                  data-lightbox-group="photography"
+                  data-lightbox-src="./images/showcase/photo-cosplay.jpg"
+                  data-lightbox-title="Event"
+                  data-lightbox-sub="Instagram @mafia303"
+                  data-lightbox-href="https://www.instagram.com/mafia303/"
+                  data-lightbox-link-label="Open @mafia303 on Instagram ↗"
+                  aria-label="Enlarge Event photograph from @mafia303"
+                >
+                  <img src="./images/showcase/photo-cosplay.jpg" alt="Event cosplay photography on @mafia303" loading="lazy">
+                  <span class="photo-cap"><span>Event</span><span>Zoom</span></span>
+                </button>
+              </div>
             </div>
           </div>
+        </section>
 
-          <!-- 05 · AI (Open slot for later) -->
-          <div role="tabpanel" aria-labelledby="tab-ai" hidden="until-found">
-            <div class="panel-sheet">
-              <article class="ai-slot panel-block">
-                <div class="entry-copy">
-                  <div class="entry-head">
-                    <ul class="entry-meta">
-                      <li>05 · <strong>AI</strong></li>
-                      <li>Open slot</li>
-                    </ul>
-                    <h3 class="entry-title">AI</h3>
-                    <p class="entry-desc">
-                      To be filled later.
-                    </p>
-                  </div>
-                </div>
-
-                <div class="ai-drafting" aria-hidden="true">
-                  <div class="ai-stamp">
-                    <strong>05 / AI</strong>
-                    To be filled later
-                  </div>
-                </div>
-              </article>
+        <!-- 05 · AI -->
+        <section id="ai" class="work-band" data-category="ai" tabindex="-1" aria-labelledby="heading-ai" style="view-transition-name: band-ai">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">05</span>
+              <h2 id="heading-ai">AI</h2>
             </div>
+            <span class="band-tag">Open slot</span>
           </div>
-        </div>
+
+          <div class="band-sheet">
+            <article class="ai-slot">
+              <div class="ai-copy">
+                <h3 class="entry-title">AI</h3>
+                <p class="entry-desc">To be filled later.</p>
+              </div>
+              <div class="ai-drafting" aria-hidden="true">
+                <div class="ai-stamp">05 / AI · To be filled later</div>
+              </div>
+            </article>
+          </div>
+        </section>
       </div>
     </section>
 
-    <section id="about" class="colophon" aria-label="About and Contact">
+    <section id="about" class="colophon" tabindex="-1" aria-label="About and Contact">
       <div class="colophon-about">
         <h2>About</h2>
         <p class="pull-quote">“You exist now, do something that matters.”</p>
@@ -486,5 +646,29 @@
       </nav>
     </div>
   </footer>
+
+  <!-- Native modal lightbox for Fuzia gameplay shots and @mafia303 photography -->
+  <dialog id="lightbox" class="lightbox" closedby="any" aria-labelledby="lightbox-title">
+    <div class="lightbox-head">
+      <div class="lightbox-heading">
+        <h2 id="lightbox-title">Preview</h2>
+        <p id="lightbox-sub"></p>
+      </div>
+      <div class="lightbox-controls">
+        <button type="button" id="lightbox-prev" class="lightbox-nav-btn" aria-label="Previous image">←</button>
+        <span id="lightbox-count" class="lightbox-count">1 / 4</span>
+        <button type="button" id="lightbox-next" class="lightbox-nav-btn" aria-label="Next image">→</button>
+        <form method="dialog">
+          <button type="submit" value="close" class="lightbox-close" autofocus aria-label="Close preview">✕</button>
+        </form>
+      </div>
+    </div>
+    <div class="lightbox-stage">
+      <img id="lightbox-img" src="" alt="">
+    </div>
+    <div class="lightbox-foot">
+      <a id="lightbox-link" class="inline-link" href="#" target="_blank" rel="noopener noreferrer">Open Link ↗</a>
+    </div>
+  </dialog>
 </body>
 </html>
