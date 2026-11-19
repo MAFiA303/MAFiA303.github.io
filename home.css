@@ -567,41 +567,40 @@ section[tabindex="-1"]:focus { outline: none; }
   grid-template-columns: 1fr;
 }
 .entry-copy {
-  padding: clamp(20px, 3vw, 34px);
+  padding: clamp(20px, 3vw, 32px);
   display: grid;
   align-content: space-between;
   gap: 20px;
 }
-.entry-head { display: grid; gap: 10px; }
-.entry-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.entry-head { display: grid; gap: 8px; }
+.entry-kicker {
   font: 500 .7rem/1.3 var(--mono);
-  letter-spacing: .06em;
+  letter-spacing: .07em;
   text-transform: uppercase;
+  color: var(--muted);
+}
+.entry-sub {
+  margin: 0;
+  font: 400 .8rem/1.4 var(--mono);
   color: var(--muted);
 }
 
 .entry-title-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .app-icon {
-  inline-size: 52px;
-  block-size: 52px;
-  border-radius: 12px;
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: 11px;
   border: 1px solid var(--rule);
   flex-shrink: 0;
   object-fit: cover;
 }
 .entry-title {
   margin: 0;
-  font: 500 clamp(1.55rem, 1.25rem + 1.2vw, 2.15rem)/1.12 var(--serif);
+  font: 500 clamp(1.6rem, 1.3rem + 1.2vw, 2.2rem)/1.12 var(--serif);
   letter-spacing: -.015em;
   text-wrap: balance;
 }
@@ -611,51 +610,20 @@ section[tabindex="-1"]:focus { outline: none; }
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
-.entry-desc {
-  margin: 0;
-  max-width: 48ch;
-  color: var(--muted);
-  font-size: .94rem;
-  text-wrap: pretty;
-}
-
-.entry-specs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 20px;
-  margin: 0;
-  padding-top: 14px;
-  border-top: 1px solid var(--rule);
-}
-.entry-specs div { display: grid; gap: 2px; }
-.entry-specs dt {
-  font: 500 .66rem/1.2 var(--mono);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.entry-specs dd {
-  margin: 0;
-  font: 500 .78rem/1.35 var(--mono);
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-.entry-specs a { text-decoration: underline; text-underline-offset: 3px; }
-.entry-specs a:hover { color: var(--vermilion); }
 
 .entry-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 .entry-action {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   width: fit-content;
-  min-block-size: 40px;
-  padding: 9px 17px;
+  min-block-size: 38px;
+  padding: 8px 16px;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--paper);
@@ -672,6 +640,18 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .entry-action .arrow { transition: transform 140ms ease-out; }
 .entry-action:hover .arrow { transform: translateX(3px); }
+.subtle-link {
+  font: 500 .72rem/1 var(--mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.subtle-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
 
 /* Live Specimen Canvas Plate */
 .entry-specimen {
@@ -745,7 +725,7 @@ section[tabindex="-1"]:focus { outline: none; }
 /* Fuzia 4-Shot Gameplay Showcase Plate */
 .game-shots-wrap {
   display: grid;
-  grid-template-rows: auto 1fr;
+  align-content: center;
   border-top: 1px solid var(--rule);
   background: var(--well);
 }
@@ -817,13 +797,13 @@ section[tabindex="-1"]:focus { outline: none; }
   border-bottom-color: var(--vermilion);
 }
 
-/* YouTube Grid */
-.video-grid {
+/* Unified @Mafyxia Clip Grid (4:5 portrait/square unified tiles) */
+.clip-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
-.video-card {
+.clip-card {
   display: grid;
   grid-template-rows: auto 1fr;
   border: 1px solid var(--rule);
@@ -832,15 +812,15 @@ section[tabindex="-1"]:focus { outline: none; }
   overflow: hidden;
   transition: border-color 140ms ease-out;
 }
-.video-card:hover { border-color: var(--vermilion); }
-.video-thumb {
+.clip-card:hover { border-color: var(--vermilion); }
+.clip-thumb {
   position: relative;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   background: #090a0c;
   border-bottom: 1px solid var(--rule);
 }
-.video-thumb img {
+.clip-thumb img {
   display: block;
   width: 100%;
   height: 100%;
@@ -848,32 +828,32 @@ section[tabindex="-1"]:focus { outline: none; }
   transition: transform 240ms ease-out;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .video-card:hover .video-thumb img { transform: scale(1.03); }
+  .clip-card:hover .clip-thumb img { transform: scale(1.03); }
 }
-.video-play {
+.clip-badge {
   position: absolute;
   right: 8px;
   bottom: 8px;
   padding: 3px 7px;
-  background: rgb(10 11 12 / 0.84);
+  background: rgb(10 11 12 / 0.86);
   color: #f3f2ef;
-  font: 500 .68rem/1.1 var(--mono);
+  font: 600 .66rem/1.1 var(--mono);
   letter-spacing: .04em;
 }
-.video-meta {
-  padding: 11px 12px;
+.clip-meta {
+  padding: 10px 11px;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
 }
-.video-title {
+.clip-title {
   margin: 0;
-  font: 500 .88rem/1.35 var(--sans);
+  font: 500 .84rem/1.3 var(--sans);
   color: var(--ink);
 }
-.video-sub {
+.clip-sub {
   margin: 0;
-  font: 400 .7rem/1.3 var(--mono);
+  font: 400 .68rem/1.3 var(--mono);
   color: var(--muted);
 }
 
@@ -964,14 +944,13 @@ button.photo-tile { cursor: zoom-in; }
 
 /* Compact Index View Mode */
 .work-stream[data-view="index"] {
-  gap: 18px;
+  gap: 16px;
 }
 .work-stream[data-view="index"] .entry-specimen,
 .work-stream[data-view="index"] .game-shots-wrap,
-.work-stream[data-view="index"] .video-grid,
+.work-stream[data-view="index"] .clip-grid,
 .work-stream[data-view="index"] .photo-grid,
-.work-stream[data-view="index"] .ai-drafting,
-.work-stream[data-view="index"] .entry-specs {
+.work-stream[data-view="index"] .ai-drafting {
   display: none;
 }
 .work-stream[data-view="index"] .entry,
@@ -985,7 +964,7 @@ button.photo-tile { cursor: zoom-in; }
   align-items: center;
   justify-content: space-between;
   gap: 14px 24px;
-  padding: 18px 22px;
+  padding: 16px 22px;
 }
 .work-stream[data-view="index"] .media-block {
   padding: 16px 22px;
@@ -1000,13 +979,10 @@ button.photo-tile { cursor: zoom-in; }
 
 @container (min-width: 720px) {
   .entry {
-    grid-template-columns: minmax(320px, .88fr) minmax(0, 1.12fr);
+    grid-template-columns: minmax(230px, .52fr) minmax(0, 1.48fr);
   }
   .entry-games {
-    grid-template-columns: minmax(340px, .84fr) minmax(0, 1.16fr);
-  }
-  .entry-games .entry-specs {
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, .95fr);
+    grid-template-columns: minmax(250px, .56fr) minmax(0, 1.44fr);
   }
   .entry-specimen,
   .game-shots-wrap {
@@ -1017,7 +993,7 @@ button.photo-tile { cursor: zoom-in; }
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .ai-slot {
-    grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+    grid-template-columns: minmax(230px, .52fr) minmax(0, 1.48fr);
   }
   .ai-drafting {
     border-top: 0;
@@ -1275,6 +1251,7 @@ a.contact-item:hover .contact-v {
   .front-plate { padding: 16px 0; grid-template-columns: 108px 1fr; align-items: end; gap: 16px; }
   .plate-frame { aspect-ratio: 1 / 1; }
   .front-plate figcaption { flex-direction: column; gap: 3px; }
+  .clip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .colophon { grid-template-columns: 1fr; }
   .colophon-about { padding: 24px 0; border-inline-end: 0; border-bottom: 1px solid var(--rule); }
   .colophon-contact { padding: 24px 0; }
@@ -1290,10 +1267,9 @@ a.contact-item:hover .contact-v {
   .filter-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
   .filter-bar::-webkit-scrollbar { display: none; }
   .filter-btn { flex: none; padding: 7px 10px; font-size: .7rem; }
-  .photo-grid,
-  .photo-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .clip-grid,
+  .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .photo-cap { padding: 7px 8px; font-size: .58rem; gap: 4px; }
-  .entry-specs { grid-template-columns: 1fr; }
   .facts-row { grid-template-columns: 1fr; gap: 2px; }
 }
 
