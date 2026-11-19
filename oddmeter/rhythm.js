@@ -35,10 +35,109 @@ export function clampInt(value, [min, max], fallback) {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
+function gcd(a, b) {
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
+function gcdBig(a, b) {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) [x, y] = [y, x % y];
+  return x;
+}
+
+function addBigFrac([aN, aD], [bN, bD]) {
+  const num = aN * bD + bN * aD;
+  if (num === 0n) return [0n, 1n];
+  const den = aD * bD;
+  const d = gcdBig(num, den);
+  return [num / d, den / d];
+}
+
+function divBigFrac([aN, aD], [bN, bD]) {
+  if (aN === 0n) return [0n, 1n];
+  const num = aN * bD;
+  const den = aD * bN;
+  const d = gcdBig(num, den);
+  return [num / d, den / d];
+}
+
+// Per-beat trim is stored as a reduced proper fraction [numerator, denominator]
+// of one beat (0 < n/d < 1), or null when the full beat plays.
+export function normalizeBeatEnd(value) {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [numerator, denominator] = value;
+  if (!Number.isInteger(numerator) || !Number.isInteger(denominator)) return null;
+  if (numerator <= 0 || denominator <= 1 || numerator >= denominator || denominator > 512) return null;
+  const divisor = gcd(numerator, denominator);
+  return [numerator / divisor, denominator / divisor];
+}
+
+export function normalizeBeatEnds(value, beats = 32) {
+  return Array.from({ length: beats }, (_, beat) => normalizeBeatEnd(value?.[beat]));
+}
+
+export function hasBeatTrim(beatEnds, beats) {
+  return Array.isArray(beatEnds) && beatEnds.slice(0, beats).some((end) => normalizeBeatEnd(end) !== null);
+}
+
+export function compareFractions([aNum, aDen], [bNum, bDen]) {
+  return aNum * bDen - bNum * aDen;
+}
+
+export function beatLayout(beats, beatEnds = null) {
+  const ends = Array.from({ length: beats }, (_, beat) => normalizeBeatEnd(beatEnds?.[beat]));
+  const trimmed = ends.some((end) => end !== null);
+  const starts = [];
+  const lengths = [];
+  const startsFloat = [];
+  const lengthsFloat = [];
+  let cursor = [0n, 1n];
+  for (let beat = 0; beat < beats; beat++) {
+    const end = ends[beat];
+    const len = end ? [BigInt(end[0]), BigInt(end[1])] : [1n, 1n];
+    starts.push(cursor);
+    lengths.push(len);
+    startsFloat.push(Number(cursor[0]) / Number(cursor[1]));
+    lengthsFloat.push(end ? end[0] / end[1] : 1);
+    cursor = addBigFrac(cursor, len);
+  }
+  return {
+    ends,
+    trimmed,
+    starts,
+    lengths,
+    startsFloat,
+    lengthsFloat,
+    total: cursor,
+    totalFloat: Number(cursor[0]) / Number(cursor[1]),
+  };
+}
+
+export function formatBeatTrim(end) {
+  const normalized = normalizeBeatEnd(end);
+  return normalized ? `${normalized[0]}/${normalized[1]}` : '';
+}
+
+export function formatTotalBeats(beatEnds, beats, { verbose = true } = {}) {
+  const layout = beatLayout(beats, beatEnds);
+  if (!layout.trimmed) return '';
+  const [num, den] = layout.total;
+  const whole = num / den;
+  const rem = num % den;
+  if (rem === 0n) return `${whole} ${whole === 1n ? 'beat' : 'beats'}`;
+  const part = `${rem}/${den}`;
+  if (whole === 0n) return verbose ? `${part} beat` : part;
+  return verbose ? `${whole}+${part} beats` : `${whole}+${part}`;
+}
+
 // tempoBeat is the tempo reference in quarter-note lengths (1 = quarter,
 // 1.5 = dotted quarter). Meter and tempo reference remain independent.
-export function measureSeconds({ bpm, beats, unit, tempoBeat = 1 }) {
-  return (60 / bpm) * (4 * beats / unit) / tempoBeat;
+export function measureSeconds({ bpm, beats, unit, tempoBeat = 1, beatEnds = null }) {
+  const layout = beatLayout(beats, beatEnds);
+  if (!layout.trimmed) return (60 / bpm) * (4 * beats / unit) / tempoBeat;
+  return (60 / bpm) * (4 / unit) / tempoBeat * layout.totalFloat;
 }
 
 export function makeCycle([aCount, bCount]) {
@@ -89,23 +188,91 @@ export function makeLanePulses(lane, beats) {
   }).flat();
 }
 
-function gcd(a, b) {
-  while (b) [a, b] = [b, a % b];
-  return a;
+export function pulseBeatFraction(pulse, lane) {
+  if (lane.span === 'bar') return null;
+  const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
+  if (pulse.part === 0) return [0, 1];
+  const divisor = gcd(pulse.part, count);
+  return [pulse.part / divisor, count / divisor];
 }
 
-export function makeRhythmCycle(lanes, beats) {
+export function isPulseActiveInBeat(pulse, lane, beatEnds) {
+  if (lane.span === 'bar') return true;
+  const end = normalizeBeatEnd(beatEnds?.[pulse.beat]);
+  if (!end) return true;
+  const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
+  return pulse.part * end[1] < end[0] * count;
+}
+
+export function makeBeatSnapPoints(lanes, beats, beat) {
+  const seen = new Map();
+  lanes.forEach((lane, index) => {
+    if (index === 0 || lane.enabled === false || lane.span === 'bar') return;
+    const count = lane.beatCounts?.[beat] ?? lane.count;
+    if (count <= 1) return;
+    for (let part = 1; part < count; part++) {
+      const divisor = gcd(part, count);
+      const num = part / divisor;
+      const den = count / divisor;
+      const key = `${num}/${den}`;
+      if (!seen.has(key)) seen.set(key, { num, den, ratio: num / den });
+    }
+  });
+  seen.set('1/1', { num: 1, den: 1, ratio: 1 });
+  return [...seen.values()].sort((a, b) => compareFractions([a.num, a.den], [b.num, b.den]));
+}
+
+export function makeLaneCyclePhases(lane, beats, beatEnds = null) {
+  const layout = beatLayout(beats, beatEnds);
+  const active = [];
+  for (const pulse of makeLanePulses({ ...lane, enabled: true }, beats)) {
+    if (lane.span === 'bar') {
+      active.push({ hit: pulse.index, phase: pulse.phase });
+      continue;
+    }
+    if (!isPulseActiveInBeat(pulse, lane, layout.ends)) continue;
+    if (!layout.trimmed) {
+      active.push({ hit: pulse.index, phase: pulse.phase });
+      continue;
+    }
+    const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
+    const timeInBeats = addBigFrac(layout.starts[pulse.beat], [BigInt(pulse.part), BigInt(count)]);
+    const cycleFrac = divBigFrac(timeInBeats, layout.total);
+    active.push({ hit: pulse.index, phase: Number(cycleFrac[0]) / Number(cycleFrac[1]) });
+  }
+  return active;
+}
+
+export function makeRhythmCycle(lanes, beats, beatEnds = null) {
+  const layout = beatLayout(beats, beatEnds);
   const events = new Map();
   lanes.forEach((lane, laneIndex) => {
     for (const pulse of makeLanePulses(lane, beats)) {
-      const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
-      const numerator = lane.span === 'bar' ? pulse.index : pulse.beat * count + pulse.part;
-      const denominator = lane.span === 'bar' ? lane.count : beats * count;
-      const divisor = gcd(numerator, denominator);
-      // Reduced fractions make coincident hits one event even across different
-      // spans and tuplet counts; no floating-point tolerance merges nearby hits.
-      const key = `${numerator / divisor}/${denominator / divisor}`;
-      if (!events.has(key)) events.set(key, { phase: pulse.phase, hits: [] });
+      let key;
+      let phase;
+      if (lane.span === 'bar') {
+        const divisor = gcd(pulse.index, lane.count);
+        key = `${pulse.index / divisor}/${lane.count / divisor}`;
+        phase = pulse.phase;
+      } else {
+        if (!isPulseActiveInBeat(pulse, lane, layout.ends)) continue;
+        const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
+        if (!layout.trimmed) {
+          const numerator = pulse.beat * count + pulse.part;
+          const denominator = beats * count;
+          const divisor = gcd(numerator, denominator);
+          // Reduced fractions make coincident hits one event even across different
+          // spans and tuplet counts; no floating-point tolerance merges nearby hits.
+          key = `${numerator / divisor}/${denominator / divisor}`;
+          phase = pulse.phase;
+        } else {
+          const timeInBeats = addBigFrac(layout.starts[pulse.beat], [BigInt(pulse.part), BigInt(count)]);
+          const cycleFrac = divBigFrac(timeInBeats, layout.total);
+          key = `${cycleFrac[0]}/${cycleFrac[1]}`;
+          phase = Number(cycleFrac[0]) / Number(cycleFrac[1]);
+        }
+      }
+      if (!events.has(key)) events.set(key, { phase, hits: [] });
       events.get(key).hits.push({ lane: laneIndex, index: pulse.index });
     }
   });

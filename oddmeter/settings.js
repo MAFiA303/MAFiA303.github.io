@@ -1,4 +1,4 @@
-import { beatUnits, clampInt, limits, presets } from './rhythm.js';
+import { beatUnits, clampInt, limits, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=trim2';
 import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js';
 import { defaultSounds, soundOptions } from './sounds.js';
 
@@ -134,6 +134,17 @@ function migrateTwoLanes(saved) {
   };
 }
 
+function readBeatEnds(value, legacyBarEnd, beats) {
+  const result = normalizeBeatEnds(value, 32);
+  if (!Array.isArray(value)) {
+    const legacy = normalizeBeatEnd(legacyBarEnd);
+    if (legacy && legacy[0] * beats > (beats - 1) * legacy[1]) {
+      result[beats - 1] = normalizeBeatEnd([legacy[0] * beats - (beats - 1) * legacy[1], legacy[1]]);
+    }
+  }
+  return result;
+}
+
 // Keep the existing key: the next save upgrades it in place to schema version 3.
 export function readSettings(value) {
   const input = record(value);
@@ -166,13 +177,17 @@ export function readSettings(value) {
     outputVolume: clampInt(saved.outputVolume, [0, 200], legacyVolume),
     masterMuted: saved.masterMuted === true,
     countIn: saved.countIn === true,
+    beatEnds: readBeatEnds(saved.beatEnds, saved.barEnd, rhythm.beats),
   };
 }
 
 export function makeSetupLink(base, settings) {
   const { schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn } = settings;
+  const beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const lastTrim = beatEnds.findLastIndex((value) => value !== null);
   const snapshot = {
     schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn,
+    ...(lastTrim >= 0 ? { beatEnds: beatEnds.slice(0, lastTrim + 1) } : {}),
     lanes: settings.lanes.map(({ count, span, enabled, muted, offbeatsOnly, beatCounts, accents, rests, pulseSounds }) => ({
       count, span, enabled, muted, offbeatsOnly, accents, rests, pulseSounds,
       beatCounts: beatCounts.slice(0, beatCounts.findLastIndex((value) => value !== null) + 1),
