@@ -1,1026 +1,304 @@
-<!DOCTYPE HTML>
-<html>
-	<head>
-<!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-33218752-1"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Saad Kay (mafium.com) — Science, Music, and AI notebooks and interactive instruments.">
+  <title>Saad Kay — mafium</title>
+  <link rel="icon" href="./favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,500;0,600;1,500&display=swap">
+  <link rel="stylesheet" href="./home.css?v=3">
+  <script type="module" src="./home.js?v=3"></script>
+</head>
+<body>
+  <a class="skip-link visually-hidden" href="#index">Skip to index</a>
 
-  gtag('config', 'UA-33218752-1');
-</script>
+  <header class="masthead">
+    <div class="frame masthead-inner">
+      <a class="wordmark" href="./" aria-current="page">
+        <span class="wordmark-dot" aria-hidden="true"></span>
+        <span>MAFIUM</span>
+      </a>
+      <span class="masthead-meta">Saad Kay · California · Dubai · Amman</span>
+      <nav class="masthead-nav" aria-label="Primary">
+        <ul>
+          <li><a href="#index">Index</a></li>
+          <li><a href="#about">Notes</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="https://github.com/MAFiA303/" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
 
+  <main class="frame">
+    <section class="frontispiece" aria-label="Introduction">
+      <div class="front-copy">
+        <p class="front-kicker">Data Scientist · Solution Developer · Musician · Developer Relations</p>
+        <h1 class="front-title">
+          Recreational math,<br>
+          <em>odd-meter</em> music,<br>
+          &amp; things that run.
+        </h1>
+        <p class="front-note">
+          Interactive notebooks and practice tools by Saad Kay — built directly on the web without frameworks or bloat.
+        </p>
+      </div>
 
+      <figure class="front-plate">
+        <div class="plate-frame">
+          <img src="./images/about.jpg" alt="Saad Kay playing a 7-string electric guitar" width="400" height="440">
+        </div>
+        <figcaption>
+          <span>Fig. 00 — Saad Kay</span>
+          <span>7-String · Prog &amp; Jazz</span>
+        </figcaption>
+      </figure>
+    </section>
 
-	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>mafium</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="description" content="" />
-	<meta name="keywords" content="" />
-	<meta name="author" content="" />
+    <section id="index" class="index-section" aria-labelledby="index-heading">
+      <div class="index-bar">
+        <h2 id="index-heading">Index by discipline</h2>
+        <p class="index-hint">Select a tab · Arrow keys supported</p>
+      </div>
 
-  <!-- Facebook and Twitter integration -->
-	<meta property="og:title" content=""/>
-	<meta property="og:image" content=""/>
-	<meta property="og:url" content=""/>
-	<meta property="og:site_name" content=""/>
-	<meta property="og:description" content=""/>
-	<meta name="twitter:title" content="" />
-	<meta name="twitter:image" content="" />
-	<meta name="twitter:url" content="" />
-	<meta name="twitter:card" content="" />
+      <div class="tabs">
+        <div class="tablist" role="tablist" focusgroup="tablist nomemory" aria-label="Project categories">
+          <button type="button" role="tab" id="tab-science" aria-selected="true" focusgroupstart tabindex="0" data-tab="science">
+            <span class="tab-label"><span class="tab-num">01</span><span>Science</span></span>
+            <span class="tab-status">01 entry</span>
+          </button>
+          <button type="button" role="tab" id="tab-music" aria-selected="false" tabindex="-1" data-tab="music">
+            <span class="tab-label"><span class="tab-num">02</span><span>Music</span></span>
+            <span class="tab-status">01 entry</span>
+          </button>
+          <button type="button" role="tab" id="tab-ai" aria-selected="false" tabindex="-1" data-tab="ai">
+            <span class="tab-label"><span class="tab-num">03</span><span>AI</span></span>
+            <span class="tab-status">Open</span>
+          </button>
+        </div>
 
-	<!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
-	<link rel="shortcut icon" href="favicon.ico">
+        <div class="tab-panels">
+          <!-- 01 · SCIENCE -->
+          <div role="tabpanel" aria-labelledby="tab-science" tabindex="0">
+            <div class="panel-sheet">
+              <article class="entry">
+                <div class="entry-copy">
+                  <div class="entry-head">
+                    <ul class="entry-meta">
+                      <li>01.1 · <strong>Complex Analysis</strong></li>
+                      <li>/zeta/</li>
+                    </ul>
+                    <h3 class="entry-title"><a href="./zeta/">Zeta Shift Lab</a></h3>
+                    <p class="entry-desc">
+                      Shifts the Riemann zeta function by ½ so the critical line sits directly on the imaginary axis. Scrub the morph from the input grid to ζ(s + ½), trace curves and regions, and check non-trivial zeros numerically.
+                    </p>
+                  </div>
 
-	<link href="https://fonts.googleapis.com/css?family=Quicksand:300,400,500,700" rel="stylesheet">
-	<link href="https://fonts.googleapis.com/css?family=Playfair+Display:400,400i,700" rel="stylesheet">
+                  <dl class="entry-specs">
+                    <div>
+                      <dt>Function</dt>
+                      <dd>ζ(s + ½) on Re(s) = 0</dd>
+                    </div>
+                    <div>
+                      <dt>First zero</dt>
+                      <dd>t ≈ 14.134725</dd>
+                    </div>
+                    <div>
+                      <dt>Surface</dt>
+                      <dd>Complex plane &amp; Z(t) strip</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>Live interactive lab</dd>
+                    </div>
+                  </dl>
 
-	<!-- Animate.css -->
-	<link rel="stylesheet" href="css/animate.css">
-	<!-- Icomoon Icon Fonts-->
-	<link rel="stylesheet" href="css/icomoon.css">
-	<!-- Bootstrap  -->
-	<link rel="stylesheet" href="css/bootstrap.css">
-	<!-- Flexslider  -->
-	<link rel="stylesheet" href="css/flexslider.css">
-	<!-- Flaticons  -->
-	<link rel="stylesheet" href="fonts/flaticon/font/flaticon.css">
-	<!-- Owl Carousel -->
-	<link rel="stylesheet" href="css/owl.carousel.min.css">
-	<link rel="stylesheet" href="css/owl.theme.default.min.css">
-	<!-- Theme style  -->
-	<link rel="stylesheet" href="css/style.css">
+                  <a class="entry-action" href="./zeta/">
+                    <span>Open Zeta Shift Lab</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                  </a>
+                </div>
 
-	<!-- Modernizr JS -->
-	<script src="js/modernizr-2.6.2.min.js"></script>
-	<!-- FOR IE9 below -->
-	<!--[if lt IE 9]>
-	<script src="js/respond.min.js"></script>
-	<![endif]-->
+                <div class="entry-specimen">
+                  <div class="specimen-bar">
+                    <span>Hardy Z(t) · Critical Line</span>
+                    <span id="zeta-readout" class="specimen-readout">t = 14.13 · Z(t) = 0.00</span>
+                  </div>
+                  <div class="specimen-canvas-wrap">
+                    <canvas id="zeta-specimen" aria-label="Plot of Hardy's Z function showing the first six non-trivial Riemann zeta zeros"></canvas>
+                  </div>
+                  <div class="specimen-foot">
+                    <span>Move pointer across curve to inspect t</span>
+                    <span>Zeros: 14.13 · 21.02 · 25.01 · 30.42 · 32.94 · 37.59</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
 
-	</head>
-	<body>
-	<div id="colorlib-page">
-		<div class="container-wrap">
-		<a href="#" class="js-colorlib-nav-toggle colorlib-nav-toggle" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><i></i></a>
-		<aside id="colorlib-aside" role="complementary" class="border js-fullheight">
-			<div class="text-center">
-				<div class="author-img" style="background-image: url(images/about.jpg);"></div>
-				<h1 id="colorlib-logo"><a href="index.html">Saad Kay</a></h1>
-				<span class="position"><a href="#">Data Scientist / Solution Developer/ Musician/ Developer Relation </a>
-					<br> California, Dubai and Amman</span>
-			</div>
-			<nav id="colorlib-main-menu" role="navigation" class="navbar">
-				<div id="navbar" class="collapse">
-					<ul>
-						<li class="active"><a href="#" data-nav-section="home">Home</a></li>
-						<li><a href="#" data-nav-section="about">About</a></li>
-						<li><a href="#" data-nav-section="services">Data Scientist</a></li>
-						<li><a href="#" data-nav-section="skills">Music</a></li>
-						<!-- <li><a href="#" data-nav-section="education">Musician</a></li> -->
-						<!-- <li><a href="#" data-nav-section="experience">Mathematician</a></li> -->
-						<!-- <li><a href="#" data-nav-section="work">Work</a></li> -->
-						<!-- <li><a href="#" data-nav-section="blog">Blog</a></li> -->
-						<li><a href="#" data-nav-section="contact">Contact</a></li>
-					</ul>
-				</div>
-<!-- polyr -->
-<!DOCTYPE html>
-<html>
-  <body>
-    <div class ="content">
-  <span> Poly1
-    <input type="number" id="btn1" value="4">
-  </span>
-  <br>
-  <span> Poly2
-    <input type="number" id="btn2" value="3">
-  </span>
-  <br>
-  <span> Poly3
-    <input type="number" id="btn3" value="0">
-  </span>
-  <br>
-  <span> Poly4
-    <input type="number" id="btn4" value="0">
-  </span>
-  <br>
-  <span> speed
-    <input type="range" id="btn5" min="1" max="60" value="10">
-    <span id="output"></span>
-  </span>
-  <br>
-  <button onclick="myFunction()">submit</button>
-  <br>
-  <canvas id="canvas" width="200" height="200"
-    style="background-color:#1a1a1a ">
-  </canvas>
-</div>
+          <!-- 02 · MUSIC -->
+          <div role="tabpanel" aria-labelledby="tab-music" hidden="until-found">
+            <div class="panel-sheet">
+              <article class="entry">
+                <div class="entry-copy">
+                  <div class="entry-head">
+                    <ul class="entry-meta">
+                      <li>02.1 · <strong>Rhythm Instrument</strong></li>
+                      <li>/oddmeter/</li>
+                    </ul>
+                    <h3 class="entry-title"><a href="./oddmeter/">Oddmeter</a></h3>
+                    <p class="entry-desc">
+                      A compact three-row practice metronome for odd time signatures, additive beat groupings (such as 2+2+3 in 7/8), polyrhythms, and independent per-beat tuplets — synced to one shared Web Audio sample clock with instant URL setup sharing.
+                    </p>
+                  </div>
 
+                  <dl class="entry-specs">
+                    <div>
+                      <dt>Meter range</dt>
+                      <dd>1–32 beats · /2 /4 /8 /16</dd>
+                    </div>
+                    <div>
+                      <dt>Engine</dt>
+                      <dd>Shared AudioWorklet clock</dd>
+                    </div>
+                    <div>
+                      <dt>Subdivisions</dt>
+                      <dd>Per-beat &amp; whole-bar tuplets</dd>
+                    </div>
+                    <div>
+                      <dt>Sharing</dt>
+                      <dd>Live URL hash snapshot</dd>
+                    </div>
+                  </dl>
 
-  <script>
-  var poly1 = 0
-  var poly2 = 0
-  var poly3 = 0
-  var poly4 = 0
-  var speed = 0
-function myFunction() {
-  poly1 = document.getElementById("btn1").value;
-  poly2 = document.getElementById("btn2").value;
-  poly3 = document.getElementById("btn3").value;
-  poly4 = document.getElementById("btn4").value;
-  time = -speed
-}
+                  <a class="entry-action" href="./oddmeter/">
+                    <span>Open Oddmeter</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                  </a>
+                </div>
 
+                <div class="entry-specimen">
+                  <div class="specimen-bar">
+                    <span>Rational Pulse Grid</span>
+                    <span id="rhythm-readout" class="specimen-readout">3/4 · BEAT 1 · ×3/2/2 &amp; ×4/5/5</span>
+                  </div>
+                  <div class="specimen-canvas-wrap">
+                    <canvas id="rhythm-specimen" aria-label="Diagram of Oddmeter's three aligned lanes showing 3/4 with mixed per-beat tuplets"></canvas>
+                  </div>
+                  <div class="specimen-foot">
+                    <span>Move pointer across grid to scrub phase</span>
+                    <span>Beat · Subdiv 1 · Subdiv 2</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
 
-  var canvas = document.getElementById("canvas");
-  var ctx = canvas.getContext("2d");
-  var radius = canvas.height / 2;
-  ctx.translate(radius, radius);
-  radius = radius * 0.90
-  setInterval(drawClock, 10);
+          <!-- 03 · AI -->
+          <div role="tabpanel" aria-labelledby="tab-ai" hidden="until-found">
+            <div class="panel-sheet">
+              <article class="ai-slot">
+                <div class="entry-copy">
+                  <div class="entry-head">
+                    <ul class="entry-meta">
+                      <li>03.0 · <strong>Artificial Intelligence</strong></li>
+                      <li>Unassigned</li>
+                    </ul>
+                    <h3 class="entry-title">AI Bench</h3>
+                    <p class="entry-desc">
+                      Reserved for upcoming AI tools, model experiments, and generative studies. Nothing published in this slot yet — entries will appear here as they ship.
+                    </p>
+                  </div>
 
-  function drawClock() {
-    drawFace(ctx, radius);
-    drawNumbers(ctx, radius);
-    drawTime(ctx, radius);
-  }
+                  <dl class="entry-specs">
+                    <div>
+                      <dt>Section</dt>
+                      <dd>03 / AI</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>Open slot</dd>
+                    </div>
+                  </dl>
+                </div>
 
-  function drawFace(ctx, radius) {
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, 2*Math.PI);
-    ctx.fillStyle = '#112233';
-    ctx.fill();
-    ctx.fillStyle = '#33aa66';
-    ctx.strokeStyle  = '#456bc8';
-    var radi = [radius, radius*0.8, radius*0.6, radius*0.4, radius*0.2];
-    for(var i = 0; i < radi.length; i++){
-      ctx.beginPath();
-      ctx.arc(0, 0, radi[i], 0, 2*Math.PI);
-      ctx.stroke();
-    };
+                <div class="ai-drafting" aria-hidden="true">
+                  <div class="ai-stamp">
+                    <strong>03 / AI · Reserved</strong>
+                    Next entries land here
+                  </div>
+                </div>
+              </article>
+              <!-- To add an AI entry later, replace .ai-slot with an <article class="entry"> following the Science/Music structure. -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  }
+    <section id="about" class="colophon" aria-label="About and Contact">
+      <div class="colophon-about">
+        <h2>Notes</h2>
+        <p class="pull-quote">“You exist now, do something that matters.”</p>
+        <p>
+          Saad is talking about himself in third person — obsessed with a problem until it works, allergic to bloated self-descriptions, and happiest where math, code, and music overlap.
+        </p>
 
+        <dl class="facts">
+          <div class="facts-row">
+            <dt>Community</dt>
+            <dd>Co-founded and organized Google Developer Groups (GDG) Dubai since 2010 — 38 events, 31 talks, 17,000+ attendees.</dd>
+          </div>
+          <div class="facts-row">
+            <dt>Data &amp; ML</dt>
+            <dd>Built Python classical music generation, healthcare risk prediction, medical claims classification, and fraud detection systems across 100+ projects.</dd>
+          </div>
+          <div class="facts-row">
+            <dt>Music</dt>
+            <dd>Electric guitar player and teacher rooted in Progressive Metal, NeoClassical Metal, Jazz, and ambient Middle Eastern improvisation.</dd>
+          </div>
+        </dl>
+      </div>
 
-  function drawNumbers(ctx, radius) {
-    var ang;
-    var num;
-    ctx.font = radius*0.10 + "px arial";
-    ctx.textBaseline="middle";
-    ctx.textAlign="center";
-    for(num = 0; num < poly1; num++){
-      ang = num * 2*Math.PI / poly1;
-      ctx.rotate(ang);
-      ctx.translate(0, -radius*0.9);
-      ctx.rotate(-ang);
-      ctx.fillText((num+1).toString(), 0, 0);
-      ctx.rotate(ang);
-      ctx.translate(0, radius*0.9);
-      ctx.rotate(-ang);
-    }
+      <div id="contact" class="colophon-contact">
+        <h2>Contact</h2>
+        <ul class="contact-ledger">
+          <li>
+            <a class="contact-item" href="mailto:saad@mafium.com">
+              <span class="contact-k">Email</span>
+              <span class="contact-v">saad@mafium.com</span>
+            </a>
+          </li>
+          <li>
+            <a class="contact-item" href="https://github.com/MAFiA303/" target="_blank" rel="noopener noreferrer">
+              <span class="contact-k">GitHub</span>
+              <span class="contact-v">github.com/MAFiA303 ↗</span>
+            </a>
+          </li>
+          <li>
+            <div class="contact-item">
+              <span class="contact-k">Locations</span>
+              <span class="contact-v">San Jose · Dubai · Amman</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
 
-    for(num = 0; num < poly2; num++){
-      ang = num * 2*Math.PI / poly2;
-      ctx.rotate(ang);
-      ctx.translate(0, -radius*0.7);
-      ctx.rotate(-ang);
-      ctx.fillText((num+1).toString(), 0, 0);
-      ctx.rotate(ang);
-      ctx.translate(0, radius*0.7);
-      ctx.rotate(-ang);
-    }
-
-    for(num = 0; num < poly3; num++){
-      ang = num * 2*Math.PI / poly3;
-      ctx.rotate(ang);
-      ctx.translate(0, -radius*0.5);
-      ctx.rotate(-ang);
-      ctx.fillText((num+1).toString(), 0, 0);
-      ctx.rotate(ang);
-      ctx.translate(0, radius*0.5);
-      ctx.rotate(-ang);
-    }
-    for(num = 0; num < poly4; num++){
-      ang = num * 2*Math.PI / poly4;
-      ctx.rotate(ang);
-      ctx.translate(0, -radius*0.3);
-      ctx.rotate(-ang);
-      ctx.fillText((num+1).toString(), 0, 0);
-      ctx.rotate(ang);
-      ctx.translate(0, radius*0.3);
-      ctx.rotate(-ang);
-    }
-  }
-  var context = new AudioContext()
-  var o = context.createOscillator()
-  var  g = context.createGain()
-  var frequency = 220.0
-
-      var time = -1 * speed;
-      function drawTime(ctx, radius){
-        time = time + speed
-      drawHand(ctx, time, radius, radius*0.02);
-      time = time % precise(2*Math.PI + speed,3)
-      speed = (document.getElementById("btn5").value)/600;
-      document.getElementById("output").innerHTML = precise(speed*100,2);
-      if (precise(time % (2*Math.PI/poly1),2) < speed){
-        beep(660);
-      };
-      if (precise(time % (2*Math.PI/poly2),2) < speed){
-        beep(440);
-      };
-      if (precise(time % (2*Math.PI/poly3 ),2) < speed){
-        beep(330);
-      };
-      if (precise(time % (2*Math.PI/poly4 ),2) < speed){
-        beep(220);
-      };
-  }
-
-  function precise(x,n) {
-  return Number.parseFloat(x).toPrecision(n);
-}
-
-  function drawHand(ctx, pos, length, width) {
-      ctx.beginPath();
-      ctx.lineWidth = width;
-      ctx.moveTo(0,0);
-      ctx.rotate(pos);
-      ctx.lineTo(0, -length);
-      ctx.stroke();
-      ctx.rotate(-pos);
-  }
-audioCtx = new(window.AudioContext || window.webkitAudioContext)();
-function beep(frequency) {
-  var oscillator = audioCtx.createOscillator();
-  var gainNode = audioCtx.createGain();
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  gainNode.gain.value = 1;
-  oscillator.frequency.value = frequency;
-  oscillator.type = 'sine';
-  oscillator.start();
-  setTimeout(
-    function() {
-      oscillator.stop();
-    },
-    50
-  );
-};
-
-  </script>
-
-  </body>
-</html>
-<!-- end polyr -->
-			</nav>
-
-
-			<div class="colorlib-footer">
-				<p><small>&copy; <!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
-Copyright &copy;<script>document.write(new Date().getFullYear());</script> All rights reserved | This template is made with <i class="icon-heart" aria-hidden="true"></i> by <a href="https://colorlib.com" target="_blank">Colorlib</a>
-<!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. --> </span> <span>Demo Images: <a href="https://unsplash.com/" target="_blank">Unsplash.com</a></span></small></p>
-				<ul>
-					<li><a href="#"><i class="icon-facebook2"></i></a></li>
-					<li><a href="#"><i class="icon-twitter2"></i></a></li>
-					<li><a href="#"><i class="icon-instagram"></i></a></li>
-					<li><a href="#"><i class="icon-linkedin2"></i></a></li>
-				</ul>
-			</div>
-
-		</aside>
-
-
-		<div id="colorlib-main">
-			<section id="colorlib-hero" class="js-fullheight" data-section="home">
-				<div class="flexslider js-fullheight">
-					<ul class="slides">
-				   	<li style="background-image: url(images/img_bg_1.jpg);">
-				   		<div class="overlay"></div>
-				   		<div class="container-fluid">
-				   			<div class="row">
-					   			<div class="col-md-6 col-md-offset-3 col-md-pull-3 col-sm-12 col-xs-12 js-fullheight slider-text">
-					   				<div class="slider-text-inner js-fullheight">
-					   					<div class="desc">
-						   					<h1>Hi! <br>I'm Saad</h1>
-						   					<h2> <b>I do recreational mathematical code and make artistic music with it! <a href="https://github.com/MAFiA303/" target="_blank">GitHub</a> </b></h2>
-												<!--<p><a class="btn btn-primary btn-learn" <b> >Download CV </b> <i class="icon-download4"></i></a></p> -->
-											</div>
-					   				</div>
-					   			</div>
-					   		</div>
-				   		</div>
-				   	</li>
-				   	<li style="background-image: url(images/img_bg_2.jpg);">
-				   		<div class="overlay"></div>
-				   		<div class="container-fluid">
-				   			<div class="row">
-					   			<div class="col-md-6 col-md-offset-3 col-md-pull-3 col-sm-12 col-xs-12 js-fullheight slider-text">
-					   				<div class="slider-text-inner">
-					   					<div class="desc">
-						   					<h1>I am <br>Developer Relation</h1>
-												<h2> <b> I co-founded and managed Google Developer Groups in Dubai since 2010 <a href="www.gdgdubai.com/" target="_blank">gdgdubai</a> </b> </h2>
-												<!--<p><a class="btn btn-primary btn-learn">View Portfolio <i class="icon-briefcase3"></i></a></p>-->
-											</div>
-					   				</div>
-					   			</div>
-					   		</div>
-				   		</div>
-				   	</li>
-				  	</ul>
-			  	</div>
-			</section>
-
-			<section class="colorlib-about" data-section="about">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-12">
-							<div class="row row-bottom-padded-sm animate-box" data-animate-effect="fadeInLeft">
-								<div class="col-md-12">
-									<div class="about-desc">
-										<span class="heading-meta">About Us</span>
-										<h2 class="colorlib-heading">About me</h2>
-										<p>You exist now, do something that matter! </p>
-										<p>Passionate learner and lover of spreading knowledge.</p>
-										<p>Saad is talking about himself in 3rd person. He's a hard worker who can get obsessed with his task until its done. He's fun to work with and like to joke around and spread smiles. He either has a smile or food in his mouth. Saad doesn't believe people should write their own description as many people lie to get ahead in life. If you wanna know me, i mean him.. talk to us.</p>
-										<p>Thank you for reading this, come again for another update #NoEmoji </p>
-									</div>
-								</div>
-							</div>
-							<div class="row">
-								<div class="col-md-3 animate-box" data-animate-effect="fadeInLeft">
-									<div class="services color-1">
-										<span class="icon2"><i class="icon-bulb"></i></span>
-										<h3>Developer Relation</h3>
-									</div>
-								</div>
-								<div class="col-md-3 animate-box" data-animate-effect="fadeInRight">
-									<div class="services color-2">
-										<span class="icon2"><i class="icon-globe-outline"></i></span>
-										<h3>Musician</h3>
-									</div>
-								</div>
-								<div class="col-md-3 animate-box" data-animate-effect="fadeInTop">
-									<div class="services color-3">
-										<span class="icon2"><i class="icon-data"></i></span>
-										<h3>Data Scientist</h3>
-									</div>
-								</div>
-								<div class="col-md-3 animate-box" data-animate-effect="fadeInBottom">
-									<div class="services color-4">
-										<span class="icon2"><i class="icon-phone3"></i></span>
-										<h3>Solution Developer</h3>
-									</div>
-								</div>
-							</div>
-							<div class="row">
-								<div class="col-md-12 animate-box" data-animate-effect="fadeInLeft">
-									<div class="hire">
-										<h2>Achievements <br> 100+ projects done sucessfully!</h2>
-										<a href="#" class="btn-hire">Open Source mentality</a>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-
-
-
-			<section class="colorlib-services" data-section="services">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">What I do?</span>
-							<h2 class="colorlib-heading">Some projects</h2>
-						</div>
-					</div>
-					<div class="row row-pt-md">
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-1">
-								<span class="icon">
-									<i class="icon-bulb"></i>
-								</span>
-								<div class="desc">
-									<h3>Classical Music AI</h3>
-									<p>Taught the machine to create it's own classical music on Python </p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-2">
-								<span class="icon">
-									<i class="icon-data"></i>
-								</span>
-								<div class="desc">
-									<h3>Health Insurance</h3>
-									<p>Built a classifier to accept or reject medical claims</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-3">
-								<span class="icon">
-									<i class="icon-phone3"></i>
-								</span>
-								<div class="desc">
-									<h3>Predicting Diabetes</h3>
-									<p>>Use patients medical records to predict if they will get diabetes and do early intervention</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-4">
-								<span class="icon">
-									<i class="icon-layers2"></i>
-								</span>
-								<div class="desc">
-									<h3>Fraud Detection </h3>
-									<p>Detect if doctors' fraudulent behavior such as over claiming medication of doing suspicious activities</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-5">
-								<span class="icon">
-									<i class="icon-data"></i>
-								</span>
-								<div class="desc">
-									<h3>Teacher</h3>
-									<p>Giving talks at various tech events and free classes with Google GDG</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 text-center animate-box">
-							<div class="services color-6">
-								<span class="icon">
-									<i class="icon-phone3"></i>
-								</span>
-								<!--
-								<div class="desc">
-									<h3>Application</h3>
-									<p>Separated they live in Bookmarksgrove right at the coast of the Semantics</p>
-								</div>
-							-->
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			<div id="colorlib-counter" class="colorlib-counters" style="background-image: url(images/cover_bg_1.jpg);" data-stellar-background-ratio="0.5">
-				<div class="overlay"></div>
-				<div class="colorlib-narrow-content">
-					<div class="row">
-					</div>
-					<div class="row">
-						<div class="col-md-3 text-center animate-box">
-							<span class="colorlib-counter js-counter" data-from="0" data-to="38" data-speed="5000" data-refresh-interval="50"></span>
-							<span class="colorlib-counter-label">GDG events</span>
-						</div>
-						<div class="col-md-3 text-center animate-box">
-							<span class="colorlib-counter js-counter" data-from="0" data-to="31" data-speed="5000" data-refresh-interval="50"></span>
-							<span class="colorlib-counter-label">Speaker at events</span>
-						</div>
-						<div class="col-md-3 text-center animate-box">
-							<span class="colorlib-counter js-counter" data-from="0" data-to="17000" data-speed="5000" data-refresh-interval="50"></span>
-							<span class="colorlib-counter-label">Over all attendees</span>
-						</div>
-						<!--
-						<div class="col-md-3 text-center animate-box">
-							<span class="colorlib-counter js-counter" data-from="0" data-to="10" data-speed="5000" data-refresh-interval="50"></span>
-							<span class="colorlib-counter-label">Partners</span>
-						</div>
-					-->
-					</div>
-				</div>
-			</div>
-
-			<section class="colorlib-skills" data-section="skills">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">My Specialty</span>
-							<h2 class="colorlib-heading animate-box">Musician</h2>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12 animate-box" data-animate-effect="fadeInLeft">
-							<p>Private music teach for electic guitar exclusively. I'm heavily influenced by Metal, Progressive Metal and Jazz. The style in infused with electronic ambient feel with a middle eastern taste</p>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="progress-wrap">
-								<h3>Progressive Metal</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-1" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								    <!--<span>75%</span>-->
-								  	</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="progress-wrap">
-								<h3>NeoClassical Metal</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-2" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								    <!--<span>60%</span> -->
-								  	</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="progress-wrap">
-								<h3>Jazz</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-3" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								   <!-- <span>85%</span>-->
-								  	</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="progress-wrap">
-								<h3>Improv</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-4" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								    <!--<span>90%</span>-->
-								  	</div>
-								</div>
-							</div>
-						</div>
-						<!--
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="progress-wrap">
-								<h3>WordPress</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-5" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								    <!--<span>70%</span>->
-								  	</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="progress-wrap">
-								<h3>SEO</h3>
-								<div class="progress">
-								 	<div class="progress-bar color-6" role="progressbar" aria-valuenow="100"
-								  	aria-valuemin="0" aria-valuemax="100" style="width:100%">
-								    <!--<span>80%</span>->
-								  	</div>
-								</div>
-							</div>
-						</div>
--->
-					</div>
-				</div>
-			</section>
-<!--
-			<section class="colorlib-education" data-section="education">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">Education</span>
-							<h2 class="colorlib-heading animate-box">Education</h2>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12 animate-box" data-animate-effect="fadeInLeft">
-							<div class="fancy-collapse-panel">
-								<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-									<div class="panel panel-default">
-									    <div class="panel-heading" role="tab" id="headingOne">
-									        <h4 class="panel-title">
-									            <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="true" aria-controls="collapseOne">Master Degree Graphic Design
-									            </a>
-									        </h4>
-									    </div>
-									    <div id="collapseOne" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingOne">
-									         <div class="panel-body">
-									            <div class="row">
-										      		<div class="col-md-6">
-										      			<p>Far far away, behind the word mountains, far from the countries Vokalia and Consonantia, there live the blind texts. </p>
-										      		</div>
-										      		<div class="col-md-6">
-										      			<p>Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-										      		</div>
-										      	</div>
-									         </div>
-									    </div>
-									</div>
-									<div class="panel panel-default">
-									    <div class="panel-heading" role="tab" id="headingTwo">
-									        <h4 class="panel-title">
-									            <a class="collapsed" data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">Bachelor Degree of Computer Science
-									            </a>
-									        </h4>
-									    </div>
-									    <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
-									        <div class="panel-body">
-									            <p>Far far away, behind the word <strong>mountains</strong>, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-													<ul>
-														<li>Separated they live in Bookmarksgrove right</li>
-														<li>Separated they live in Bookmarksgrove right</li>
-													</ul>
-									        </div>
-									    </div>
-									</div>
-									<div class="panel panel-default">
-									    <div class="panel-heading" role="tab" id="headingThree">
-									        <h4 class="panel-title">
-									            <a class="collapsed" data-toggle="collapse" data-parent="#accordion" href="#collapseThree" aria-expanded="false" aria-controls="collapseThree">Diploma in Information Technology
-									            </a>
-									        </h4>
-									    </div>
-									    <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
-									        <div class="panel-body">
-									            <p>Far far away, behind the word <strong>mountains</strong>, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-									        </div>
-									    </div>
-									</div>
-
-									<div class="panel panel-default">
-									    <div class="panel-heading" role="tab" id="headingFour">
-									        <h4 class="panel-title">
-									            <a class="collapsed" data-toggle="collapse" data-parent="#accordion" href="#collapseFour" aria-expanded="false" aria-controls="collapseFour">Diploma in Information Technology
-									            </a>
-									        </h4>
-									    </div>
-									    <div id="collapseFour" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFour">
-									        <div class="panel-body">
-									            <p>Far far away, behind the word <strong>mountains</strong>, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-									        </div>
-									    </div>
-									</div>
-
-									<div class="panel panel-default">
-									    <div class="panel-heading" role="tab" id="headingFive">
-									        <h4 class="panel-title">
-									            <a class="collapsed" data-toggle="collapse" data-parent="#accordion" href="#collapseFive" aria-expanded="false" aria-controls="collapseFive">High School Secondary Education
-									            </a>
-									        </h4>
-									    </div>
-									    <div id="collapseFive" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFive">
-									        <div class="panel-body">
-									            <p>Far far away, behind the word <strong>mountains</strong>, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-									        </div>
-									    </div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section
-		-->
-<!--
-			<section class="colorlib-experience" data-section="experience">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">Experience</span>
-							<h2 class="colorlib-heading animate-box">Work Experience</h2>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12">
-				         <div class="timeline-centered">
-					         <article class="timeline-entry animate-box" data-animate-effect="fadeInLeft">
-					            <div class="timeline-entry-inner">
-
-					               <div class="timeline-icon color-1">
-					                  <i class="icon-pen2"></i>
-					               </div>
-
-					               <div class="timeline-label">
-					                  <h2><a href="#">Full Stack Developer</a> <span>2017-2018</span></h2>
-					                  <p>Tolerably earnestly middleton extremely distrusts she boy now not. Add and offered prepare how cordial two promise. Greatly who affixed suppose but enquire compact prepare all put. Added forth chief trees but rooms think may.</p>
-					               </div>
-					            </div>
-					         </article>
-
-
-					         <article class="timeline-entry animate-box" data-animate-effect="fadeInRight">
-					            <div class="timeline-entry-inner">
-					               <div class="timeline-icon color-2">
-					                  <i class="icon-pen2"></i>
-					               </div>
-					               <div class="timeline-label">
-					               	<h2><a href="#">Front End Developer at Google Company</a> <span>2017-2018</span></h2>
-					                  <p>Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic life One day however a small line of blind text by the name of Lorem Ipsum decided to leave for the far World of Grammar.</p>
-					               </div>
-					            </div>
-					         </article>
-
-					         <article class="timeline-entry animate-box" data-animate-effect="fadeInLeft">
-					            <div class="timeline-entry-inner">
-					               <div class="timeline-icon color-3">
-					                  <i class="icon-pen2"></i>
-					               </div>
-					               <div class="timeline-label">
-					               	<h2><a href="#">System Analyst</a> <span>2017-2018</span></h2>
-					                  <p>Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic life One day however a small line of blind text by the name of Lorem Ipsum decided to leave for the far World of Grammar.</p>
-					               </div>
-					            </div>
-					         </article>
-
-					         <article class="timeline-entry animate-box" data-animate-effect="fadeInTop">
-					            <div class="timeline-entry-inner">
-					               <div class="timeline-icon color-4">
-					                  <i class="icon-pen2"></i>
-					               </div>
-					               <div class="timeline-label">
-					               	<h2><a href="#">Creative Designer</a> <span>2017-2018</span></h2>
-					                  <p>Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic life One day however a small line of blind text by the name of Lorem Ipsum decided to leave for the far World of Grammar.</p>
-					               </div>
-					            </div>
-					         </article>
-
-					         <article class="timeline-entry animate-box" data-animate-effect="fadeInLeft">
-					            <div class="timeline-entry-inner">
-					               <div class="timeline-icon color-5">
-					                  <i class="icon-pen2"></i>
-					               </div>
-					               <div class="timeline-label">
-					               	<h2><a href="#">UI/UX Designer at Envato</a> <span>2017-2018</span></h2>
-					                  <p>Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic life One day however a small line of blind text by the name of Lorem Ipsum decided to leave for the far World of Grammar.</p>
-					               </div>
-					            </div>
-					         </article>
-
-					         <article class="timeline-entry begin animate-box" data-animate-effect="fadeInBottom">
-					            <div class="timeline-entry-inner">
-					               <div class="timeline-icon color-none">
-					               </div>
-					            </div>
-					         </article>
-					      </div>
-					   </div>
-				   </div>
-				</div>
-			</section>
-		-->
-<!--
-			<section class="colorlib-work" data-section="work">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">My Work</span>
-							<h2 class="colorlib-heading animate-box">Recent Work</h2>
-						</div>
-					</div>
-					<div class="row row-bottom-padded-sm animate-box" data-animate-effect="fadeInLeft">
-						<div class="col-md-12">
-							<p class="work-menu"><span><a href="#" class="active">Graphic Design</a></span> <span><a href="#">Web Design</a></span> <span><a href="#">Software</a></span> <span><a href="#">Apps</a></span></p>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="project" style="background-image: url(images/img-1.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 01</a></h3>
-										<span>Website</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="project" style="background-image: url(images/img-2.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 02</a></h3>
-										<span>Animation</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInTop">
-							<div class="project" style="background-image: url(images/img-3.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 03</a></h3>
-										<span>Illustration</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInBottom">
-							<div class="project" style="background-image: url(images/img-4.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 04</a></h3>
-										<span>Application</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="project" style="background-image: url(images/img-5.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 05</a></h3>
-										<span>Graphic, Logo</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="project" style="background-image: url(images/img-6.jpg);">
-								<div class="desc">
-									<div class="con">
-										<h3><a href="work.html">Work 06</a></h3>
-										<span>Web Design</span>
-										<p class="icon">
-											<span><a href="#"><i class="icon-share3"></i></a></span>
-											<span><a href="#"><i class="icon-eye"></i> 100</a></span>
-											<span><a href="#"><i class="icon-heart"></i> 49</a></span>
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12 animate-box">
-							<p><a href="#" class="btn btn-primary btn-lg btn-load-more">Load more <i class="icon-reload"></i></a></p>
-						</div>
-					</div>
-				</div>
-			</section>
-		-->
-<!--
-			<section class="colorlib-blog" data-section="blog">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">Read</span>
-							<h2 class="colorlib-heading">Recent Blog</h2>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-4 col-sm-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="blog-entry">
-								<a href="blog.html" class="blog-img"><img src="images/blog-1.jpg" class="img-responsive" alt="HTML5 Bootstrap Template by colorlib.com"></a>
-								<div class="desc">
-									<span><small>April 14, 2018 </small> | <small> Web Design </small> | <small> <i class="icon-bubble3"></i> 4</small></span>
-									<h3><a href="blog.html">Renovating National Gallery</a></h3>
-									<p>Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 col-sm-6 animate-box" data-animate-effect="fadeInRight">
-							<div class="blog-entry">
-								<a href="blog.html" class="blog-img"><img src="images/blog-2.jpg" class="img-responsive" alt="HTML5 Bootstrap Template by colorlib.com"></a>
-								<div class="desc">
-									<span><small>April 14, 2018 </small> | <small> Web Design </small> | <small> <i class="icon-bubble3"></i> 4</small></span>
-									<h3><a href="blog.html">Wordpress for a Beginner</a></h3>
-									<p>Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4 col-sm-6 animate-box" data-animate-effect="fadeInLeft">
-							<div class="blog-entry">
-								<a href="blog.html" class="blog-img"><img src="images/blog-3.jpg" class="img-responsive" alt="HTML5 Bootstrap Template by colorlib.com"></a>
-								<div class="desc">
-									<span><small>April 14, 2018 </small> | <small> Inspiration </small> | <small> <i class="icon-bubble3"></i> 4</small></span>
-									<h3><a href="blog.html">Make website from scratch</a></h3>
-									<p>Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean.</p>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12 animate-box">
-							<p><a href="#" class="btn btn-primary btn-lg btn-load-more">Load more <i class="icon-reload"></i></a></p>
-						</div>
-					</div>
-				</div>
-			</section>
--->
-			<section class="colorlib-contact" data-section="contact">
-				<div class="colorlib-narrow-content">
-					<div class="row">
-						<div class="col-md-6 col-md-offset-3 col-md-pull-3 animate-box" data-animate-effect="fadeInLeft">
-							<span class="heading-meta">Get in Touch</span>
-							<h2 class="colorlib-heading">Contact</h2>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-5">
-							<div class="colorlib-feature colorlib-feature-sm animate-box" data-animate-effect="fadeInLeft">
-								<div class="colorlib-icon">
-									<i class="icon-globe-outline"></i>
-								</div>
-								<div class="colorlib-text">
-									<p><a href="#">saad@mafium.com</a></p>
-								</div>
-							</div>
-
-							<div class="colorlib-feature colorlib-feature-sm animate-box" data-animate-effect="fadeInLeft">
-								<div class="colorlib-icon">
-									<i class="icon-map"></i>
-								</div>
-								<div class="colorlib-text">
-									<p>San Jose CA</p>
-								</div>
-							</div>
-
-							<div class="colorlib-feature colorlib-feature-sm animate-box" data-animate-effect="fadeInLeft">
-								<div class="colorlib-icon">
-									<i class="icon-phone"></i>
-								</div>
-								<div class="colorlib-text">
-									<p><a href="tel://">+408 933 8483</a></p>
-								</div>
-							</div>
-						</div>
-						<!--
-						<div class="col-md-7 col-md-push-1">
-							<div class="row">
-								<div class="col-md-10 col-md-offset-1 col-md-pull-1 animate-box" data-animate-effect="fadeInRight">
-									<form action="send_form_email.php">
-										<div class="form-group">
-											<input type="text" class="form-control" placeholder="Name">
-										</div>
-										<div class="form-group">
-											<input type="text" class="form-control" placeholder="Email">
-										</div>
-										<div class="form-group">
-											<input type="text" class="form-control" placeholder="Subject">
-										</div>
-										<div class="form-group">
-											<textarea name="message" id="message" cols="30" rows="7" class="form-control" placeholder="Message"></textarea>
-										</div>
-										<div class="form-group">
-											<input type="submit" class="btn btn-primary btn-send-message" value="Send Message">
-										</div>
-									</form>
-								</div>
-
-							</div>
-						</div>
-					-->
-					</div>
-				</div>
-			</section>
-
-		</div><!-- end:colorlib-main -->
-	</div><!-- end:container-wrap -->
-	</div><!-- end:colorlib-page -->
-
-	<!-- jQuery -->
-	<script src="js/jquery.min.js"></script>
-	<!-- jQuery Easing -->
-	<script src="js/jquery.easing.1.3.js"></script>
-	<!-- Bootstrap -->
-	<script src="js/bootstrap.min.js"></script>
-	<!-- Waypoints -->
-	<script src="js/jquery.waypoints.min.js"></script>
-	<!-- Flexslider -->
-	<script src="js/jquery.flexslider-min.js"></script>
-	<!-- Owl carousel -->
-	<script src="js/owl.carousel.min.js"></script>
-	<!-- Counters -->
-	<script src="js/jquery.countTo.js"></script>
-
-
-	<!-- MAIN JS -->
-	<script src="js/main.js"></script>
-
-	</body>
+  <footer class="site-footer">
+    <div class="frame footer-inner">
+      <span>© Saad Kay · mafium.com</span>
+      <nav class="footer-links" aria-label="Site links">
+        <a href="./zeta/">/zeta/</a>
+        <a href="./oddmeter/">/oddmeter/</a>
+        <a href="https://github.com/MAFiA303/" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+</body>
 </html>
