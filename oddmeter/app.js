@@ -13,11 +13,11 @@ const ui = {
   beats: byId('meter-beats'), unit: byId('meter-unit'), ruler: byId('ruler'), groupingChoice: byId('grouping-choice'),
   grouping: byId('grouping'), groupingHelp: byId('grouping-help'), groupingError: byId('grouping-error'), applyGrouping: byId('apply-grouping'),
   pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), more: document.querySelector('.advanced-settings'),
-  markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'),
+  markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerMenuClose: byId('marker-menu-close'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'),
   undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'),
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
-  share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'),
+  share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
   scrolls: [...document.querySelectorAll('[data-timeline-scroll]')],
 };
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
@@ -72,19 +72,78 @@ function save() {
 }
 
 let shareFeedbackTimer;
+let supportsDisplayTransition;
+function canTransitionDisplay() {
+  if (supportsDisplayTransition !== undefined) return supportsDisplayTransition;
+  if (!window.CSS?.supports?.('transition-behavior', 'allow-discrete') || !document.body) return false;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'transition: display 1s allow-discrete !important; display: block;';
+  document.body.appendChild(probe);
+  window.getComputedStyle(probe).display;
+  probe.style.display = 'none';
+  supportsDisplayTransition = window.getComputedStyle(probe).display === 'block';
+  probe.remove();
+  return supportsDisplayTransition;
+}
+function supportsTopLayerExit() {
+  return Boolean(window.CSS?.supports?.('overlay', 'auto') && canTransitionDisplay());
+}
+async function closeTopLayer(dialog) {
+  if (!dialog?.open || dialog.hasAttribute('data-closing')) return;
+  if (!supportsTopLayerExit()) {
+    dialog.setAttribute('data-closing', '');
+    const animations = dialog.getAnimations?.({ subtree: true }) ?? [];
+    if (animations.length > 0) {
+      await Promise.race([
+        Promise.allSettled(animations.map((animation) => animation.finished)),
+        new Promise((resolve) => window.setTimeout(resolve, 400)),
+      ]);
+    }
+    if (!dialog.hasAttribute('data-closing')) return;
+    dialog.removeAttribute('data-closing');
+  }
+  dialog.close();
+}
+if (ui.shareDialog) {
+  ui.shareDialog.addEventListener('cancel', (event) => {
+    if (supportsTopLayerExit()) return;
+    event.preventDefault();
+    void closeTopLayer(ui.shareDialog);
+  });
+  // Fallback for browsers without native closedby="any" light-dismiss support.
+  if (!('closedBy' in (window.HTMLDialogElement?.prototype ?? {}))) {
+    ui.shareDialog.addEventListener('click', (event) => {
+      if (event.target !== ui.shareDialog) return;
+      const rect = ui.shareDialog.getBoundingClientRect();
+      const inside = rect.top <= event.clientY && event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX && event.clientX <= rect.left + rect.width;
+      if (!inside) void closeTopLayer(ui.shareDialog);
+    });
+  }
+}
+ui.shareCopy?.addEventListener('click', () => {
+  ui.shareLink.focus();
+  ui.shareLink.select();
+  void window.navigator.clipboard?.writeText(ui.shareLink.value).then(() => {
+    ui.shareFeedback.textContent = 'Setup link copied.';
+  }).catch(() => {});
+});
 ui.share?.addEventListener('click', async () => {
   const link = makeSetupLink(window.location.href, settings);
   try {
     await window.navigator.clipboard.writeText(link);
     ui.share.textContent = 'Copied';
+    ui.share.dataset.copied = '';
     ui.shareFeedback.textContent = 'Setup link copied.';
     clearTimeout(shareFeedbackTimer);
     shareFeedbackTimer = window.setTimeout(() => {
       ui.share.textContent = 'Share';
+      delete ui.share.dataset.copied;
       ui.shareFeedback.textContent = '';
     }, 1600);
   } catch {
     ui.shareLink.value = link;
+    ui.shareDialog.removeAttribute('data-closing');
     if (!ui.shareDialog.open) ui.shareDialog.showModal();
     ui.shareLink.focus();
     ui.shareLink.select();
@@ -263,6 +322,7 @@ async function start() {
   const id = ++startId;
   showMessage();
   starting = true;
+  ui.play.dataset.starting = '';
   ui.playLabel.textContent = 'Cancel';
   status('Starting');
   try {
@@ -271,6 +331,7 @@ async function start() {
     // Only the request still owned by the transport may begin playback.
     if (id !== startId) return;
     playing = true;
+    delete ui.play.dataset.starting;
     ui.play.dataset.running = '';
     ui.playLabel.textContent = 'Stop';
     status(settings.countIn ? 'Count-in' : 'Playing', true);
@@ -283,7 +344,10 @@ async function start() {
     console.error(error);
     showMessage('Audio could not start. Open Oddmeter on localhost or HTTPS in a browser with AudioWorklet support, then try again.');
   } finally {
-    if (id === startId) starting = false;
+    if (id === startId) {
+      starting = false;
+      delete ui.play.dataset.starting;
+    }
   }
 }
 
@@ -297,6 +361,7 @@ function stop() {
   cancelAnimationFrame(animationFrame);
   clearPlayhead();
   releaseWake();
+  delete ui.play.dataset.starting;
   delete ui.play.dataset.running;
   ui.playLabel.textContent = 'Start';
   status('Ready');
@@ -432,7 +497,10 @@ function displayTempo(bpm) {
   setFill(ui.tempoRange);
 }
 function renderTempoUnit() {
-  ui.tempoUnit.textContent = `${tempoSymbols.get(settings.tempoBeat) ?? '♩'} BPM`;
+  const note = document.createElement('span');
+  note.className = 'tempo-note';
+  note.textContent = tempoSymbols.get(settings.tempoBeat) ?? '♩';
+  ui.tempoUnit.replaceChildren(note, ' BPM');
 }
 function setTempo(value, fromTap = false) {
   if (!fromTap) taps = [];
@@ -478,6 +546,7 @@ function renderMeter() {
     new Option(choice.length === 1 ? 'No groups' : choice.join('+'), choice.join('+'))), new Option('Custom…', 'custom'));
   ui.groupingChoice.value = grouping.join('+');
   ui.groupingChoice.hidden = beats < 5;
+  ui.groupingChoice.toggleAttribute('data-active', grouping.length > 1);
   ui.ruler.replaceChildren();
   currentBeat = -1;
   const starts = groupStarts(grouping);
@@ -783,9 +852,12 @@ function positionMarkerMenu() {
   const width = menu.offsetWidth;
   const height = menu.offsetHeight;
   const viewWidth = document.documentElement.clientWidth || window.innerWidth;
+  const bottomGuard = viewWidth <= 680 ? 78 : 8;
   const left = Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, viewWidth - width - 8));
-  let top = rect.bottom + 6;
-  if (top + height > window.innerHeight - 8 && rect.top - height - 6 > 8) top = rect.top - height - 6;
+  const placedAbove = rect.bottom + 8 + height > window.innerHeight - bottomGuard && rect.top - height - 8 > 8;
+  const top = placedAbove ? rect.top - height - 8 : rect.bottom + 8;
+  menu.dataset.placement = placedAbove ? 'above' : 'below';
+  menu.style.setProperty('--menu-origin-x', `${Math.max(16, Math.min(width - 16, Math.round(rect.left + rect.width / 2 - left)))}px`);
   menu.style.left = `${left + window.scrollX}px`;
   menu.style.top = `${top + window.scrollY}px`;
 }
@@ -803,6 +875,7 @@ function closeMarkerMenu(returnFocus = false) {
   ui.markerMenu.hidden = true;
   if (returnFocus) target?.focus({ preventScroll: true });
 }
+ui.markerMenuClose?.addEventListener('click', () => closeMarkerMenu(true));
 function setMarkerSound(sound) {
   if (!menuTarget) return;
   const { lane, pulse } = menuTarget;
