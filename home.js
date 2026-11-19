@@ -1,4 +1,6 @@
-// Accessible tab controller (Science / Music / AI) + live mathematical/rhythmic specimen canvases.
+// Accessible tab controller (Science / Music / Games / Photography / AI),
+// scroll-fade fallback for horizontal tablists, and live math/rhythm canvases.
+const tablist = document.querySelector('.tablist');
 const tabs = [...document.querySelectorAll('.tablist [role="tab"]')];
 const panels = new Map(
   [...document.querySelectorAll('.tab-panels > [role="tabpanel"]')].map((panel) => [
@@ -62,6 +64,18 @@ for (const [tabId, panel] of panels) {
   });
 }
 
+// Fallback edge fade hints when scroll-driven animations are unavailable.
+if (tablist && !CSS.supports('animation-timeline', 'scroll()') && tabs.length >= 2) {
+  const [first, last] = [tabs[0], tabs[tabs.length - 1]];
+  const observer = new IntersectionObserver((entries) => {
+    for (const { target, intersectionRatio } of entries) {
+      tablist.classList.toggle(target === first ? 'more-start' : 'more-end', intersectionRatio < 1);
+    }
+  }, { root: tablist, threshold: 1, rootMargin: '1px' });
+  observer.observe(first);
+  observer.observe(last);
+}
+
 function syncFromHash() {
   const name = window.location.hash.slice(1).toLowerCase();
   const match = tabs.find((tab) => tab.dataset.tab === name);
@@ -75,8 +89,7 @@ function themeColor(token) {
   return getComputedStyle(document.documentElement).getPropertyValue(`--${token}-${suffix}`).trim();
 }
 
-// Specimen 01: Real Riemann-Siegel Z(t) along the critical line (first 6 non-trivial zeros).
-// Uses Riemann-Siegel main sum + theta(t) asymptotic expansion (accurate across t in [8, 40]).
+// Specimen 01: Riemann-Siegel Z(t) along the critical line (first 6 non-trivial zeros).
 const KNOWN_ZEROS = [14.1347, 21.022, 25.0109, 30.4249, 32.9351, 37.5862];
 
 function riemannTheta(t) {
@@ -134,7 +147,6 @@ function initZetaSpecimen() {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Subtle vertical coordinate ticks every 5 units
     ctx.strokeStyle = rule;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -145,7 +157,6 @@ function initZetaSpecimen() {
     }
     ctx.stroke();
 
-    // Critical zero axis Z(t) = 0
     ctx.strokeStyle = muted;
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
@@ -154,7 +165,6 @@ function initZetaSpecimen() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Plot Z(t)
     ctx.strokeStyle = cobalt;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -168,7 +178,6 @@ function initZetaSpecimen() {
     }
     ctx.stroke();
 
-    // Mark real non-trivial zeros
     ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
     for (const zero of KNOWN_ZEROS) {
@@ -181,7 +190,6 @@ function initZetaSpecimen() {
       ctx.fillText(zero.toFixed(2), x, midY + 18);
     }
 
-    // Interactive cursor probe
     const hx = toX(hoverT);
     const hz = hardyZ(hoverT);
     const hy = toY(hz);
@@ -213,8 +221,7 @@ function initZetaSpecimen() {
   redraws.add(draw);
 }
 
-// Specimen 02: Exact rational pulse diagram of Oddmeter's 3-row default 3/4 pattern
-// Beat: 1,1,1 | Subdiv 1 (offbeats): x3, x2, x2 | Subdiv 2 (offbeats): x4, x5, x5
+// Specimen 02: Oddmeter 3-row default 3/4 pattern (x3/2/2 & x4/5/5).
 function initRhythmSpecimen() {
   const canvas = document.getElementById('rhythm-specimen');
   const readout = document.getElementById('rhythm-readout');
@@ -253,7 +260,6 @@ function initRhythmSpecimen() {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Beat guides (3/4)
     ctx.font = '600 10px "IBM Plex Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
     for (let beat = 0; beat <= 3; beat++) {
@@ -272,7 +278,6 @@ function initRhythmSpecimen() {
       }
     }
 
-    // Lanes
     lanes.forEach((lane, idx) => {
       const y = top + rowH * idx + rowH * 0.5;
       const color = themeColor(lane.colorToken);
@@ -318,7 +323,6 @@ function initRhythmSpecimen() {
       });
     });
 
-    // Interactive playhead scrub
     const px = left + hoverPhase * plotW;
     ctx.strokeStyle = vermilion;
     ctx.lineWidth = 1.5;
