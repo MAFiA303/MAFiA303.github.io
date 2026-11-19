@@ -857,14 +857,21 @@ section[tabindex="-1"]:focus { outline: none; }
   color: var(--muted);
 }
 
-/* Instagram & Photography Grids */
+/* Photography Plate & Grid */
+.photo-plate {
+  display: grid;
+  align-content: center;
+  padding: clamp(14px, 2vw, 20px);
+  border-top: 1px solid var(--rule);
+  background: var(--well);
+}
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
 }
-.photo-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.photo-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .photo-tile {
   display: grid;
@@ -910,52 +917,19 @@ button.photo-tile { cursor: zoom-in; }
 }
 .photo-cap span:last-child { white-space: nowrap; }
 
-/* AI Compact Open Slot */
-.ai-slot {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-.ai-copy {
-  padding: clamp(20px, 3vw, 30px);
-  display: grid;
-  gap: 6px;
-  align-content: center;
-}
-.ai-drafting {
-  min-block-size: 132px;
-  border-top: 1px solid var(--rule);
-  background:
-    linear-gradient(to right, color-mix(in oklab, var(--rule) 55%, transparent) 1px, transparent 1px) 0 0 / 26px 26px,
-    linear-gradient(to bottom, color-mix(in oklab, var(--rule) 55%, transparent) 1px, transparent 1px) 0 0 / 26px 26px,
-    var(--well);
-  display: grid;
-  place-items: center;
-  padding: 20px;
-}
-.ai-stamp {
-  padding: 8px 14px;
-  border: 1px solid var(--rule-strong);
-  background: var(--sheet);
-  font: 500 .72rem/1.3 var(--mono);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 /* Compact Index View Mode */
 .work-stream[data-view="index"] {
   gap: 16px;
 }
 .work-stream[data-view="index"] .entry-specimen,
 .work-stream[data-view="index"] .game-shots-wrap,
-.work-stream[data-view="index"] .clip-grid,
-.work-stream[data-view="index"] .photo-grid,
-.work-stream[data-view="index"] .ai-drafting {
+.work-stream[data-view="index"] .photo-plate,
+.work-stream[data-view="index"] .clip-grid {
   display: none;
 }
 .work-stream[data-view="index"] .entry,
 .work-stream[data-view="index"] .entry-games,
-.work-stream[data-view="index"] .ai-slot {
+.work-stream[data-view="index"] .entry-photo {
   grid-template-columns: 1fr;
 }
 .work-stream[data-view="index"] .entry-copy {
@@ -970,12 +944,6 @@ button.photo-tile { cursor: zoom-in; }
   padding: 16px 22px;
   gap: 0;
 }
-.work-stream[data-view="index"] .ai-copy {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  padding: 16px 22px;
-}
 
 @container (min-width: 720px) {
   .entry {
@@ -985,19 +953,13 @@ button.photo-tile { cursor: zoom-in; }
     grid-template-columns: minmax(250px, .56fr) minmax(0, 1.44fr);
   }
   .entry-specimen,
-  .game-shots-wrap {
+  .game-shots-wrap,
+  .photo-plate {
     border-top: 0;
     border-inline-start: 1px solid var(--rule);
   }
   .game-shots {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .ai-slot {
-    grid-template-columns: minmax(230px, .52fr) minmax(0, 1.48fr);
-  }
-  .ai-drafting {
-    border-top: 0;
-    border-inline-start: 1px solid var(--rule);
   }
 }
 
