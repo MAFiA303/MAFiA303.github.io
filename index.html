@@ -12,7 +12,7 @@
       }
     } catch {}
   </script>
-  <meta name="description" content="Saad Kay (mafium.com) — Science, Music, Games, Photography, and AI.">
+  <meta name="description" content="Saad Kay (mafium.com) — Music, Science, Games, Photography, and AI.">
   <title>Saad Kay — mafium</title>
   <link rel="icon" href="./favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,8 +34,8 @@
 
       <nav class="masthead-nav" aria-label="Sections">
         <ul>
-          <li><a href="#science">Science</a></li>
           <li><a href="#music">Music</a></li>
+          <li><a href="#science">Science</a></li>
           <li><a href="#games">Games</a></li>
           <li><a href="#photography">Photography</a></li>
           <li><a href="#ai">AI</a></li>
@@ -104,11 +104,11 @@
             <span>All</span>
             <span class="filter-count">5</span>
           </button>
-          <button type="button" class="filter-btn" data-filter="science" aria-pressed="false">
-            <span class="filter-num">01</span><span>Science</span>
-          </button>
           <button type="button" class="filter-btn" data-filter="music" aria-pressed="false">
-            <span class="filter-num">02</span><span>Music</span>
+            <span class="filter-num">01</span><span>Music</span>
+          </button>
+          <button type="button" class="filter-btn" data-filter="science" aria-pressed="false">
+            <span class="filter-num">02</span><span>Science</span>
           </button>
           <button type="button" class="filter-btn" data-filter="games" aria-pressed="false">
             <span class="filter-num">03</span><span>Games</span>
@@ -128,78 +128,11 @@
       </div>
 
       <div id="work-stream" class="work-stream" data-view="showcase">
-        <!-- 01 · SCIENCE -->
-        <section id="science" class="work-band" data-category="science" tabindex="-1" aria-labelledby="heading-science" style="view-transition-name: band-science">
-          <div class="band-head">
-            <div class="band-id">
-              <span class="band-num">01</span>
-              <h2 id="heading-science">Science</h2>
-            </div>
-            <span class="band-tag">/zeta/ · Riemann Zeta</span>
-          </div>
-
-          <div class="band-sheet">
-            <article class="entry">
-              <div class="entry-copy">
-                <div class="entry-head">
-                  <ul class="entry-meta">
-                    <li>Interactive Math</li>
-                    <li>/zeta/</li>
-                  </ul>
-                  <h3 class="entry-title"><a href="./zeta/">Zeta Shift Lab</a></h3>
-                  <p class="entry-desc">
-                    Shifts the Riemann zeta function by ½ so the critical line sits on the imaginary axis. Morph the complex grid into ζ(s + ½) and verify non-trivial zeros numerically.
-                  </p>
-                </div>
-
-                <dl class="entry-specs">
-                  <div>
-                    <dt>Function</dt>
-                    <dd>ζ(s + ½) on Re(s) = 0</dd>
-                  </div>
-                  <div>
-                    <dt>First zero</dt>
-                    <dd>t ≈ 14.134725</dd>
-                  </div>
-                </dl>
-
-                <div class="entry-actions">
-                  <a class="entry-action" href="./zeta/">
-                    <span>Open Zeta Shift Lab</span>
-                    <span class="arrow" aria-hidden="true">→</span>
-                  </a>
-                </div>
-              </div>
-
-              <div class="entry-specimen">
-                <div class="specimen-bar">
-                  <span>Hardy Z(t) · Critical Line</span>
-                  <span id="zeta-readout" class="specimen-readout">t = 14.13 · Z(t) = 0.00</span>
-                </div>
-                <div class="specimen-canvas-wrap">
-                  <canvas id="zeta-specimen" aria-label="Plot of Hardy's Z function showing the first six non-trivial Riemann zeta zeros"></canvas>
-                </div>
-                <div class="specimen-controls">
-                  <div class="chip-row" role="group" aria-label="Jump to non-trivial zero">
-                    <button type="button" class="micro-btn" data-zero="14.1347" aria-pressed="true">γ₁ 14.13</button>
-                    <button type="button" class="micro-btn" data-zero="21.022" aria-pressed="false">γ₂ 21.02</button>
-                    <button type="button" class="micro-btn" data-zero="25.0109" aria-pressed="false">γ₃ 25.01</button>
-                    <button type="button" class="micro-btn" data-zero="30.4249" aria-pressed="false">γ₄ 30.42</button>
-                    <button type="button" class="micro-btn" data-zero="32.9351" aria-pressed="false">γ₅ 32.94</button>
-                    <button type="button" class="micro-btn" data-zero="37.5862" aria-pressed="false">γ₆ 37.59</button>
-                  </div>
-                  <span class="specimen-hint">Scrub or click a zero</span>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <!-- 02 · MUSIC -->
+        <!-- 01 · MUSIC -->
         <section id="music" class="work-band" data-category="music" tabindex="-1" aria-labelledby="heading-music" style="view-transition-name: band-music">
           <div class="band-head">
             <div class="band-id">
-              <span class="band-num">02</span>
+              <span class="band-num">01</span>
               <h2 id="heading-music">Music</h2>
             </div>
             <span class="band-tag">/oddmeter/ · YouTube @Mafyxia · Instagram @mafyxia</span>
@@ -337,6 +270,73 @@
                 </a>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- 02 · SCIENCE -->
+        <section id="science" class="work-band" data-category="science" tabindex="-1" aria-labelledby="heading-science" style="view-transition-name: band-science">
+          <div class="band-head">
+            <div class="band-id">
+              <span class="band-num">02</span>
+              <h2 id="heading-science">Science</h2>
+            </div>
+            <span class="band-tag">/zeta/ · Riemann Zeta</span>
+          </div>
+
+          <div class="band-sheet">
+            <article class="entry">
+              <div class="entry-copy">
+                <div class="entry-head">
+                  <ul class="entry-meta">
+                    <li>Interactive Math</li>
+                    <li>/zeta/</li>
+                  </ul>
+                  <h3 class="entry-title"><a href="./zeta/">Zeta Shift Lab</a></h3>
+                  <p class="entry-desc">
+                    Shifts the Riemann zeta function by ½ so the critical line sits on the imaginary axis. Morph the complex grid into ζ(s + ½) and verify non-trivial zeros numerically.
+                  </p>
+                </div>
+
+                <dl class="entry-specs">
+                  <div>
+                    <dt>Function</dt>
+                    <dd>ζ(s + ½) on Re(s) = 0</dd>
+                  </div>
+                  <div>
+                    <dt>First zero</dt>
+                    <dd>t ≈ 14.134725</dd>
+                  </div>
+                </dl>
+
+                <div class="entry-actions">
+                  <a class="entry-action" href="./zeta/">
+                    <span>Open Zeta Shift Lab</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                  </a>
+                </div>
+              </div>
+
+              <div class="entry-specimen">
+                <div class="specimen-bar">
+                  <span>Hardy Z(t) · Critical Line</span>
+                  <span id="zeta-readout" class="specimen-readout">t = 14.13 · Z(t) = 0.00</span>
+                </div>
+                <div class="specimen-canvas-wrap">
+                  <canvas id="zeta-specimen" aria-label="Plot of Hardy's Z function showing the first six non-trivial Riemann zeta zeros"></canvas>
+                </div>
+                <div class="specimen-controls">
+                  <div class="chip-row" role="group" aria-label="Jump to non-trivial zero">
+                    <button type="button" class="micro-btn" data-zero="14.1347" aria-pressed="true">γ₁ 14.13</button>
+                    <button type="button" class="micro-btn" data-zero="21.022" aria-pressed="false">γ₂ 21.02</button>
+                    <button type="button" class="micro-btn" data-zero="25.0109" aria-pressed="false">γ₃ 25.01</button>
+                    <button type="button" class="micro-btn" data-zero="30.4249" aria-pressed="false">γ₄ 30.42</button>
+                    <button type="button" class="micro-btn" data-zero="32.9351" aria-pressed="false">γ₅ 32.94</button>
+                    <button type="button" class="micro-btn" data-zero="37.5862" aria-pressed="false">γ₆ 37.59</button>
+                  </div>
+                  <span class="specimen-hint">Scrub or click a zero</span>
+                </div>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -637,8 +637,8 @@
     <div class="frame footer-inner">
       <span>© Saad Kay · mafium.com</span>
       <nav class="footer-links" aria-label="Site links">
-        <a href="./zeta/">/zeta/</a>
         <a href="./oddmeter/">/oddmeter/</a>
+        <a href="./zeta/">/zeta/</a>
         <a href="https://play.google.com/store/apps/details?id=com.mafium.chainreaction" target="_blank" rel="noopener noreferrer">Fuzia</a>
         <a href="https://www.youtube.com/@Mafyxia" target="_blank" rel="noopener noreferrer">YouTube</a>
         <a href="https://www.instagram.com/mafia303/" target="_blank" rel="noopener noreferrer">@mafia303</a>
