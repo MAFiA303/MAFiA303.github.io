@@ -471,224 +471,48 @@ function initZetaSpecimen() {
   redraws.add(draw);
 }
 
-// 7. Specimen 02: Oddmeter 3-row interactive pulse diagram with meter presets & visual playhead
-const RHYTHM_PRESETS = {
-  '3/4': {
-    label: '3/4',
-    summary: '×3/2/2 & ×4/5/5',
-    beats: 3,
-    accents: new Set([0]),
-    lanes: [
-      { label: 'Beat', counts: [1, 1, 1], offbeats: false, accentBeats: new Set([0]), colorToken: 'vermilion' },
-      { label: 'S1', counts: [3, 2, 2], offbeats: true, altBeats: new Set([2]), colorToken: 'ink' },
-      { label: 'S2', counts: [4, 5, 5], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
-    ],
-  },
-  '7/8': {
-    label: '7/8',
-    summary: '2+2+3',
-    beats: 7,
-    accents: new Set([0, 2, 4]),
-    lanes: [
-      { label: 'Beat', counts: [1, 1, 1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 2, 4]), colorToken: 'vermilion' },
-      { label: 'S1', counts: [2, 2, 2, 2, 2, 2, 2], offbeats: true, altBeats: new Set([4, 5, 6]), colorToken: 'ink' },
-      { label: 'S2', counts: [3, 1, 3, 1, 3, 2, 2], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
-    ],
-  },
-  '5/4': {
-    label: '5/4',
-    summary: '3+2',
-    beats: 5,
-    accents: new Set([0, 3]),
-    lanes: [
-      { label: 'Beat', counts: [1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 3]), colorToken: 'vermilion' },
-      { label: 'S1', counts: [3, 3, 3, 2, 2], offbeats: true, altBeats: new Set([3, 4]), colorToken: 'ink' },
-      { label: 'S2', counts: [4, 4, 5, 3, 3], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
-    ],
-  },
-};
+// 7. Specimen 02: Functional embedded Oddmeter metronome with URL & Share sync
+function initOddmeterEmbed() {
+  const frame = document.getElementById('oddmeter-frame');
+  const openLink = document.getElementById('oddmeter-open');
+  if (!frame) return;
 
-function initRhythmSpecimen() {
-  const canvas = document.getElementById('rhythm-specimen');
-  const readout = document.getElementById('rhythm-readout');
-  const presetButtons = [...document.querySelectorAll('[data-meter]')];
-  const playBtn = document.getElementById('rhythm-play');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  let presetKey = '3/4';
-  let phase = 0;
-  let playing = false;
-  let rafId = 0;
-  let lastTs = 0;
-
-  function draw() {
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const preset = RHYTHM_PRESETS[presetKey];
-    const w = rect.width;
-    const h = rect.height;
-    const left = 52;
-    const right = 20;
-    const plotW = w - left - right;
-    const top = 30;
-    const rowH = (h - top - 14) / 3;
-
-    const ink = themeColor('ink');
-    const muted = themeColor('muted');
-    const rule = themeColor('rule');
-    const well = themeColor('well');
-    const vermilion = themeColor('vermilion');
-    const cobalt = themeColor('cobalt');
-
-    ctx.clearRect(0, 0, w, h);
-
-    ctx.font = '600 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    for (let beat = 0; beat <= preset.beats; beat++) {
-      const x = Math.round(left + (beat / preset.beats) * plotW) + 0.5;
-      const isAccentBar = preset.accents.has(beat);
-      ctx.strokeStyle = beat === 0 ? vermilion : isAccentBar ? muted : rule;
-      ctx.setLineDash(beat === 0 || beat === preset.beats || isAccentBar ? [] : [3, 4]);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, top - 6);
-      ctx.lineTo(x, h - 12);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      if (beat < preset.beats) {
-        ctx.fillStyle = isAccentBar ? ink : muted;
-        ctx.fillText(String(beat + 1), x, top - 12);
-      }
+  const setupPrefix = '#setup=';
+  let lastSyncedHash = '';
+  const applyInitialHash = () => {
+    const hash = window.location.hash;
+    if (hash.startsWith(setupPrefix) && hash !== lastSyncedHash) {
+      const targetSrc = `./oddmeter/?embed=1${hash}`;
+      if (frame.getAttribute('src') !== targetSrc) frame.src = targetSrc;
+      if (openLink) openLink.href = `./oddmeter/${hash}`;
     }
+  };
+  applyInitialHash();
 
-    preset.lanes.forEach((lane, idx) => {
-      const y = top + rowH * idx + rowH * 0.5;
-      const color = themeColor(lane.colorToken);
-
-      ctx.font = '600 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = color;
-      ctx.fillText(lane.label, 14, y + 3.5);
-
-      ctx.strokeStyle = rule;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(left + plotW, y);
-      ctx.stroke();
-
-      let hitIdx = 0;
-      lane.counts.forEach((count, beat) => {
-        const start = lane.offbeats ? 1 : 0;
-        for (let part = start; part < count; part++) {
-          const hitPhase = (beat * count + part) / (preset.beats * count);
-          const x = left + hitPhase * plotW;
-          const accented =
-            (lane.accentBeats?.has(beat) && part === 0) ||
-            (lane.accentFirst && hitIdx === 0);
-          const alt = lane.altBeats?.has(beat);
-          const markerColor = alt ? cobalt : color;
-          const near = Math.abs(hitPhase - phase) < 0.022;
-
-          const mw = accented ? 12 : 9.5;
-          const mh = accented ? 18 : 9.5;
-          ctx.fillStyle = accented || near ? markerColor : well;
-          ctx.strokeStyle = markerColor;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.roundRect(x - mw / 2, y - mh / 2, mw, mh, 4);
-          ctx.fill();
-          ctx.stroke();
-          if (alt && !accented && !near) {
-            ctx.fillStyle = markerColor;
-            ctx.beginPath();
-            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          hitIdx++;
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'oddmeter:setup') {
+      if (typeof data.hash === 'string' && data.hash.startsWith(setupPrefix)) {
+        lastSyncedHash = data.hash;
+        if (window.location.hash !== data.hash) {
+          window.history.replaceState(window.history.state, '', data.hash);
         }
-      });
-    });
-
-    const px = left + phase * plotW;
-    ctx.strokeStyle = vermilion;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(px, top - 6);
-    ctx.lineTo(px, h - 12);
-    ctx.stroke();
-
-    if (readout) {
-      const beat = Math.min(preset.beats, Math.floor(phase * preset.beats) + 1);
-      readout.textContent = `${preset.label} · Beat ${beat} · ${preset.summary}`;
-    }
-  }
-
-  function step(ts) {
-    if (!playing) return;
-    const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0;
-    lastTs = ts;
-    const preset = RHYTHM_PRESETS[presetKey];
-    const barSeconds = preset.beats * 0.55;
-    phase = (phase + dt / barSeconds) % 1;
-    draw();
-    rafId = requestAnimationFrame(step);
-  }
-
-  function setPlaying(next) {
-    playing = next;
-    lastTs = 0;
-    if (playBtn) {
-      playBtn.setAttribute('aria-pressed', String(playing));
-      playBtn.textContent = playing ? 'Pause' : 'Animate';
-    }
-    if (playing) {
-      rafId = requestAnimationFrame(step);
-    } else if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
-  }
-
-  playBtn?.addEventListener('click', () => setPlaying(!playing));
-
-  for (const btn of presetButtons) {
-    btn.addEventListener('click', () => {
-      const next = btn.dataset.meter;
-      if (!next || !RHYTHM_PRESETS[next]) return;
-      presetKey = next;
-      phase = 0;
-      for (const item of presetButtons) {
-        item.setAttribute('aria-pressed', String(item === btn));
       }
-      draw();
-    });
-  }
-
-  canvas.addEventListener('pointermove', (event) => {
-    if (playing) return;
-    const rect = canvas.getBoundingClientRect();
-    const left = 52;
-    const right = 20;
-    phase = Math.max(0, Math.min(0.999, (event.clientX - rect.left - left) / (rect.width - left - right)));
-    draw();
+      if (openLink && typeof data.fullHref === 'string') {
+        openLink.href = data.fullHref;
+      }
+    } else if (data.type === 'oddmeter:resize' && Number.isFinite(data.height)) {
+      frame.style.height = `${Math.max(320, Math.ceil(data.height))}px`;
+    }
   });
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && playing) setPlaying(false);
-  });
-
-  redraws.add(draw);
+  window.addEventListener('hashchange', applyInitialHash);
 }
 
 initZetaSpecimen();
-initRhythmSpecimen();
+initOddmeterEmbed();
 
 window.addEventListener('resize', triggerRedraws);
 darkQuery.addEventListener('change', triggerRedraws);

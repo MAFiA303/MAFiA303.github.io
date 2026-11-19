@@ -697,6 +697,21 @@ section[tabindex="-1"]:focus { outline: none; }
   color: var(--muted);
 }
 
+/* Embedded Functional Oddmeter */
+.oddmeter-stage {
+  display: block;
+  min-block-size: 360px;
+  background: #0d0e11;
+}
+.oddmeter-frame {
+  display: block;
+  width: 100%;
+  min-block-size: 360px;
+  height: 410px;
+  border: 0;
+  background: #0d0e11;
+}
+
 /* Fuzia Gameplay Plate */
 .game-shots-wrap {
   display: grid;
@@ -925,6 +940,9 @@ section[tabindex="-1"]:focus { outline: none; }
 @media (min-width: 820px) {
   .entry {
     grid-template-columns: minmax(240px, .54fr) minmax(0, 1.46fr);
+  }
+  .entry-oddmeter {
+    grid-template-columns: minmax(210px, .4fr) minmax(0, 1.6fr);
   }
   .entry-games {
     grid-template-columns: minmax(250px, .56fr) minmax(0, 1.44fr);

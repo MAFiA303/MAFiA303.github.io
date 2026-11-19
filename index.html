@@ -12,14 +12,14 @@
       }
     } catch {}
   </script>
-  <meta name="description" content="Saad Kay — Music, Science, Games, and Photography.">
-  <title>Saad Kay — mafium</title>
+  <meta name="description" content="Saad MAFiA — Music, Science, Games, and Photography.">
+  <title>Saad MAFiA — mafium</title>
   <link rel="icon" href="./favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="./home.css?v=13">
-  <script type="module" src="./home.js?v=13"></script>
+  <link rel="stylesheet" href="./home.css?v=14">
+  <script type="module" src="./home.js?v=14"></script>
 </head>
 <body>
   <div id="scroll-progress" class="scroll-progress" aria-hidden="true"></div>
@@ -27,7 +27,7 @@
 
   <header class="masthead-wrap">
     <div class="masthead">
-      <a class="wordmark" href="#top" aria-label="Saad Kay top">
+      <a class="wordmark" href="#top" aria-label="Saad MAFiA top">
         <span class="wordmark-mark" aria-hidden="true"></span>
         <span>mafium</span>
       </a>
@@ -63,8 +63,7 @@
   <main id="top" class="frame">
     <section class="hero" aria-label="Profile">
       <div class="hero-copy">
-        <p class="hero-places">California · Dubai · Amman</p>
-        <h1 class="hero-title">Saad Kay</h1>
+        <h1 class="hero-title">Saad MAFiA</h1>
         <p class="hero-roles">Digital Bedouin · Musician · Data Scientist · Photographer</p>
         <p class="hero-quote">“Passenger in your universe. Let’s make this encounter count.”</p>
 
@@ -78,7 +77,7 @@
       </div>
 
       <figure class="hero-portrait">
-        <img src="./images/showcase/hero-portrait.jpg" alt="Saad Kay playing electric guitar in backlit studio portrait" width="682" height="1024">
+        <img src="./images/showcase/hero-portrait.jpg" alt="Saad MAFiA playing electric guitar in backlit studio portrait" width="682" height="1024">
       </figure>
     </section>
 
@@ -111,36 +110,28 @@
           </div>
 
           <div class="music-stack">
-            <article class="studio-card entry">
+            <article class="studio-card entry entry-oddmeter">
               <div class="entry-copy">
                 <div class="entry-head">
                   <span class="entry-kicker">Metronome</span>
                   <h3 class="entry-title"><a href="./oddmeter/">Oddmeter</a></h3>
                 </div>
                 <div class="entry-actions">
-                  <a class="cta-pill" href="./oddmeter/">
+                  <a id="oddmeter-open" class="cta-pill" href="./oddmeter/">
                     <span>Open</span>
                     <span class="arrow" aria-hidden="true">→</span>
                   </a>
                 </div>
               </div>
 
-              <div class="specimen-stage">
-                <div class="specimen-bar">
-                  <span>Beat · Subdiv 1 · Subdiv 2</span>
-                  <span id="rhythm-readout" class="specimen-readout">3/4 · Beat 1</span>
-                </div>
-                <div class="specimen-canvas-wrap">
-                  <canvas id="rhythm-specimen" aria-label="Three-row pulse diagram of Oddmeter"></canvas>
-                </div>
-                <div class="specimen-controls">
-                  <div class="chip-row" role="group" aria-label="Meter preset">
-                    <button type="button" class="soft-chip" data-meter="3/4" aria-pressed="true">3/4</button>
-                    <button type="button" class="soft-chip" data-meter="7/8" aria-pressed="false">7/8</button>
-                    <button type="button" class="soft-chip" data-meter="5/4" aria-pressed="false">5/4</button>
-                  </div>
-                  <button type="button" id="rhythm-play" class="soft-chip soft-chip-accent" aria-pressed="false">Animate</button>
-                </div>
+              <div class="specimen-stage oddmeter-stage">
+                <iframe
+                  id="oddmeter-frame"
+                  class="oddmeter-frame"
+                  src="./oddmeter/?embed=1"
+                  title="Oddmeter interactive metronome"
+                  allow="autoplay"
+                ></iframe>
               </div>
             </article>
 
@@ -428,7 +419,7 @@
 
   <footer class="site-footer">
     <div class="frame footer-inner">
-      <span>© Saad Kay · mafium.com</span>
+      <span>© Saad MAFiA · mafium.com</span>
       <nav class="footer-links" aria-label="Site links">
         <a href="./oddmeter/">Oddmeter</a>
         <a href="./zeta/">Zeta Shift Lab</a>
