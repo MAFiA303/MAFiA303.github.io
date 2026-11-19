@@ -492,27 +492,22 @@ function paint(now) {
 }
 
 // Undo covers every rhythm, sound and meter edit. Tempo and volume stay as
-// they are for rhythm undos; Reset also restores the previous tempo on Undo.
-const defaultSetupSnapshot = readSettings();
-const defaultSetupKey = makeSetupLink('http://oddmeter.local/', defaultSetupSnapshot);
-function isDefaultSetup() {
-  return makeSetupLink('http://oddmeter.local/', {
-    ...settings,
-    outputVolume: defaultSetupSnapshot.outputVolume,
-    masterMuted: defaultSetupSnapshot.masterMuted,
-  }) === defaultSetupKey;
+// they are for rhythm undos; Reset restores tempo and volume on Undo too.
+const resetSetupKey = makeSetupLink('http://oddmeter.local/', readSettings({ schemaVersion: 3 }));
+function isResetState() {
+  return makeSetupLink('http://oddmeter.local/', settings) === resetSetupKey;
 }
 function renderReset() {
   if (!ui.reset) return;
-  ui.reset.disabled = isDefaultSetup();
+  ui.reset.disabled = isResetState();
 }
 const undoStack = [];
 let undoTimer;
-function undoable(change, toast = '', { restoreTempo = false } = {}) {
+function undoable(change, toast = '', { restoreAll = false } = {}) {
   const before = JSON.stringify(settings);
   change();
   if (JSON.stringify(settings) === before) return;
-  undoStack.push({ json: before, restoreTempo });
+  undoStack.push({ json: before, restoreAll });
   if (undoStack.length > 40) undoStack.shift();
   if (toast) showUndo(toast);
 }
@@ -530,16 +525,15 @@ function undo() {
   const entry = undoStack.pop();
   hideUndo();
   if (!entry) return;
-  const { json, restoreTempo } = typeof entry === 'string' ? { json: entry, restoreTempo: false } : entry;
+  const { json, restoreAll } = typeof entry === 'string' ? { json: entry, restoreAll: false } : entry;
   const previous = JSON.parse(json);
   const meter = previous.beats !== settings.beats || previous.unit !== settings.unit;
-  const current = restoreTempo
-    ? { outputVolume: settings.outputVolume, masterMuted: settings.masterMuted }
-    : { bpm: settings.bpm, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
+  const current = restoreAll ? {} : { bpm: settings.bpm, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
   for (const key of Object.keys(settings)) delete settings[key];
   Object.assign(settings, previous, current);
   closeMarkerMenu();
   displayTempo(settings.bpm);
+  renderVolume();
   ui.countIn.checked = settings.countIn;
   ui.tempoBeat.value = settings.tempoBeat;
   renderTempoUnit();
@@ -548,28 +542,27 @@ function undo() {
   ui.pulseFeedback.textContent = 'Undone.';
 }
 function resetSetup() {
-  if (isDefaultSetup()) return;
+  if (isResetState()) return;
   undoable(() => {
-    const fresh = readSettings();
-    const meter = settings.beats !== fresh.beats || settings.unit !== fresh.unit;
+    const clean = readSettings({ schemaVersion: 3 });
+    const meter = settings.beats !== clean.beats || settings.unit !== clean.unit;
     const preserved = {
-      outputVolume: settings.outputVolume,
-      masterMuted: settings.masterMuted,
       ...(settings.legacyProfiles === undefined ? {} : { legacyProfiles: settings.legacyProfiles }),
       ...(settings.previousSetup === undefined ? {} : { previousSetup: settings.previousSetup }),
     };
     for (const key of Object.keys(settings)) delete settings[key];
-    Object.assign(settings, fresh, preserved);
+    Object.assign(settings, clean, preserved);
     taps = [];
     closeMarkerMenu();
     displayTempo(settings.bpm);
+    renderVolume();
     ui.countIn.checked = settings.countIn;
     ui.tempoBeat.value = settings.tempoBeat;
     renderTempoUnit();
     timingChanged({ meter: true, restart: meter });
     if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
-  }, 'Reset to default setup', { restoreTempo: true });
-  ui.pulseFeedback.textContent = 'Reset to default setup.';
+  }, 'Reset to 4/4 · 120 BPM', { restoreAll: true });
+  ui.pulseFeedback.textContent = 'Reset to 4/4, 120 BPM, 100% volume.';
 }
 ui.reset?.addEventListener('click', resetSetup);
 
