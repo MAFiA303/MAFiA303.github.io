@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=trim2">
-  <script type="module" src="./app.js?v=trim2"></script>
+  <link rel="stylesheet" href="./styles.css?v=reset1">
+  <script type="module" src="./app.js?v=reset1"></script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +23,7 @@
       <div class="header-actions">
         <div class="visually-hidden" id="status" role="status"><span id="status-text">Ready</span> <span id="position" aria-hidden="true"></span></div>
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
+        <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to default setup" title="Reset to default setup">Reset</button>
         <button type="button" id="share" class="header-button share-button" aria-label="Share current setup">Share</button>
         <span id="share-feedback" class="visually-hidden" role="status"></span>
       </div>

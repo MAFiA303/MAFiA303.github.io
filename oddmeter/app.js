@@ -20,7 +20,7 @@ const ui = {
   undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'),
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
-  share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
+  reset: byId('reset'), share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
   scrolls: [...document.querySelectorAll('[data-timeline-scroll]')],
 };
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
@@ -98,6 +98,7 @@ function save() {
   if (saveLocally) {
     try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Playback works without storage. */ }
   }
+  renderReset();
   queueSetupUrl();
 }
 
@@ -491,14 +492,27 @@ function paint(now) {
 }
 
 // Undo covers every rhythm, sound and meter edit. Tempo and volume stay as
-// they are, since an undo should not jump the practice tempo.
+// they are for rhythm undos; Reset also restores the previous tempo on Undo.
+const defaultSetupSnapshot = readSettings();
+const defaultSetupKey = makeSetupLink('http://oddmeter.local/', defaultSetupSnapshot);
+function isDefaultSetup() {
+  return makeSetupLink('http://oddmeter.local/', {
+    ...settings,
+    outputVolume: defaultSetupSnapshot.outputVolume,
+    masterMuted: defaultSetupSnapshot.masterMuted,
+  }) === defaultSetupKey;
+}
+function renderReset() {
+  if (!ui.reset) return;
+  ui.reset.disabled = isDefaultSetup();
+}
 const undoStack = [];
 let undoTimer;
-function undoable(change, toast = '') {
+function undoable(change, toast = '', { restoreTempo = false } = {}) {
   const before = JSON.stringify(settings);
   change();
   if (JSON.stringify(settings) === before) return;
-  undoStack.push(before);
+  undoStack.push({ json: before, restoreTempo });
   if (undoStack.length > 40) undoStack.shift();
   if (toast) showUndo(toast);
 }
@@ -513,15 +527,19 @@ function hideUndo() {
   ui.undoToast.hidden = true;
 }
 function undo() {
-  const json = undoStack.pop();
+  const entry = undoStack.pop();
   hideUndo();
-  if (!json) return;
+  if (!entry) return;
+  const { json, restoreTempo } = typeof entry === 'string' ? { json: entry, restoreTempo: false } : entry;
   const previous = JSON.parse(json);
   const meter = previous.beats !== settings.beats || previous.unit !== settings.unit;
-  const current = { bpm: settings.bpm, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
+  const current = restoreTempo
+    ? { outputVolume: settings.outputVolume, masterMuted: settings.masterMuted }
+    : { bpm: settings.bpm, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
   for (const key of Object.keys(settings)) delete settings[key];
   Object.assign(settings, previous, current);
   closeMarkerMenu();
+  displayTempo(settings.bpm);
   ui.countIn.checked = settings.countIn;
   ui.tempoBeat.value = settings.tempoBeat;
   renderTempoUnit();
@@ -529,6 +547,31 @@ function undo() {
   if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
   ui.pulseFeedback.textContent = 'Undone.';
 }
+function resetSetup() {
+  if (isDefaultSetup()) return;
+  undoable(() => {
+    const fresh = readSettings();
+    const meter = settings.beats !== fresh.beats || settings.unit !== fresh.unit;
+    const preserved = {
+      outputVolume: settings.outputVolume,
+      masterMuted: settings.masterMuted,
+      ...(settings.legacyProfiles === undefined ? {} : { legacyProfiles: settings.legacyProfiles }),
+      ...(settings.previousSetup === undefined ? {} : { previousSetup: settings.previousSetup }),
+    };
+    for (const key of Object.keys(settings)) delete settings[key];
+    Object.assign(settings, fresh, preserved);
+    taps = [];
+    closeMarkerMenu();
+    displayTempo(settings.bpm);
+    ui.countIn.checked = settings.countIn;
+    ui.tempoBeat.value = settings.tempoBeat;
+    renderTempoUnit();
+    timingChanged({ meter: true, restart: meter });
+    if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
+  }, 'Reset to default setup', { restoreTempo: true });
+  ui.pulseFeedback.textContent = 'Reset to default setup.';
+}
+ui.reset?.addEventListener('click', resetSetup);
 
 function timingChanged({ meter = false, rhythm = false, restart = meter } = {}) {
   if (meter || rhythm) ui.pulseFeedback.textContent = '';
@@ -1299,6 +1342,7 @@ function presetLanes(preset) {
   });
 }
 function renderPreset() {
+  renderReset();
   if (hasBeatTrim(settings.beatEnds, settings.beats)) { ui.preset.value = ''; return; }
   const match = rhythmPresets.find((preset) => {
     if (preset.beats !== settings.beats || preset.unit !== settings.unit || preset.groups.join('+') !== settings.grouping.join('+')) return false;
