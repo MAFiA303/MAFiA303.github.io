@@ -419,7 +419,7 @@ function initZetaSpecimen() {
     }
     ctx.stroke();
 
-    ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.font = '500 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.textAlign = 'center';
     for (const zero of KNOWN_ZEROS) {
       const x = toX(zero);
@@ -479,29 +479,29 @@ const RHYTHM_PRESETS = {
     beats: 3,
     accents: new Set([0]),
     lanes: [
-      { label: 'BEAT', counts: [1, 1, 1], offbeats: false, accentBeats: new Set([0]), colorToken: 'vermilion' },
+      { label: 'Beat', counts: [1, 1, 1], offbeats: false, accentBeats: new Set([0]), colorToken: 'vermilion' },
       { label: 'S1', counts: [3, 2, 2], offbeats: true, altBeats: new Set([2]), colorToken: 'ink' },
       { label: 'S2', counts: [4, 5, 5], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
     ],
   },
   '7/8': {
     label: '7/8',
-    summary: '2+2+3 GROUPING',
+    summary: '2+2+3',
     beats: 7,
     accents: new Set([0, 2, 4]),
     lanes: [
-      { label: 'BEAT', counts: [1, 1, 1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 2, 4]), colorToken: 'vermilion' },
+      { label: 'Beat', counts: [1, 1, 1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 2, 4]), colorToken: 'vermilion' },
       { label: 'S1', counts: [2, 2, 2, 2, 2, 2, 2], offbeats: true, altBeats: new Set([4, 5, 6]), colorToken: 'ink' },
       { label: 'S2', counts: [3, 1, 3, 1, 3, 2, 2], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
     ],
   },
   '5/4': {
     label: '5/4',
-    summary: '3+2 · TUPLETS',
+    summary: '3+2',
     beats: 5,
     accents: new Set([0, 3]),
     lanes: [
-      { label: 'BEAT', counts: [1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 3]), colorToken: 'vermilion' },
+      { label: 'Beat', counts: [1, 1, 1, 1, 1], offbeats: false, accentBeats: new Set([0, 3]), colorToken: 'vermilion' },
       { label: 'S1', counts: [3, 3, 3, 2, 2], offbeats: true, altBeats: new Set([3, 4]), colorToken: 'ink' },
       { label: 'S2', counts: [4, 4, 5, 3, 3], offbeats: true, accentFirst: true, colorToken: 'cobalt' },
     ],
@@ -548,7 +548,7 @@ function initRhythmSpecimen() {
 
     ctx.clearRect(0, 0, w, h);
 
-    ctx.font = '600 10px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.font = '600 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.textAlign = 'center';
     for (let beat = 0; beat <= preset.beats; beat++) {
       const x = Math.round(left + (beat / preset.beats) * plotW) + 0.5;
@@ -571,7 +571,7 @@ function initRhythmSpecimen() {
       const y = top + rowH * idx + rowH * 0.5;
       const color = themeColor(lane.colorToken);
 
-      ctx.font = '600 10px "IBM Plex Mono", ui-monospace, monospace';
+      ctx.font = '600 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillStyle = color;
       ctx.fillText(lane.label, 14, y + 3.5);
@@ -602,12 +602,14 @@ function initRhythmSpecimen() {
           ctx.strokeStyle = markerColor;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.roundRect(x - mw / 2, y - mh / 2, mw, mh, 2.5);
+          ctx.roundRect(x - mw / 2, y - mh / 2, mw, mh, 4);
           ctx.fill();
           ctx.stroke();
           if (alt && !accented && !near) {
             ctx.fillStyle = markerColor;
-            ctx.fillRect(x - 2, y - 2, 4, 4);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
           }
           hitIdx++;
         }
@@ -624,7 +626,7 @@ function initRhythmSpecimen() {
 
     if (readout) {
       const beat = Math.min(preset.beats, Math.floor(phase * preset.beats) + 1);
-      readout.textContent = `${preset.label} · BEAT ${beat} · ${preset.summary}`;
+      readout.textContent = `${preset.label} · Beat ${beat} · ${preset.summary}`;
     }
   }
 
