@@ -2357,25 +2357,44 @@ lanes.forEach((lane, index) => {
   const setRowSound = (sound) => {
     clearCycleFromDefault();
     const profile = settings.lanes[index];
+    const previousSound = settings.sounds[index];
     const visibleCount = index === 0 || profile.enabled
       ? makeLanePulses({ ...profile, enabled: true }, settings.beats).length
       : 0;
-    const hadOverrides = profile.rests.some((hit) => hit < visibleCount)
-      || Object.keys(profile.pulseSounds).some((hit) => Number(hit) < visibleCount);
-    if (settings.sounds[index] === sound && !hadOverrides) {
-      if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+    const activeOverrides = Object.keys(profile.pulseSounds).filter((hit) => Number(hit) < visibleCount);
+    const activeRests = profile.rests.filter((hit) => hit < visibleCount);
+    if (sound === 'off') {
+      const hadChanges = previousSound !== 'off' || activeOverrides.length > 0 || activeRests.length > 0;
+      if (!hadChanges) return;
+      undoable(() => {
+        settings.sounds[index] = 'off';
+        profile.rests = profile.rests.filter((hit) => hit >= visibleCount);
+        for (const key of activeOverrides) delete profile.pulseSounds[key];
+        mixChanged();
+      }, activeOverrides.length ? `${laneNames[index]} markers muted` : '');
       return;
     }
-    const label = sound === 'off' ? 'Mute' : (chipNames[sound] ?? soundNames.get(sound));
+    const leavingMuteWithActiveHits = previousSound === 'off'
+      && activeOverrides.some((key) => !profile.rests.includes(Number(key)));
+    const hadVisibleChanges = activeOverrides.length > 0 || leavingMuteWithActiveHits;
+    if (previousSound === sound && !hadVisibleChanges) {
+      void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+      return;
+    }
+    const label = chipNames[sound] ?? soundNames.get(sound);
     undoable(() => {
       settings.sounds[index] = sound;
-      profile.rests = profile.rests.filter((hit) => hit >= visibleCount);
-      for (const key of Object.keys(profile.pulseSounds)) {
-        if (Number(key) < visibleCount) delete profile.pulseSounds[key];
+      if (leavingMuteWithActiveHits) {
+        const restSet = new Set(profile.rests);
+        for (let hit = 0; hit < visibleCount; hit++) {
+          if (!profile.pulseSounds[hit]) restSet.add(hit);
+        }
+        profile.rests = [...restSet].sort((a, b) => a - b);
       }
+      for (const key of activeOverrides) delete profile.pulseSounds[key];
       mixChanged();
-    }, hadOverrides ? `${laneNames[index]} markers set to ${label}` : '');
-    if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+    }, hadVisibleChanges ? `${laneNames[index]} active markers set to ${label}` : '');
+    void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
   };
   const addSoundMenuItem = (id, label) => {
     if (!lane.soundMenuGroup) return;
