@@ -40,6 +40,9 @@
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 ::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); color: var(--text); }
 
+html {
+  touch-action: manipulation;
+}
 body {
   margin: 0;
   min-width: 288px;
@@ -50,10 +53,12 @@ body {
   color: var(--text);
   line-height: 1.45;
   accent-color: var(--accent);
+  touch-action: manipulation;
   -webkit-font-smoothing: antialiased;
 }
 
 button, input, select { font: inherit; color: inherit; }
+button, input, select, label, summary, a { touch-action: manipulation; }
 button, select, [type='range'] { cursor: pointer; }
 button {
   border: 1px solid var(--line-control);
