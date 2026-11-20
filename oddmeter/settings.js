@@ -179,7 +179,8 @@ export function readSettings(value) {
     // subdivision mute is separate and defaults to false on every load path.
     lanes: rhythm.lanes.map((lane, index) => ({ ...lane, muted: index > 0 && lane.muted === true })),
     sounds: soundOrder.map((source, lane) => source === null ? defaultSounds[lane] :
-      soundIds.has(saved.sounds?.[source]) ? saved.sounds[source] : defaultSounds[source]),
+      (soundIds.has(saved.sounds?.[source]) || (lane > 0 && saved.sounds?.[source] === 'off'))
+        ? saved.sounds[source] : defaultSounds[source]),
     outputVolume: clampInt(saved.outputVolume, [0, 200], legacyVolume),
     masterMuted: saved.masterMuted === true,
     countIn: saved.countIn === true,

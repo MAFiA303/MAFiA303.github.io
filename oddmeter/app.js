@@ -1,7 +1,7 @@
 import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=beats1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=beats1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=beats2';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=beats3';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -523,7 +523,7 @@ function paint(now) {
     if (eventIndex < 0) { light(lane, null); return; }
     const hit = events[eventIndex].hit;
     const elapsed = (cyclePhase - events[eventIndex].phase + Number(wrapped)) * clock.duration / context.sampleRate;
-    light(lane, elapsed < 0.08 && !laneMuted(profile) && !profile.rests.includes(hit) && effectiveVolume() > 0 ? lane.pulses[hit] : null);
+    light(lane, elapsed < 0.08 && !laneMuted(profile) && markerSound(index, hit) !== 'off' && effectiveVolume() > 0 ? lane.pulses[hit] : null);
   });
 }
 
@@ -1889,6 +1889,19 @@ function editPulse(lane, pulse, accentOnly = false) {
         profile.rests.push(pulse);
         profile.accents = profile.accents.filter((hit) => hit !== pulse);
       }
+    } else if (laneSound === 'off') {
+      const primary = lane === 1 ? 'hat' : 'cowbell';
+      const secondary = lane === 1 ? 'cowbell' : 'kick';
+      if (profile.rests.includes(pulse)) {
+        profile.rests = profile.rests.filter((hit) => hit !== pulse);
+        profile.pulseSounds[pulse] = primary;
+      } else if (!profile.pulseSounds[pulse]) {
+        profile.pulseSounds[pulse] = primary;
+      } else if (profile.pulseSounds[pulse] === primary) {
+        profile.pulseSounds[pulse] = secondary;
+      } else {
+        delete profile.pulseSounds[pulse];
+      }
     } else if (profile.rests.includes(pulse)) {
       profile.rests = profile.rests.filter((hit) => hit !== pulse);
       delete profile.pulseSounds[pulse];
@@ -1958,9 +1971,13 @@ function renderMarkerMenu() {
   const profile = settings.lanes[lane];
   const current = profile.rests.includes(pulse) ? 'off' : profile.pulseSounds[pulse] ?? 'default';
   ui.markerMenu.dataset.lane = lane;
+  ui.markerMenu.dataset.rowSound = settings.sounds[lane];
   ui.markerMenuTitle.textContent = pulseName(lane, pulse);
-  for (const chip of ui.markerSounds.children) chip.setAttribute('aria-pressed', chip.dataset.sound === current);
-  ui.markerAccent.setAttribute('aria-pressed', !profile.rests.includes(pulse) && profile.accents.includes(pulse));
+  for (const chip of ui.markerSounds.children) {
+    if (chip.dataset.sound === 'default') chip.textContent = settings.sounds[lane] === 'off' ? 'Row (Mute)' : 'Row sound';
+    chip.setAttribute('aria-pressed', chip.dataset.sound === current);
+  }
+  ui.markerAccent.setAttribute('aria-pressed', markerSound(lane, pulse) !== 'off' && profile.accents.includes(pulse));
   if (ui.markerTrim) {
     const onset = lanes[lane].onsets[pulse];
     const frac = lanes[lane].beatFractions[pulse];
@@ -2030,9 +2047,12 @@ ui.markerAccent.addEventListener('click', () => {
   if (!menuTarget) return;
   const { lane, pulse } = menuTarget;
   const profile = settings.lanes[lane];
-  if (profile.rests.includes(pulse)) {
+  if (profile.rests.includes(pulse) || (!profile.pulseSounds[pulse] && settings.sounds[lane] === 'off')) {
     undoable(() => {
       profile.rests = profile.rests.filter((hit) => hit !== pulse);
+      if (!profile.pulseSounds[pulse] && settings.sounds[lane] === 'off') {
+        profile.pulseSounds[pulse] = lane === 1 ? 'hat' : 'cowbell';
+      }
       if (!profile.accents.includes(pulse)) profile.accents.push(pulse);
       mixChanged();
     });
@@ -2063,11 +2083,14 @@ window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); })
 function renderMix() {
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
-    const rowMuted = index > 0 && profile.muted === true;
-    lane.sound.value = rowMuted ? 'mute' : settings.sounds[index];
+    const rowSound = settings.sounds[index];
+    lane.element.dataset.rowSound = rowSound;
+    lane.sound.value = rowSound;
+    lane.sound.closest('.setting-lane')?.setAttribute('data-row-sound', rowSound);
+    lane.options?.setAttribute('data-row-sound', rowSound);
     if (lane.rowSound) {
-      lane.rowSound.value = rowMuted ? 'mute' : settings.sounds[index];
-      lane.rowSound.dataset.sound = rowMuted ? 'off' : settings.sounds[index];
+      lane.rowSound.value = rowSound;
+      lane.rowSound.dataset.sound = rowSound;
     }
     lane.element.toggleAttribute('data-muted', laneMuted(profile));
     if (lane.enabled) {
@@ -2081,11 +2104,12 @@ function renderMix() {
     lane.pulses.forEach((pulse, hit) => {
       const sound = profile.pulseSounds[hit];
       const rest = profile.rests.includes(hit);
+      const effective = rest ? 'off' : sound ?? rowSound;
       const accented = profile.accents.includes(hit);
       const skipped = pulse.hasAttribute('data-skipped');
       const trimmed = pulse.hasAttribute('data-trimmed');
-      const label = `${pulseName(index, hit)} · ${rest ? 'Rest' : soundNames.get(sound ?? settings.sounds[index])}${!rest && accented ? ' · Accent' : ''}${skipped ? ' · Skipped' : trimmed ? ' · Trimmed' : ''}`;
-      pulse.dataset.sound = rest ? 'off' : sound ?? 'default';
+      const label = `${pulseName(index, hit)} · ${effective === 'off' ? 'Rest' : soundNames.get(effective)}${effective !== 'off' && accented ? ' · Accent' : ''}${skipped ? ' · Skipped' : trimmed ? ' · Trimmed' : ''}`;
+      pulse.dataset.sound = effective === 'off' ? 'off' : sound ?? 'default';
       pulse.toggleAttribute('data-accented', accented);
       pulse.setAttribute('aria-label', label);
       pulse.title = index === 0
@@ -2199,20 +2223,12 @@ lanes.forEach((lane, index) => {
     lane.rowSound?.add(new Option(chipNames[id] ?? label, id));
   }
   if (index > 0) {
-    lane.sound.add(new Option('Mute', 'mute'));
-    lane.rowSound?.add(new Option('Mute', 'mute'));
+    lane.sound.add(new Option('Mute', 'off'));
+    lane.rowSound?.add(new Option('Mute', 'off'));
   }
   const setRowSound = (sound) => {
-    if (index > 0 && sound === 'mute') {
-      undoable(() => { settings.lanes[index].muted = true; mixChanged(); });
-      return;
-    }
-    undoable(() => {
-      settings.sounds[index] = sound;
-      if (index > 0 && settings.lanes[index].muted) settings.lanes[index].muted = false;
-      mixChanged();
-    });
-    void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+    undoable(() => { settings.sounds[index] = sound; mixChanged(); });
+    if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
   };
   lane.enabled?.addEventListener('click', () => undoable(() => {
     const profile = settings.lanes[index];
