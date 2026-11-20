@@ -1,5 +1,5 @@
-import { makeLanePulses } from './rhythm.js';
-import { soundOptions } from './sounds.js';
+import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds } from './rhythm.js?v=beats1';
+import { soundOptions } from './sounds.js?v=audio1';
 
 // Tempo references are measured in quarter notes, independently of the meter.
 export const tempoBeats = [
@@ -109,12 +109,7 @@ export function readMarkerMemory(value) {
 const spanOf = (lane) => lane.span === 'bar' ? 'bar' : 'beat';
 const markerKey = (span, pulse) => span === 'bar' ? String(pulse.index) : `${pulse.beat}:${pulse.part}`;
 
-// Mutates a validated lane. The callback edits count, span, beatCounts, or
-// offbeatsOnly; visible marker edits must remain in the lane's flat arrays.
-export function editRhythmLane(lane, change) {
-  const memory = readMarkerMemory(lane.markerMemory);
-  const previousSpan = spanOf(lane);
-  const before = makeLanePulses({ ...lane, enabled: true }, 32);
+function flatMarkerMap(lane) {
   const flat = new Map();
   const indices = new Set([...lane.accents, ...lane.rests, ...Object.keys(lane.pulseSounds).map(Number)]);
   for (const index of indices) {
@@ -122,6 +117,14 @@ export function editRhythmLane(lane, change) {
     const state = readMarkerState({ accented: lane.accents.includes(index), rest: lane.rests.includes(index), sound: lane.pulseSounds[index] });
     if (state) flat.set(index, state);
   }
+  return flat;
+}
+
+function flushLaneMarkers(lane) {
+  const memory = readMarkerMemory(lane.markerMemory);
+  const previousSpan = spanOf(lane);
+  const before = makeLanePulses({ ...lane, enabled: true }, 32);
+  const flat = flatMarkerMap(lane);
   const available = new Set(before.map(({ index }) => index));
   for (const pulse of before) {
     const key = markerKey(previousSpan, pulse);
@@ -131,12 +134,14 @@ export function editRhythmLane(lane, change) {
   }
   memory.unmapped[previousSpan] = Object.fromEntries([...flat].filter(([index]) => !available.has(index)));
   memory.seen[previousSpan] = true;
+  return { memory, flat, previousSpan };
+}
 
-  change(lane);
+function rebuildLaneMarkers(lane, memory, flat = null) {
   const span = spanOf(lane);
   const after = makeLanePulses({ ...lane, enabled: true }, 32);
   const byIndex = new Map(after.map((pulse) => [pulse.index, pulse]));
-  if (!memory.seen[span]) {
+  if (flat && !memory.seen[span]) {
     for (const [index, state] of flat) {
       const pulse = byIndex.get(index);
       if (pulse) memory[span][markerKey(span, pulse)] = { ...state };
@@ -162,4 +167,183 @@ export function editRhythmLane(lane, change) {
   lane.pulseSounds = Object.fromEntries(ordered.filter(([, state]) => state.sound).map(([index, state]) => [index, state.sound]));
   lane.markerMemory = memory;
   return lane;
+}
+
+// Mutates a validated lane. The callback edits count, span, beatCounts, or
+// offbeatsOnly; visible marker edits must remain in the lane's flat arrays.
+export function editRhythmLane(lane, change) {
+  const { memory, flat } = flushLaneMarkers(lane);
+  change(lane);
+  return rebuildLaneMarkers(lane, memory, flat);
+}
+
+function cloneMarkerRecord(markers) {
+  const copy = {};
+  for (const [part, state] of Object.entries(object(markers))) {
+    if (!validIndex(part, 16)) continue;
+    const cleaned = readMarkerState(state);
+    if (cleaned) copy[part] = cleaned;
+  }
+  return copy;
+}
+
+function editLaneBeatColumns(lane, laneIndex, nextBeats, transform) {
+  const { memory } = flushLaneMarkers(lane);
+  const columns = Array.from({ length: 32 }, (_, beat) => {
+    const markers = {};
+    for (let part = 0; part < 16; part++) {
+      const state = memory.beat[`${beat}:${part}`];
+      if (state) markers[part] = { ...state };
+    }
+    return {
+      count: laneIndex === 0 ? 1 : (lane.beatCounts[beat] ?? lane.count),
+      explicit: laneIndex === 0 ? null : lane.beatCounts[beat],
+      markers,
+    };
+  });
+  transform(columns);
+  if (laneIndex > 0) {
+    const visible = columns.slice(0, nextBeats).map((col) => clampInt(col.count, limits.pulses, lane.count));
+    if (visible.length > 0 && visible.every((count) => count === visible[0])) {
+      lane.count = visible[0];
+      for (let beat = 0; beat < nextBeats; beat++) lane.beatCounts[beat] = null;
+      for (let beat = nextBeats; beat < 32; beat++) {
+        lane.beatCounts[beat] = columns[beat].explicit === lane.count ? null : columns[beat].explicit;
+      }
+    } else {
+      for (let beat = 0; beat < nextBeats; beat++) {
+        lane.beatCounts[beat] = visible[beat] === lane.count ? null : visible[beat];
+      }
+      for (let beat = nextBeats; beat < 32; beat++) lane.beatCounts[beat] = columns[beat].explicit;
+    }
+  }
+  const nextBeatMem = {};
+  for (let beat = 0; beat < 32; beat++) {
+    for (const [part, state] of Object.entries(columns[beat].markers)) {
+      const cleaned = readMarkerState(state);
+      if (cleaned) nextBeatMem[`${beat}:${part}`] = cleaned;
+    }
+  }
+  memory.beat = nextBeatMem;
+  if (Object.keys(nextBeatMem).length > 0) memory.seen.beat = true;
+  if (spanOf(lane) === 'beat') rebuildLaneMarkers(lane, memory);
+  else lane.markerMemory = memory;
+}
+
+export function snapshotBeat(settings, beat) {
+  if (!Number.isInteger(beat) || beat < 0 || beat >= 32) return null;
+  return {
+    sourceBeat: beat,
+    enabled: settings.beatEnabled?.[beat] !== false,
+    beatEnd: normalizeBeatEnd(settings.beatEnds?.[beat]),
+    lanes: settings.lanes.map((lane, index) => {
+      const { memory } = flushLaneMarkers(lane);
+      const markers = {};
+      for (let part = 0; part < 16; part++) {
+        const state = memory.beat[`${beat}:${part}`];
+        if (state) markers[part] = { ...state };
+      }
+      return {
+        count: index === 0 ? 1 : (lane.beatCounts?.[beat] ?? lane.count),
+        markers,
+      };
+    }),
+  };
+}
+
+export function pasteBeat(settings, targetBeat, snapshot, { includeEnabled = false } = {}) {
+  if (!Number.isInteger(targetBeat) || targetBeat < 0 || targetBeat >= settings.beats) return false;
+  if (!snapshot || !Array.isArray(snapshot.lanes) || snapshot.lanes.length !== settings.lanes.length) return false;
+  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnds[targetBeat] = normalizeBeatEnd(snapshot.beatEnd);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  if (includeEnabled) {
+    settings.beatEnabled[targetBeat] = snapshot.enabled !== false;
+    if (!settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[targetBeat] = true;
+  }
+  settings.lanes.forEach((lane, index) => {
+    const source = snapshot.lanes[index];
+    editLaneBeatColumns(lane, index, settings.beats, (columns) => {
+      const count = index === 0 ? 1 : clampInt(source?.count, limits.pulses, lane.count);
+      columns[targetBeat] = {
+        count,
+        explicit: index === 0 ? null : count,
+        markers: cloneMarkerRecord(source?.markers),
+      };
+    });
+  });
+  return true;
+}
+
+function moveInRange(list, from, to) {
+  const [item] = list.splice(from, 1);
+  list.splice(to, 0, item);
+}
+
+export function moveBeat(settings, fromBeat, toBeat) {
+  if (!Number.isInteger(fromBeat) || !Number.isInteger(toBeat)) return false;
+  if (fromBeat < 0 || fromBeat >= settings.beats || toBeat < 0 || toBeat >= settings.beats || fromBeat === toBeat) return false;
+  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  moveInRange(settings.beatEnds, fromBeat, toBeat);
+  moveInRange(settings.beatEnabled, fromBeat, toBeat);
+  settings.lanes.forEach((lane, index) => {
+    editLaneBeatColumns(lane, index, settings.beats, (columns) => {
+      moveInRange(columns, fromBeat, toBeat);
+    });
+  });
+  return true;
+}
+
+export function insertBeat(settings, atIndex, snapshot = null) {
+  if (settings.beats >= limits.meter[1]) return false;
+  if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > settings.beats) return false;
+  const nextBeats = settings.beats + 1;
+  settings.beats = nextBeats;
+  settings.grouping = [nextBeats];
+  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  settings.beatEnds.splice(atIndex, 0, snapshot ? normalizeBeatEnd(snapshot.beatEnd) : null);
+  settings.beatEnds.length = 32;
+  settings.beatEnabled.splice(atIndex, 0, true);
+  settings.beatEnabled.length = 32;
+  settings.lanes.forEach((lane, index) => {
+    const source = snapshot?.lanes?.[index];
+    editLaneBeatColumns(lane, index, nextBeats, (columns) => {
+      const count = index === 0 ? 1 : source ? clampInt(source.count, limits.pulses, lane.count) : lane.count;
+      columns.splice(atIndex, 0, {
+        count,
+        explicit: index === 0 ? null : source ? count : null,
+        markers: source ? cloneMarkerRecord(source.markers) : {},
+      });
+      columns.length = 32;
+    });
+  });
+  return true;
+}
+
+export function deleteBeat(settings, beat) {
+  if (settings.beats <= limits.meter[0]) return false;
+  if (!Number.isInteger(beat) || beat < 0 || beat >= settings.beats) return false;
+  const prevBeats = settings.beats;
+  const nextBeats = prevBeats - 1;
+  settings.beats = nextBeats;
+  settings.grouping = [nextBeats];
+  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  settings.beatEnds.splice(beat, 1);
+  settings.beatEnds.splice(nextBeats, 0, null);
+  settings.beatEnds.length = 32;
+  settings.beatEnabled.splice(beat, 1);
+  settings.beatEnabled.splice(nextBeats, 0, true);
+  settings.beatEnabled.length = 32;
+  if (!settings.beatEnabled.slice(0, nextBeats).some(Boolean)) settings.beatEnabled[0] = true;
+  settings.lanes.forEach((lane, index) => {
+    editLaneBeatColumns(lane, index, nextBeats, (columns) => {
+      columns.splice(beat, 1);
+      columns.splice(nextBeats, 0, { count: lane.count, explicit: null, markers: {} });
+      columns.length = 32;
+    });
+  });
+  return true;
 }

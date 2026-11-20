@@ -78,17 +78,29 @@ export function normalizeBeatEnds(value, beats = 32) {
   return Array.from({ length: beats }, (_, beat) => normalizeBeatEnd(value?.[beat]));
 }
 
+export function normalizeBeatEnabled(value, beats = 32) {
+  return Array.from({ length: beats }, (_, beat) => value?.[beat] !== false);
+}
+
 export function hasBeatTrim(beatEnds, beats) {
   return Array.isArray(beatEnds) && beatEnds.slice(0, beats).some((end) => normalizeBeatEnd(end) !== null);
+}
+
+export function hasBeatSkip(beatEnabled, beats) {
+  return Array.isArray(beatEnabled) && beatEnabled.slice(0, beats).some((on) => on === false);
 }
 
 export function compareFractions([aNum, aDen], [bNum, bDen]) {
   return aNum * bDen - bNum * aDen;
 }
 
-export function beatLayout(beats, beatEnds = null) {
+export function beatLayout(beats, beatEnds = null, beatEnabled = null) {
   const ends = Array.from({ length: beats }, (_, beat) => normalizeBeatEnd(beatEnds?.[beat]));
-  const trimmed = ends.some((end) => end !== null);
+  const enabled = Array.from({ length: beats }, (_, beat) => beatEnabled?.[beat] !== false);
+  if (beats > 0 && !enabled.some(Boolean)) enabled[0] = true;
+  const skipped = enabled.some((on) => !on);
+  const trimmed = ends.some((end, beat) => enabled[beat] && end !== null);
+  const shortened = skipped || trimmed;
   const starts = [];
   const lengths = [];
   const startsFloat = [];
@@ -96,16 +108,19 @@ export function beatLayout(beats, beatEnds = null) {
   let cursor = [0n, 1n];
   for (let beat = 0; beat < beats; beat++) {
     const end = ends[beat];
-    const len = end ? [BigInt(end[0]), BigInt(end[1])] : [1n, 1n];
+    const len = !enabled[beat] ? [0n, 1n] : end ? [BigInt(end[0]), BigInt(end[1])] : [1n, 1n];
     starts.push(cursor);
     lengths.push(len);
     startsFloat.push(Number(cursor[0]) / Number(cursor[1]));
-    lengthsFloat.push(end ? end[0] / end[1] : 1);
+    lengthsFloat.push(!enabled[beat] ? 0 : end ? end[0] / end[1] : 1);
     cursor = addBigFrac(cursor, len);
   }
   return {
     ends,
+    enabled,
+    skipped,
     trimmed,
+    shortened,
     starts,
     lengths,
     startsFloat,
@@ -120,9 +135,9 @@ export function formatBeatTrim(end) {
   return normalized ? `${normalized[0]}/${normalized[1]}` : '';
 }
 
-export function formatTotalBeats(beatEnds, beats, { verbose = true } = {}) {
-  const layout = beatLayout(beats, beatEnds);
-  if (!layout.trimmed) return '';
+export function formatTotalBeats(beatEnds, beats, { verbose = true, beatEnabled = null } = {}) {
+  const layout = beatLayout(beats, beatEnds, beatEnabled);
+  if (!layout.shortened) return '';
   const [num, den] = layout.total;
   const whole = num / den;
   const rem = num % den;
@@ -134,9 +149,9 @@ export function formatTotalBeats(beatEnds, beats, { verbose = true } = {}) {
 
 // tempoBeat is the tempo reference in quarter-note lengths (1 = quarter,
 // 1.5 = dotted quarter). Meter and tempo reference remain independent.
-export function measureSeconds({ bpm, beats, unit, tempoBeat = 1, beatEnds = null }) {
-  const layout = beatLayout(beats, beatEnds);
-  if (!layout.trimmed) return (60 / bpm) * (4 * beats / unit) / tempoBeat;
+export function measureSeconds({ bpm, beats, unit, tempoBeat = 1, beatEnds = null, beatEnabled = null }) {
+  const layout = beatLayout(beats, beatEnds, beatEnabled);
+  if (!layout.shortened) return (60 / bpm) * (4 * beats / unit) / tempoBeat;
   return (60 / bpm) * (4 / unit) / tempoBeat * layout.totalFloat;
 }
 
@@ -196,8 +211,9 @@ export function pulseBeatFraction(pulse, lane) {
   return [pulse.part / divisor, count / divisor];
 }
 
-export function isPulseActiveInBeat(pulse, lane, beatEnds) {
+export function isPulseActiveInBeat(pulse, lane, beatEnds, beatEnabled = null) {
   if (lane.span === 'bar') return true;
+  if (beatEnabled && beatEnabled[pulse.beat] === false) return false;
   const end = normalizeBeatEnd(beatEnds?.[pulse.beat]);
   if (!end) return true;
   const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
@@ -222,16 +238,16 @@ export function makeBeatSnapPoints(lanes, beats, beat) {
   return [...seen.values()].sort((a, b) => compareFractions([a.num, a.den], [b.num, b.den]));
 }
 
-export function makeLaneCyclePhases(lane, beats, beatEnds = null) {
-  const layout = beatLayout(beats, beatEnds);
+export function makeLaneCyclePhases(lane, beats, beatEnds = null, beatEnabled = null) {
+  const layout = beatLayout(beats, beatEnds, beatEnabled);
   const active = [];
   for (const pulse of makeLanePulses({ ...lane, enabled: true }, beats)) {
     if (lane.span === 'bar') {
       active.push({ hit: pulse.index, phase: pulse.phase });
       continue;
     }
-    if (!isPulseActiveInBeat(pulse, lane, layout.ends)) continue;
-    if (!layout.trimmed) {
+    if (!isPulseActiveInBeat(pulse, lane, layout.ends, layout.enabled)) continue;
+    if (!layout.shortened) {
       active.push({ hit: pulse.index, phase: pulse.phase });
       continue;
     }
@@ -243,8 +259,8 @@ export function makeLaneCyclePhases(lane, beats, beatEnds = null) {
   return active;
 }
 
-export function makeRhythmCycle(lanes, beats, beatEnds = null) {
-  const layout = beatLayout(beats, beatEnds);
+export function makeRhythmCycle(lanes, beats, beatEnds = null, beatEnabled = null) {
+  const layout = beatLayout(beats, beatEnds, beatEnabled);
   const events = new Map();
   lanes.forEach((lane, laneIndex) => {
     for (const pulse of makeLanePulses(lane, beats)) {
@@ -255,9 +271,9 @@ export function makeRhythmCycle(lanes, beats, beatEnds = null) {
         key = `${pulse.index / divisor}/${lane.count / divisor}`;
         phase = pulse.phase;
       } else {
-        if (!isPulseActiveInBeat(pulse, lane, layout.ends)) continue;
+        if (!isPulseActiveInBeat(pulse, lane, layout.ends, layout.enabled)) continue;
         const count = lane.beatCounts?.[pulse.beat] ?? lane.count;
-        if (!layout.trimmed) {
+        if (!layout.shortened) {
           const numerator = pulse.beat * count + pulse.part;
           const denominator = beats * count;
           const divisor = gcd(numerator, denominator);

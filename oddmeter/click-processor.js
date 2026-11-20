@@ -1,9 +1,9 @@
-import { eventFrame, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnds } from './rhythm.js?v=trim2';
-import { makeSoundBank } from './sounds.js';
+import { beatLayout, eventFrame, hasBeatSkip, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnabled, normalizeBeatEnds } from './rhythm.js?v=beats1';
+import { makeSoundBank } from './sounds.js?v=audio1';
 
-const regularGain = 0.68;
-const accentGain = 0.94;
-const limiterThreshold = 0.8;
+const regularGain = 0.45;
+const accentGain = 1.0;
+const limiterThreshold = 0.88;
 const limiterHeadroom = 1 - limiterThreshold;
 
 class ClickProcessor extends AudioWorkletProcessor {
@@ -39,56 +39,67 @@ class ClickProcessor extends AudioWorkletProcessor {
   addVoice(frame, lane, accented, sound = this.mix?.sounds?.[lane]) {
     if (sound === 'off') return;
     const selected = this.bank[sound];
-    const wave = selected instanceof Float32Array ? selected : this.bank.click[lane][Number(accented)];
+    const wave = selected instanceof Float32Array ? selected
+      : Array.isArray(selected) && selected[0] instanceof Float32Array ? selected[Number(accented)]
+      : this.bank.click[lane][Number(accented)];
     this.voices.push({ frame: Math.max(currentFrame, frame), wave, gain: accented ? accentGain : regularGain });
   }
 
-  postClock(id, countIn, beatEnds) {
-    const { origin, duration, countDuration, countStart } = this.clock;
+  postClock(id, countIn, beatEnds, beatEnabled) {
+    const { origin, duration, countDuration, countStart, carry } = this.clock;
     this.port.postMessage({
       id, origin, duration, countStart, countIn,
-      ...(beatEnds ? { beatEnds, countDuration } : {}),
+      ...(beatEnds ? { beatEnds } : {}),
+      ...(beatEnabled ? { beatEnabled } : {}),
+      ...(beatEnds || beatEnabled ? { countDuration } : {}),
+      ...(carry ? { carry } : {}),
     });
   }
 
   startClock(frame, { id, settings, countIn, restart = false }) {
     const beatEnds = hasBeatTrim(settings.beatEnds, settings.beats) ? normalizeBeatEnds(settings.beatEnds, settings.beats) : null;
-    const fullDuration = measureSeconds({ ...settings, beatEnds: null }) * sampleRate;
-    const duration = measureSeconds({ ...settings, beatEnds }) * sampleRate;
-    const events = settings.lanes ? makeRhythmCycle(settings.lanes, settings.beats, beatEnds)
+    const beatEnabled = hasBeatSkip(settings.beatEnabled, settings.beats) ? normalizeBeatEnabled(settings.beatEnabled, settings.beats) : null;
+    const fullDuration = measureSeconds({ ...settings, beatEnds: null, beatEnabled: null }) * sampleRate;
+    const duration = measureSeconds({ ...settings, beatEnds, beatEnabled }) * sampleRate;
+    const events = settings.lanes ? makeRhythmCycle(settings.lanes, settings.beats, beatEnds, beatEnabled)
       : settings.beatDivisions ? makeSubdivisionCycle(settings.beatDivisions) : makeCycle(settings.pulses);
-    const trimKey = beatEnds ? JSON.stringify(beatEnds) : 'full';
+    const trimKey = beatEnds || beatEnabled ? JSON.stringify([beatEnds, beatEnabled]) : 'full';
     const key = JSON.stringify([settings.beats, settings.unit, trimKey, settings.lanes ?? settings.beatDivisions ?? settings.pulses]);
     const sameMeter = this.clock?.beats === settings.beats && this.clock?.unit === settings.unit;
     const sameTrim = (this.clock?.trimKey ?? 'full') === trimKey;
+    const hasActiveCarry = Boolean(this.clock?.carry && frame < this.clock.carry.end);
     // A live edit must keep the remaining count-in, including its current beat.
     // Retiming the count-in from its phase also lets tempo taps work before bar 1.
-    if (!restart && !countIn && sameMeter && frame < this.clock.origin) {
+    if (!restart && !countIn && sameMeter && this.clock.countBeats > 0 && frame < this.clock.origin) {
       const prevCountDuration = this.clock.countDuration ?? this.clock.duration;
       const progress = (frame - this.clock.countStart) / prevCountDuration;
       const countStart = Math.round(frame - progress * fullDuration);
       const origin = countStart + Math.round(fullDuration);
-      Object.assign(this.clock, { key, trimKey, countStart, countDuration: fullDuration, origin, duration, events });
-      this.postClock(id, true, beatEnds);
+      Object.assign(this.clock, { key, trimKey, beatEnds, beatEnabled, countStart, countDuration: fullDuration, origin, duration, events, carry: null });
+      this.postClock(id, true, beatEnds, beatEnabled);
       return;
     }
-    if (!restart && !countIn && this.clock && frame >= this.clock.origin) {
-      const progress = (frame - this.clock.origin) / this.clock.duration;
-      if (this.clock.key === key) {
+    if (!restart && !countIn && this.clock && (frame >= this.clock.origin || hasActiveCarry)) {
+      if (!hasActiveCarry && this.clock.key === key) {
+        const progress = (frame - this.clock.origin) / this.clock.duration;
         const origin = Math.round(frame - progress * duration);
         this.clock.origin = origin;
         this.clock.duration = duration;
         this.clock.countDuration = fullDuration;
-        this.postClock(id, false, beatEnds);
+        this.clock.carry = null;
+        this.postClock(id, false, beatEnds, beatEnabled);
         return;
       }
-      if (sameMeter && sameTrim) {
+      if (!hasActiveCarry && sameMeter && sameTrim) {
+        const progress = (frame - this.clock.origin) / this.clock.duration;
         const origin = Math.round(frame - progress * duration);
         const measure = Math.floor(progress);
         const nextEvent = events.findIndex((event) => eventFrame(origin, measure, duration, event.phase) >= frame);
         this.clock = {
           key,
           trimKey,
+          beatEnds,
+          beatEnabled,
           beats: settings.beats,
           unit: settings.unit,
           origin,
@@ -100,34 +111,94 @@ class ClickProcessor extends AudioWorkletProcessor {
           countStart: this.clock.countStart,
           countBeat: 0,
           countBeats: 0,
+          carry: null,
         };
-        this.postClock(id, false, beatEnds);
+        this.postClock(id, false, beatEnds, beatEnabled);
         return;
       }
       if (sameMeter) {
-        // Trimming or restoring a beat keeps the current bar's downbeat
-        // anchored in real time instead of shifting existing beats.
-        const barStart = this.clock.origin + Math.floor(progress) * this.clock.duration;
-        const elapsed = frame - barStart;
-        const inside = elapsed >= 0 && elapsed < duration;
-        const origin = inside ? Math.round(barStart) : frame;
-        const nextEvent = inside ? events.findIndex((event) => eventFrame(origin, 0, duration, event.phase) >= frame) : 0;
+        // Preserve the current beat and local position in real time:
+        // changes behind the playhead take effect on the next cycle, while
+        // changes ahead of the playhead take effect as playback reaches them.
+        const prevBeatSamples = (this.clock.countDuration ?? this.clock.duration) / this.clock.beats;
+        const prevLayout = beatLayout(this.clock.beats, this.clock.beatEnds, this.clock.beatEnabled);
+        let curBeat;
+        let localOffset;
+        if (hasActiveCarry) {
+          curBeat = this.clock.carry.beat;
+          localOffset = Math.max(0, Math.min(this.clock.carry.len, (frame - this.clock.carry.start) / prevBeatSamples));
+        } else {
+          const progress = (frame - this.clock.origin) / this.clock.duration;
+          const barPhase = ((progress % 1) + 1) % 1;
+          const prevBeatTime = barPhase * prevLayout.totalFloat;
+          curBeat = prevLayout.enabled.lastIndexOf(true);
+          for (let beat = 0; beat < this.clock.beats; beat++) {
+            if (!prevLayout.enabled[beat]) continue;
+            if (prevBeatTime < prevLayout.startsFloat[beat] + prevLayout.lengthsFloat[beat]) {
+              curBeat = beat;
+              break;
+            }
+          }
+          localOffset = Math.max(0, prevBeatTime - prevLayout.startsFloat[curBeat]);
+        }
+        const newLayout = beatLayout(settings.beats, beatEnds, beatEnabled);
+        const beatSamples = fullDuration / settings.beats;
+        let origin;
+        let measure;
+        let eventIndex;
+        let carry = null;
+        if (newLayout.enabled[curBeat]) {
+          const newLen = newLayout.lengthsFloat[curBeat];
+          const clampedLocal = Math.min(localOffset, newLen);
+          const newBeatTime = newLayout.startsFloat[curBeat] + clampedLocal;
+          origin = Math.round(frame - newBeatTime * beatSamples);
+          if (localOffset >= newLen) {
+            const targetPhase = newBeatTime / newLayout.totalFloat;
+            const nextEvent = targetPhase >= 1 - 1e-9 ? -1 : events.findIndex((event) => event.phase >= targetPhase - 1e-9);
+            measure = nextEvent === -1 ? 1 : 0;
+            eventIndex = nextEvent === -1 ? 0 : nextEvent;
+          } else {
+            const nextEvent = events.findIndex((event) => eventFrame(origin, 0, duration, event.phase) >= frame);
+            measure = nextEvent === -1 ? 1 : 0;
+            eventIndex = nextEvent === -1 ? 0 : nextEvent;
+          }
+        } else {
+          const prevLen = hasActiveCarry ? this.clock.carry.len : prevLayout.lengthsFloat[curBeat];
+          const beatStart = Math.round(frame - localOffset * beatSamples);
+          const boundaryFrame = Math.round(beatStart + prevLen * beatSamples);
+          carry = { beat: curBeat, start: beatStart, end: boundaryFrame, len: prevLen };
+          const nextBeat = newLayout.enabled.findIndex((on, beat) => on && beat > curBeat);
+          if (nextBeat >= 0) {
+            const targetPhase = newLayout.startsFloat[nextBeat] / newLayout.totalFloat;
+            origin = Math.round(boundaryFrame - targetPhase * duration);
+            const nextEvent = events.findIndex((event) => event.phase >= targetPhase - 1e-9);
+            measure = nextEvent === -1 ? 1 : 0;
+            eventIndex = nextEvent === -1 ? 0 : nextEvent;
+          } else {
+            origin = boundaryFrame;
+            measure = 0;
+            eventIndex = 0;
+          }
+        }
         this.clock = {
           key,
           trimKey,
+          beatEnds,
+          beatEnabled,
           beats: settings.beats,
           unit: settings.unit,
           origin,
           duration,
           countDuration: fullDuration,
           events,
-          measure: nextEvent === -1 ? 1 : 0,
-          event: nextEvent === -1 ? 0 : nextEvent,
+          measure,
+          event: eventIndex,
           countStart: this.clock.countStart,
           countBeat: 0,
           countBeats: 0,
+          carry,
         };
-        this.postClock(id, false, beatEnds);
+        this.postClock(id, false, beatEnds, beatEnabled);
         return;
       }
     }
@@ -136,6 +207,8 @@ class ClickProcessor extends AudioWorkletProcessor {
     this.clock = {
       key,
       trimKey,
+      beatEnds,
+      beatEnabled,
       beats: settings.beats,
       unit: settings.unit,
       origin,
@@ -147,8 +220,9 @@ class ClickProcessor extends AudioWorkletProcessor {
       countStart: frame,
       countBeat: 0,
       countBeats: countIn ? settings.beats : 0,
+      carry: null,
     };
-    this.postClock(id, countIn, beatEnds);
+    this.postClock(id, countIn, beatEnds, beatEnabled);
   }
 
   schedule(blockEnd) {

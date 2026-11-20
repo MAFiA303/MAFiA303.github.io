@@ -1,6 +1,6 @@
-import { beatUnits, clampInt, limits, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=trim2';
-import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js';
-import { defaultSounds, soundOptions } from './sounds.js';
+import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=beats1';
+import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=beats1';
+import { defaultSounds, soundOptions } from './sounds.js?v=audio1';
 
 export const storageKey = 'oddmeter-settings-v1';
 export const defaultVolume = 100;
@@ -145,6 +145,12 @@ function readBeatEnds(value, legacyBarEnd, beats) {
   return result;
 }
 
+function readBeatEnabled(value, beats) {
+  const result = normalizeBeatEnabled(value, 32);
+  if (beats > 0 && !result.slice(0, beats).some(Boolean)) result[0] = true;
+  return result;
+}
+
 // Keep the existing key: the next save upgrades it in place to schema version 3.
 export function readSettings(value) {
   const input = record(value);
@@ -178,16 +184,20 @@ export function readSettings(value) {
     masterMuted: saved.masterMuted === true,
     countIn: saved.countIn === true,
     beatEnds: readBeatEnds(saved.beatEnds, saved.barEnd, rhythm.beats),
+    beatEnabled: readBeatEnabled(saved.beatEnabled, rhythm.beats),
   };
 }
 
 export function makeSetupLink(base, settings) {
   const { schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn } = settings;
   const beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
-  const lastTrim = beatEnds.findLastIndex((value) => value !== null);
+  const lastTrim = beatEnds.slice(0, beats).findLastIndex((value) => value !== null);
+  const beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  const lastSkip = hasBeatSkip(beatEnabled, beats) ? beatEnabled.slice(0, beats).findLastIndex((value) => value === false) : -1;
   const snapshot = {
     schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn,
     ...(lastTrim >= 0 ? { beatEnds: beatEnds.slice(0, lastTrim + 1) } : {}),
+    ...(lastSkip >= 0 ? { beatEnabled: beatEnabled.slice(0, lastSkip + 1) } : {}),
     lanes: settings.lanes.map(({ count, span, enabled, muted, offbeatsOnly, beatCounts, accents, rests, pulseSounds }) => ({
       count, span, enabled, muted, offbeatsOnly, accents, rests, pulseSounds,
       beatCounts: beatCounts.slice(0, beatCounts.findLastIndex((value) => value !== null) + 1),

@@ -1,13 +1,16 @@
-import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=trim2';
-import { pulseSoundOptions, soundOptions } from './sounds.js';
-import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane } from './practice.js?v=ux1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=trim2';
+import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=beats1';
+import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
+import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=beats1';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=beats1';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
   console: document.querySelector('.console'),
   rhythmPanel: document.querySelector('.rhythm-panel'),
   rulerRow: document.querySelector('.ruler-row'),
+  rulerScroll: document.querySelector('.ruler-scroll'),
+  addBeat: byId('add-beat'), beatClipboard: byId('beat-clipboard'), clipboardLabel: byId('clipboard-label'), clearClipboard: byId('clear-clipboard'),
+  pasteSlots: byId('paste-slots'),
   trimBadge: byId('trim-badge'), trimLabel: byId('trim-label'), trimReset: byId('trim-reset'),
   trimRails: byId('trim-rails'), trimHandles: byId('trim-handles'),
   preset: byId('preset'), status: byId('status'), statusText: byId('status-text'), position: byId('position'),
@@ -17,7 +20,10 @@ const ui = {
   grouping: byId('grouping'), groupingHelp: byId('grouping-help'), groupingError: byId('grouping-error'), applyGrouping: byId('apply-grouping'),
   pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), more: document.querySelector('.advanced-settings'), embedMore: byId('embed-more'),
   markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerMenuClose: byId('marker-menu-close'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'), markerTrim: byId('marker-trim'),
-  undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'),
+  beatMenu: byId('beat-menu'), beatMenuTitle: byId('beat-menu-title'), beatMenuClose: byId('beat-menu-close'),
+  beatMenuAccent: byId('beat-menu-accent'), beatMenuCopy: byId('beat-menu-copy'), beatMenuInsertCopy: byId('beat-menu-insert-copy'), beatMenuPaste: byId('beat-menu-paste'), beatMenuDuplicate: byId('beat-menu-duplicate'),
+  beatMenuToggle: byId('beat-menu-toggle'), beatMenuLeft: byId('beat-menu-left'), beatMenuRight: byId('beat-menu-right'), beatMenuDelete: byId('beat-menu-delete'),
+  undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'), headerUndo: byId('header-undo'),
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
   reset: byId('reset'), share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
@@ -28,7 +34,8 @@ const lanes = [...document.querySelectorAll('.lane')].map((element, index) => {
   const options = index === 0 ? null : byId(`subdiv-${index}-options`);
   return {
     element, enabled: element.querySelector('.lane-enabled'), count: element.querySelector('.lane-count'),
-    steps: [...element.querySelectorAll('.lane-controls [data-delta]')], span: options?.querySelector('.lane-span'), sound: byId(['sound-a', 'sound-b', 'sound-c'][index]),
+    steps: [...element.querySelectorAll('.lane-controls [data-delta]')], span: options?.querySelector('.lane-span'),
+    sound: byId(['sound-a', 'sound-b', 'sound-c'][index]), rowSound: element.querySelector('.lane-sound'),
     options, offbeats: options?.querySelector('.offbeats-only'), beatCounts: element.querySelector('.beat-counts'),
     guides: element.querySelector('.guides'), trimTails: element.querySelector('.trim-tails'), buttons: element.querySelector('.pulse-buttons'),
     pulses: [], onsets: [], beatFractions: [], activeEvents: [], lit: null,
@@ -238,7 +245,8 @@ function timingSettings() {
   // Beat mute is a mix decision. Keep its events in the clock even when a
   // saved setup starts muted, so Unmute works without rebuilding the clock.
   const beatEnds = hasBeatTrim(settings.beatEnds, beats) ? normalizeBeatEnds(settings.beatEnds, beats) : null;
-  return { bpm, tempoBeat, beats, unit, beatEnds, lanes: settings.lanes.map(({ count, span, enabled, beatCounts, offbeatsOnly }, index) =>
+  const beatEnabled = hasBeatSkip(settings.beatEnabled, beats) ? normalizeBeatEnabled(settings.beatEnabled, beats) : null;
+  return { bpm, tempoBeat, beats, unit, beatEnds, beatEnabled, lanes: settings.lanes.map(({ count, span, enabled, beatCounts, offbeatsOnly }, index) =>
     ({ count, span, enabled: index === 0 || enabled, beatCounts, offbeatsOnly })) };
 }
 function sendTiming(countIn = false, restart = false) {
@@ -284,7 +292,7 @@ async function prepareAudio(retries = 2) {
 }
 
 async function connectAudio(audio) {
-  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=trim2', import.meta.url));
+  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=beats2', import.meta.url));
   if (context !== audio || audio.state === 'closed') return;
   const node = new AudioWorkletNode(audio, 'oddmeter-click', {
     numberOfInputs: 0,
@@ -428,11 +436,26 @@ function light(lane, pulse) {
   pulse?.setAttribute('data-lit', '');
   lane.lit = pulse;
 }
+let programmaticScroll = false;
+let manualScrollUntil = 0;
+
+function setTimelineScroll(next, programmatic = true) {
+  const scroll = ui.rulerScroll;
+  if (!scroll) return;
+  const max = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+  const clamped = Math.max(0, Math.min(max, next));
+  if (clamped === scroll.scrollLeft) return;
+  if (programmatic) programmaticScroll = true;
+  for (const scroller of ui.scrolls) scroller.scrollLeft = clamped;
+  if (programmatic) Promise.resolve().then(() => { programmaticScroll = false; });
+}
+
 function setCurrentBeat(beat) {
   if (beat === currentBeat) return;
   ui.ruler.children[currentBeat]?.removeAttribute('data-current');
   ui.ruler.children[beat]?.setAttribute('data-current', '');
   currentBeat = beat;
+  if (playing && beat >= 0) followBeatDuringPlayback(beat);
 }
 function clearPlayhead() {
   delete ui.console.dataset.playing;
@@ -444,6 +467,18 @@ function paint(now) {
   animationFrame = requestAnimationFrame(paint);
   if (!clock) return;
   const frame = heardFrame(now);
+  if (clock.carry && frame < clock.carry.end) {
+    const span = Math.max(1, clock.carry.end - clock.carry.start);
+    const localRatio = Math.max(0, Math.min(1, (frame - clock.carry.start) / span));
+    const visualPhase = (clock.carry.beat + localRatio * clock.carry.len) / settings.beats;
+    status('Playing', true);
+    ui.position.textContent = `${clock.carry.beat + 1}/${settings.beats}`;
+    setCurrentBeat(clock.carry.beat);
+    ui.console.dataset.playing = '';
+    ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
+    for (const lane of lanes) light(lane, null);
+    return;
+  }
   if (frame < clock.origin) {
     if (clock.countIn && frame >= clock.countStart) {
       status('Count-in', true);
@@ -455,13 +490,14 @@ function paint(now) {
     return;
   }
   const cyclePhase = ((frame - clock.origin) % clock.duration) / clock.duration;
-  const layout = beatLayout(settings.beats, clock.beatEnds);
+  const layout = beatLayout(settings.beats, clock.beatEnds, clock.beatEnabled);
   let beatIndex = Math.min(settings.beats - 1, Math.floor(cyclePhase * settings.beats));
   let visualPhase = cyclePhase;
-  if (layout.trimmed) {
+  if (layout.shortened) {
     const activeBeatTime = cyclePhase * layout.totalFloat;
-    beatIndex = settings.beats - 1;
+    beatIndex = layout.enabled.lastIndexOf(true);
     for (let beat = 0; beat < settings.beats; beat++) {
+      if (!layout.enabled[beat]) continue;
       if (activeBeatTime < layout.startsFloat[beat] + layout.lengthsFloat[beat]) {
         beatIndex = beat;
         break;
@@ -493,7 +529,8 @@ function paint(now) {
 
 // Undo covers every rhythm, sound and meter edit. Tempo and volume stay as
 // they are for rhythm undos; Reset restores tempo and volume on Undo too.
-const resetSetupKey = makeSetupLink('http://oddmeter.local/', readSettings({ schemaVersion: 3 }));
+const makeCleanSetup = () => ({ ...readSettings({ schemaVersion: 3 }), sounds: ['click', 'hat', 'cowbell'] });
+const resetSetupKey = makeSetupLink('http://oddmeter.local/', makeCleanSetup());
 function isResetState() {
   return makeSetupLink('http://oddmeter.local/', settings) === resetSetupKey;
 }
@@ -503,13 +540,25 @@ function renderReset() {
 }
 const undoStack = [];
 let undoTimer;
-function undoable(change, toast = '', { restoreAll = false } = {}) {
+function renderUndo() {
+  if (!ui.headerUndo) return;
+  const top = undoStack.at(-1);
+  const label = typeof top === 'object' ? top?.label : '';
+  ui.headerUndo.disabled = undoStack.length === 0;
+  ui.headerUndo.title = label ? `Undo: ${label} (Ctrl/⌘+Z)` : 'Undo (Ctrl/⌘+Z)';
+  ui.headerUndo.setAttribute('aria-label', label ? `Undo ${label}` : 'Undo');
+}
+function pushUndo(json, { toast = '', label = toast, restoreAll = false } = {}) {
+  undoStack.push({ json, restoreAll, label });
+  if (undoStack.length > 40) undoStack.shift();
+  renderUndo();
+  if (toast) showUndo(toast);
+}
+function undoable(change, toast = '', { restoreAll = false, label = toast } = {}) {
   const before = JSON.stringify(settings);
   change();
   if (JSON.stringify(settings) === before) return;
-  undoStack.push({ json: before, restoreAll });
-  if (undoStack.length > 40) undoStack.shift();
-  if (toast) showUndo(toast);
+  pushUndo(before, { toast, label, restoreAll });
 }
 function showUndo(text) {
   ui.undoText.textContent = text;
@@ -524,6 +573,7 @@ function hideUndo() {
 function undo() {
   const entry = undoStack.pop();
   hideUndo();
+  renderUndo();
   if (!entry) return;
   const { json, restoreAll } = typeof entry === 'string' ? { json: entry, restoreAll: false } : entry;
   const previous = JSON.parse(json);
@@ -531,7 +581,9 @@ function undo() {
   const current = restoreAll ? {} : { bpm: settings.bpm, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
   for (const key of Object.keys(settings)) delete settings[key];
   Object.assign(settings, previous, current);
+  if (beatClipboard && beatClipboard.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
   closeMarkerMenu();
+  closeBeatMenu();
   displayTempo(settings.bpm);
   renderVolume();
   ui.countIn.checked = settings.countIn;
@@ -544,7 +596,7 @@ function undo() {
 function resetSetup() {
   if (isResetState()) return;
   undoable(() => {
-    const clean = readSettings({ schemaVersion: 3 });
+    const clean = makeCleanSetup();
     const meter = settings.beats !== clean.beats || settings.unit !== clean.unit;
     const preserved = {
       ...(settings.legacyProfiles === undefined ? {} : { legacyProfiles: settings.legacyProfiles }),
@@ -552,8 +604,10 @@ function resetSetup() {
     };
     for (const key of Object.keys(settings)) delete settings[key];
     Object.assign(settings, clean, preserved);
+    beatClipboard = null;
     taps = [];
     closeMarkerMenu();
+    closeBeatMenu();
     displayTempo(settings.bpm);
     renderVolume();
     ui.countIn.checked = settings.countIn;
@@ -628,6 +682,701 @@ function renderVolume() {
   if (master) master.setTargetAtTime(effectiveVolume(), context.currentTime, 0.007);
 }
 
+let beatClipboard = null;
+let beatMenuTarget = -1;
+let beatMenuAnchor = null;
+let beatDrag = null;
+let beatDragRaf = 0;
+
+function scrollBeatIntoView(beat, { page = false } = {}) {
+  const head = ui.ruler.children[beat];
+  const scroll = ui.rulerScroll;
+  if (!head || !scroll || scroll.scrollWidth <= scroll.clientWidth) return;
+  const stageOffset = ui.ruler.parentElement?.offsetLeft ?? 0;
+  const headLeft = stageOffset + head.offsetLeft;
+  const headRight = headLeft + head.offsetWidth;
+  const viewLeft = scroll.scrollLeft;
+  const viewRight = viewLeft + scroll.clientWidth;
+  let next = viewLeft;
+  if (headLeft < viewLeft + 12) next = Math.max(0, headLeft - 24);
+  else if (headRight > viewRight - 12) next = page ? Math.max(0, headLeft - 24) : headRight - scroll.clientWidth + 24;
+  if (next !== viewLeft) setTimelineScroll(next, true);
+}
+
+function followBeatDuringPlayback(beat) {
+  if (beatDrag?.active || trimDragBeat >= 0 || performance.now() < manualScrollUntil) return;
+  scrollBeatIntoView(beat, { page: true });
+}
+
+function toggleBeatEnabled(beat, enabled) {
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  const activeCount = settings.beatEnabled.slice(0, settings.beats).filter(Boolean).length;
+  if (!enabled && settings.beatEnabled[beat] !== false && activeCount <= 1) {
+    renderBeatHeaders();
+    ui.pulseFeedback.textContent = 'At least one beat must stay on.';
+    return;
+  }
+  if ((settings.beatEnabled[beat] !== false) === enabled) return;
+  const label = enabled ? `Beat ${beat + 1} on` : `Beat ${beat + 1} skipped`;
+  undoable(() => {
+    settings.beatEnabled[beat] = enabled;
+    renderBeatHeaders();
+    renderTrim();
+    renderMix();
+    renderPreset();
+    save();
+    if (playing) sendTiming(false, false);
+  }, label);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function copyBeat(beat) {
+  beatClipboard = snapshotBeat(settings, beat);
+  renderBeatHeaders();
+  ui.pulseFeedback.textContent = `Beat ${beat + 1} copied. Choose a + slot above the ruler to insert it between beats.`;
+}
+
+function toggleCopyBeat(beat) {
+  const next = snapshotBeat(settings, beat);
+  if (beatClipboard && beatClipboard.sourceBeat === beat && JSON.stringify(beatClipboard) === JSON.stringify(next)) {
+    clearBeatClipboard(true);
+    return;
+  }
+  beatClipboard = next;
+  renderBeatHeaders();
+  ui.pulseFeedback.textContent = `Beat ${beat + 1} copied. Choose a + slot above the ruler to insert it between beats.`;
+}
+
+function clearBeatClipboard(announce = false) {
+  if (!beatClipboard) return;
+  beatClipboard = null;
+  renderBeatHeaders();
+  if (announce) ui.pulseFeedback.textContent = 'Copied beat cleared.';
+}
+
+function pasteOntoBeat(targetBeat, sourceSnapshot = beatClipboard, labelOverride = '') {
+  if (!sourceSnapshot || targetBeat < 0 || targetBeat >= settings.beats) return;
+  const label = labelOverride || (sourceSnapshot.sourceBeat != null
+    ? `Replaced beat ${targetBeat + 1} with beat ${sourceSnapshot.sourceBeat + 1}`
+    : `Replaced beat ${targetBeat + 1} with copied beat`);
+  undoable(() => {
+    if (!pasteBeat(settings, targetBeat, sourceSnapshot)) return;
+    timingChanged({ rhythm: true, restart: false });
+  }, label);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function addBeat() {
+  if (settings.beats >= limits.meter[1]) return;
+  const at = settings.beats;
+  const label = `Added beat ${at + 1}`;
+  undoable(() => {
+    if (!insertBeat(settings, at, null)) return;
+    timingChanged({ meter: true, restart: true });
+  }, label);
+  scrollBeatIntoView(at);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function insertCopiedBeatAt(atIndex, sourceSnapshot = beatClipboard) {
+  if (!sourceSnapshot || settings.beats >= limits.meter[1]) return;
+  if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > settings.beats) return;
+  const srcText = sourceSnapshot.sourceBeat != null ? `beat ${sourceSnapshot.sourceBeat + 1}` : 'copied beat';
+  const whereText = atIndex === 0 ? 'before beat 1'
+    : atIndex === settings.beats ? `as beat ${atIndex + 1}`
+    : `between beats ${atIndex} and ${atIndex + 1}`;
+  const label = `Inserted ${srcText} ${whereText}`;
+  undoable(() => {
+    if (!insertBeat(settings, atIndex, sourceSnapshot)) return;
+    if (beatClipboard && beatClipboard.sourceBeat != null && atIndex <= beatClipboard.sourceBeat) {
+      beatClipboard.sourceBeat += 1;
+    }
+    timingChanged({ meter: true, restart: true });
+  }, label);
+  scrollBeatIntoView(atIndex);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function toggleMainBeat(beat) {
+  if (beat < 0 || beat >= settings.beats) return;
+  const profile = settings.lanes[0];
+  const wasMain = !profile.rests.includes(beat) && profile.accents.includes(beat);
+  const label = wasMain ? `Beat ${beat + 1} normal` : `Beat ${beat + 1} main accent`;
+  undoable(() => {
+    if (wasMain) {
+      profile.accents = profile.accents.filter((hit) => hit !== beat);
+    } else {
+      if (profile.rests.includes(beat)) {
+        profile.rests = profile.rests.filter((hit) => hit !== beat);
+        delete profile.pulseSounds[beat];
+      }
+      if (!profile.accents.includes(beat)) profile.accents.push(beat);
+    }
+    mixChanged();
+  }, label);
+  announceMarker(0, beat);
+}
+
+function duplicateBeat(beat) {
+  if (settings.beats >= limits.meter[1] || beat < 0 || beat >= settings.beats) return;
+  const snap = snapshotBeat(settings, beat);
+  const label = `Duplicated beat ${beat + 1}`;
+  undoable(() => {
+    if (!insertBeat(settings, beat + 1, snap)) return;
+    if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat > beat) beatClipboard.sourceBeat += 1;
+    timingChanged({ meter: true, restart: true });
+  }, label);
+  scrollBeatIntoView(beat + 1);
+  ui.pulseFeedback.textContent = `${label} as beat ${beat + 2}.`;
+}
+
+function moveBeatColumn(fromBeat, toBeat, { focusKey = '' } = {}) {
+  if (fromBeat === toBeat || fromBeat < 0 || toBeat < 0 || fromBeat >= settings.beats || toBeat >= settings.beats) return;
+  const label = `Moved beat ${fromBeat + 1} to beat ${toBeat + 1}`;
+  undoable(() => {
+    if (!moveBeat(settings, fromBeat, toBeat)) return;
+    if (beatClipboard?.sourceBeat != null) {
+      const src = beatClipboard.sourceBeat;
+      if (src === fromBeat) beatClipboard.sourceBeat = toBeat;
+      else if (fromBeat < src && src <= toBeat) beatClipboard.sourceBeat = src - 1;
+      else if (toBeat <= src && src < fromBeat) beatClipboard.sourceBeat = src + 1;
+    }
+    timingChanged({ rhythm: true, restart: false });
+  }, label);
+  scrollBeatIntoView(toBeat);
+  if (focusKey) document.querySelector(`[data-focus-key="${focusKey}"]`)?.focus({ preventScroll: true });
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function deleteBeatColumn(beat) {
+  if (settings.beats <= limits.meter[0] || beat < 0 || beat >= settings.beats) return;
+  const label = `Deleted beat ${beat + 1}`;
+  undoable(() => {
+    if (!deleteBeat(settings, beat)) return;
+    if (beatClipboard?.sourceBeat === beat) beatClipboard.sourceBeat = null;
+    else if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat > beat) beatClipboard.sourceBeat -= 1;
+    timingChanged({ meter: true, restart: true });
+  }, label);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function clearBeatDragIndicators() {
+  delete ui.ruler.dataset.drop;
+  ui.ruler.style.removeProperty('--drop-x');
+  ui.ruler.style.removeProperty('--drop-y');
+  ui.ruler.style.removeProperty('--drop-h');
+  for (const child of ui.ruler.children) child.removeAttribute('data-copy-target');
+}
+
+function updateBeatDragVisual() {
+  if (!beatDrag?.active) return;
+  const mode = beatDrag.altKey ? 'copy' : 'move';
+  beatDrag.mode = mode;
+  document.documentElement.dataset.dragMode = mode;
+  const scrollDelta = (ui.rulerScroll?.scrollLeft ?? 0) - beatDrag.startScrollLeft;
+  beatDrag.head.style.translate = `${Math.round(beatDrag.lastX - beatDrag.startX + scrollDelta)}px 0`;
+  clearBeatDragIndicators();
+  const rect = ui.ruler.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const colW = rect.width / settings.beats;
+  if (mode === 'move') {
+    let insertBefore = settings.beats;
+    for (let i = 0; i < settings.beats; i++) {
+      if (beatDrag.lastX < rect.left + (i + 0.5) * colW) {
+        insertBefore = i;
+        break;
+      }
+    }
+    beatDrag.insertBefore = insertBefore;
+    beatDrag.copyTarget = -1;
+    beatDrag.appendCopy = false;
+    if (insertBefore === beatDrag.fromBeat || insertBefore === beatDrag.fromBeat + 1) {
+      beatDrag.toIndex = beatDrag.fromBeat;
+      return;
+    }
+    beatDrag.toIndex = insertBefore > beatDrag.fromBeat ? insertBefore - 1 : insertBefore;
+    ui.ruler.dataset.drop = 'move';
+    ui.ruler.style.setProperty('--drop-x', `${rect.left + insertBefore * colW}px`);
+    ui.ruler.style.setProperty('--drop-y', `${rect.top}px`);
+    ui.ruler.style.setProperty('--drop-h', `${rect.height}px`);
+  } else {
+    beatDrag.toIndex = beatDrag.fromBeat;
+    if (beatDrag.lastX > rect.right + 8 && settings.beats < limits.meter[1]) {
+      beatDrag.copyTarget = -1;
+      beatDrag.appendCopy = true;
+      ui.ruler.dataset.drop = 'copy-append';
+      ui.ruler.style.setProperty('--drop-x', `${rect.right}px`);
+      ui.ruler.style.setProperty('--drop-y', `${rect.top}px`);
+      ui.ruler.style.setProperty('--drop-h', `${rect.height}px`);
+      return;
+    }
+    beatDrag.appendCopy = false;
+    const target = Math.max(0, Math.min(settings.beats - 1, Math.floor((beatDrag.lastX - rect.left) / colW)));
+    if (target === beatDrag.fromBeat) {
+      beatDrag.copyTarget = -1;
+      return;
+    }
+    beatDrag.copyTarget = target;
+    ui.ruler.dataset.drop = 'copy';
+    ui.ruler.children[target]?.setAttribute('data-copy-target', '');
+  }
+}
+
+function beatDragAutoScroll(now) {
+  if (!beatDrag?.active) return;
+  beatDragRaf = requestAnimationFrame(beatDragAutoScroll);
+  const scroll = ui.rulerScroll;
+  if (!scroll || scroll.scrollWidth <= scroll.clientWidth) return;
+  const dt = beatDrag.lastTime ? Math.min(64, now - beatDrag.lastTime) : 16;
+  beatDrag.lastTime = now;
+  const rect = scroll.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const colW = Math.max(48, ui.ruler.offsetWidth / Math.max(1, settings.beats));
+  const zone = Math.min(colW, rect.width / 3);
+  let velocity = 0;
+  if (beatDrag.lastX < rect.left + zone) {
+    const depth = Math.min(2, (rect.left + zone - beatDrag.lastX) / zone);
+    velocity = -depth * 420;
+  } else if (beatDrag.lastX > rect.right - zone) {
+    const depth = Math.min(2, (beatDrag.lastX - (rect.right - zone)) / zone);
+    velocity = depth * 420;
+  }
+  if (!velocity) return;
+  const before = scroll.scrollLeft;
+  scroll.scrollLeft = before + velocity * dt / 1000;
+  if (scroll.scrollLeft !== before) {
+    for (const other of ui.scrolls) if (other !== scroll) other.scrollLeft = scroll.scrollLeft;
+    updateBeatDragVisual();
+  }
+}
+
+function onBeatDragMove(event) {
+  if (!beatDrag || event.pointerId !== beatDrag.pointerId) return;
+  const dx = event.clientX - beatDrag.startX;
+  const dy = event.clientY - beatDrag.startY;
+  if (!beatDrag.active) {
+    if (Math.hypot(dx, dy) < 5) return;
+    clearTimeout(beatDrag.pressTimer);
+    beatDrag.pressTimer = 0;
+    beatDrag.active = true;
+    closeMarkerMenu();
+    closeBeatMenu();
+    beatDrag.handle.setPointerCapture?.(event.pointerId);
+    document.documentElement.classList.add('beat-dragging');
+    beatDrag.head.setAttribute('data-dragging', '');
+    beatDrag.lastTime = 0;
+    beatDragRaf = requestAnimationFrame(beatDragAutoScroll);
+  }
+  beatDrag.lastX = event.clientX;
+  beatDrag.altKey = event.altKey;
+  updateBeatDragVisual();
+}
+
+function onBeatDragKey(event) {
+  if (!beatDrag?.active) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    endBeatDrag(true);
+    return;
+  }
+  if (event.key === 'Alt') {
+    beatDrag.altKey = event.type === 'keydown';
+    updateBeatDragVisual();
+  }
+}
+
+function onBeatDragUp(event) {
+  if (!beatDrag || (event.pointerId !== undefined && event.pointerId !== beatDrag.pointerId)) return;
+  endBeatDrag(event.type === 'pointercancel');
+}
+
+function endBeatDrag(cancelled = false) {
+  if (!beatDrag) return;
+  const drag = beatDrag;
+  beatDrag = null;
+  clearTimeout(drag.pressTimer);
+  cancelAnimationFrame(beatDragRaf);
+  beatDragRaf = 0;
+  window.removeEventListener('pointermove', onBeatDragMove);
+  window.removeEventListener('pointerup', onBeatDragUp);
+  window.removeEventListener('pointercancel', onBeatDragUp);
+  window.removeEventListener('keydown', onBeatDragKey);
+  window.removeEventListener('keyup', onBeatDragKey);
+  drag.handle.removeEventListener('lostpointercapture', onBeatDragUp);
+  document.documentElement.classList.remove('beat-dragging');
+  delete document.documentElement.dataset.dragMode;
+  drag.head.removeAttribute('data-dragging');
+  drag.head.style.removeProperty('translate');
+  clearBeatDragIndicators();
+  if (!drag.active) return;
+  if (cancelled) {
+    ui.pulseFeedback.textContent = 'Beat drag cancelled.';
+    return;
+  }
+  if (drag.mode === 'move' && drag.toIndex >= 0 && drag.toIndex !== drag.fromBeat) {
+    moveBeatColumn(drag.fromBeat, drag.toIndex, { focusKey: `beat-drag-${drag.toIndex}` });
+  } else if (drag.mode === 'copy' && drag.appendCopy) {
+    const snap = snapshotBeat(settings, drag.fromBeat);
+    const at = settings.beats;
+    const label = `Copied beat ${drag.fromBeat + 1} as beat ${at + 1}`;
+    undoable(() => {
+      if (!insertBeat(settings, at, snap)) return;
+      timingChanged({ meter: true, restart: true });
+    }, label);
+    scrollBeatIntoView(at);
+    ui.pulseFeedback.textContent = `${label}.`;
+  } else if (drag.mode === 'copy' && drag.copyTarget >= 0 && drag.copyTarget !== drag.fromBeat) {
+    const snap = snapshotBeat(settings, drag.fromBeat);
+    pasteOntoBeat(drag.copyTarget, snap, `Copied beat ${drag.fromBeat + 1} onto beat ${drag.copyTarget + 1}`);
+  }
+}
+
+function bindBeatDrag(handle, head) {
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || beatDrag) return;
+    const fromBeat = Number(head.dataset.beat);
+    beatDrag = {
+      fromBeat,
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      altKey: event.altKey,
+      active: false,
+      mode: event.altKey ? 'copy' : 'move',
+      insertBefore: -1,
+      toIndex: fromBeat,
+      copyTarget: -1,
+      appendCopy: false,
+      handle,
+      head,
+      startScrollLeft: ui.rulerScroll?.scrollLeft ?? 0,
+      lastTime: 0,
+      pressTimer: 0,
+    };
+    if (event.pointerType !== 'mouse') {
+      beatDrag.pressTimer = setTimeout(() => {
+        if (!beatDrag || beatDrag.active) return;
+        const beat = beatDrag.fromBeat;
+        endBeatDrag(true);
+        openBeatMenu(beat, handle);
+      }, 450);
+    }
+    window.addEventListener('pointermove', onBeatDragMove);
+    window.addEventListener('pointerup', onBeatDragUp);
+    window.addEventListener('pointercancel', onBeatDragUp);
+    window.addEventListener('keydown', onBeatDragKey);
+    window.addEventListener('keyup', onBeatDragKey);
+    handle.addEventListener('lostpointercapture', onBeatDragUp);
+  });
+  handle.addEventListener('keydown', (event) => {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const beat = Number(head.dataset.beat);
+    if (event.key === 'ArrowLeft' && beat > 0) {
+      event.preventDefault();
+      moveBeatColumn(beat, beat - 1, { focusKey: `beat-drag-${beat - 1}` });
+    } else if (event.key === 'ArrowRight' && beat < settings.beats - 1) {
+      event.preventDefault();
+      moveBeatColumn(beat, beat + 1, { focusKey: `beat-drag-${beat + 1}` });
+    }
+  });
+}
+
+function renderBeatMenu() {
+  if (beatMenuTarget < 0 || !ui.beatMenu) return;
+  const beat = beatMenuTarget;
+  const enabled = settings.beatEnabled?.[beat] !== false;
+  const activeCount = normalizeBeatEnabled(settings.beatEnabled, settings.beats).filter(Boolean).length;
+  const beatProfile = settings.lanes[0];
+  const isMain = !beatProfile.rests.includes(beat) && beatProfile.accents.includes(beat);
+  ui.beatMenuTitle.textContent = `Beat ${beat + 1}`;
+  if (ui.beatMenuAccent) {
+    ui.beatMenuAccent.setAttribute('aria-pressed', String(isMain));
+    ui.beatMenuAccent.title = isMain
+      ? `Beat ${beat + 1} is accented (full orange) · Click for normal beat`
+      : `Make beat ${beat + 1} a main accented beat (full orange)`;
+  }
+  ui.beatMenuCopy.textContent = `Copy beat ${beat + 1}`;
+  if (ui.beatMenuInsertCopy) {
+    ui.beatMenuInsertCopy.disabled = !beatClipboard || settings.beats >= limits.meter[1];
+    ui.beatMenuInsertCopy.textContent = beatClipboard?.sourceBeat != null
+      ? `Insert B${beatClipboard.sourceBeat + 1} after`
+      : 'Insert copy after';
+  }
+  ui.beatMenuPaste.disabled = !beatClipboard;
+  ui.beatMenuPaste.textContent = beatClipboard?.sourceBeat != null
+    ? `Replace w/ B${beatClipboard.sourceBeat + 1}`
+    : 'Replace with copy';
+  ui.beatMenuDuplicate.disabled = settings.beats >= limits.meter[1];
+  ui.beatMenuToggle.textContent = enabled ? 'Skip beat' : 'Include beat';
+  ui.beatMenuToggle.disabled = enabled && activeCount <= 1;
+  ui.beatMenuLeft.disabled = beat <= 0;
+  ui.beatMenuRight.disabled = beat >= settings.beats - 1;
+  ui.beatMenuDelete.disabled = settings.beats <= limits.meter[0];
+}
+
+function positionBeatMenu() {
+  if (!ui.beatMenu || !beatMenuAnchor) return;
+  const rect = beatMenuAnchor.getBoundingClientRect();
+  const menu = ui.beatMenu;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  const viewWidth = document.documentElement.clientWidth || window.innerWidth;
+  const bottomGuard = viewWidth <= 680 ? 78 : 8;
+  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, viewWidth - width - 8));
+  const placedAbove = rect.bottom + 8 + height > window.innerHeight - bottomGuard && rect.top - height - 8 > 8;
+  const top = placedAbove ? rect.top - height - 8 : rect.bottom + 8;
+  menu.dataset.placement = placedAbove ? 'above' : 'below';
+  menu.style.setProperty('--menu-origin-x', `${Math.max(16, Math.min(width - 16, Math.round(rect.left + rect.width / 2 - left)))}px`);
+  menu.style.left = `${left + window.scrollX}px`;
+  menu.style.top = `${top + window.scrollY}px`;
+}
+
+function openBeatMenu(beat, anchor = null) {
+  if (!ui.beatMenu || beat < 0 || beat >= settings.beats) return;
+  closeMarkerMenu();
+  beatMenuTarget = beat;
+  beatMenuAnchor = anchor ?? ui.ruler.children[beat]?.querySelector('.beat-more') ?? ui.ruler.children[beat];
+  renderBeatMenu();
+  ui.beatMenu.hidden = false;
+  positionBeatMenu();
+  renderBeatHeaders();
+  (ui.beatMenuAccent ?? ui.beatMenuCopy).focus({ preventScroll: true });
+}
+
+function closeBeatMenu(returnFocus = false) {
+  if (beatMenuTarget < 0) return;
+  const anchor = beatMenuAnchor;
+  beatMenuTarget = -1;
+  beatMenuAnchor = null;
+  if (ui.beatMenu) ui.beatMenu.hidden = true;
+  renderBeatHeaders();
+  if (returnFocus) anchor?.focus({ preventScroll: true });
+}
+
+ui.addBeat?.addEventListener('click', addBeat);
+ui.clearClipboard?.addEventListener('click', () => clearBeatClipboard(true));
+ui.beatMenuClose?.addEventListener('click', () => closeBeatMenu(true));
+ui.beatMenuAccent?.addEventListener('click', () => {
+  if (beatMenuTarget < 0) return;
+  toggleMainBeat(beatMenuTarget);
+  renderBeatMenu();
+});
+ui.beatMenuCopy?.addEventListener('click', () => {
+  if (beatMenuTarget < 0) return;
+  const beat = beatMenuTarget;
+  copyBeat(beat);
+  closeBeatMenu(true);
+});
+ui.beatMenuInsertCopy?.addEventListener('click', () => {
+  if (beatMenuTarget < 0 || !beatClipboard) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  insertCopiedBeatAt(beat + 1);
+});
+ui.beatMenuPaste?.addEventListener('click', () => {
+  if (beatMenuTarget < 0 || !beatClipboard) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  pasteOntoBeat(beat);
+});
+ui.beatMenuDuplicate?.addEventListener('click', () => {
+  if (beatMenuTarget < 0) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  duplicateBeat(beat);
+});
+ui.beatMenuToggle?.addEventListener('click', () => {
+  if (beatMenuTarget < 0) return;
+  const beat = beatMenuTarget;
+  const enabled = settings.beatEnabled?.[beat] !== false;
+  toggleBeatEnabled(beat, !enabled);
+  closeBeatMenu(true);
+});
+ui.beatMenuLeft?.addEventListener('click', () => {
+  if (beatMenuTarget <= 0) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  moveBeatColumn(beat, beat - 1, { focusKey: `beat-drag-${beat - 1}` });
+});
+ui.beatMenuRight?.addEventListener('click', () => {
+  if (beatMenuTarget < 0 || beatMenuTarget >= settings.beats - 1) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  moveBeatColumn(beat, beat + 1, { focusKey: `beat-drag-${beat + 1}` });
+});
+ui.beatMenuDelete?.addEventListener('click', () => {
+  if (beatMenuTarget < 0) return;
+  const beat = beatMenuTarget;
+  closeBeatMenu();
+  deleteBeatColumn(beat);
+});
+
+function ensureBeatHeaderDom() {
+  ui.ruler.style.setProperty('--beats', settings.beats);
+  if (ui.ruler.children.length === settings.beats) return;
+  currentBeat = -1;
+  ui.ruler.replaceChildren(...Array.from({ length: settings.beats }, (_, beat) => {
+    const head = document.createElement('div');
+    head.className = 'beat-head';
+    head.setAttribute('role', 'listitem');
+    head.dataset.beat = beat;
+
+    const checkWrap = document.createElement('label');
+    checkWrap.className = 'beat-check-wrap';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.className = 'beat-toggle';
+    toggle.dataset.beat = beat;
+    toggle.dataset.focusKey = `beat-toggle-${beat}`;
+    toggle.addEventListener('change', () => toggleBeatEnabled(Number(head.dataset.beat), toggle.checked));
+    checkWrap.append(toggle);
+
+    const drag = document.createElement('button');
+    drag.type = 'button';
+    drag.className = 'beat-drag';
+    drag.dataset.beat = beat;
+    drag.dataset.focusKey = `beat-drag-${beat}`;
+    drag.setAttribute('aria-label', `Beat ${beat + 1} — drag to reorder, Alt-drag to copy`);
+    drag.title = `Beat ${beat + 1} · Drag to reorder, Alt/Option-drag to copy, Alt+←/→ with keyboard`;
+    const grip = document.createElement('span');
+    grip.className = 'beat-grip';
+    grip.setAttribute('aria-hidden', 'true');
+    const num = document.createElement('span');
+    num.className = 'beat-num';
+    num.textContent = beat + 1;
+    drag.append(grip, num);
+    bindBeatDrag(drag, head);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'beat-action beat-copy';
+    copyBtn.dataset.beat = beat;
+    copyBtn.dataset.focusKey = `beat-copy-${beat}`;
+    const copyIcon = document.createElement('span');
+    copyIcon.className = 'beat-icon icon-copy';
+    copyIcon.setAttribute('aria-hidden', 'true');
+    copyBtn.append(copyIcon);
+    copyBtn.addEventListener('click', () => toggleCopyBeat(Number(head.dataset.beat)));
+
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'beat-action beat-more';
+    moreBtn.dataset.beat = beat;
+    moreBtn.dataset.focusKey = `beat-more-${beat}`;
+    moreBtn.setAttribute('aria-label', `Beat ${beat + 1} actions`);
+    moreBtn.setAttribute('aria-haspopup', 'menu');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    moreBtn.title = `Beat ${beat + 1} actions (main accent, copy, insert, replace, move, delete)`;
+    const moreIcon = document.createElement('span');
+    moreIcon.className = 'beat-icon icon-more';
+    moreIcon.setAttribute('aria-hidden', 'true');
+    moreBtn.append(moreIcon);
+    moreBtn.addEventListener('click', () => {
+      const target = Number(head.dataset.beat);
+      if (beatMenuTarget === target) closeBeatMenu(true);
+      else openBeatMenu(target, moreBtn);
+    });
+
+    head.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      openBeatMenu(Number(head.dataset.beat), drag);
+    });
+
+    head.append(checkWrap, drag, copyBtn, moreBtn);
+    return head;
+  }));
+}
+
+function renderPasteSlots() {
+  if (!ui.pasteSlots) return;
+  const active = Boolean(beatClipboard);
+  ui.rulerRow?.toggleAttribute('data-pasting', active);
+  ui.pasteSlots.hidden = !active;
+  if (!active) return;
+  const count = settings.beats + 1;
+  const atMax = settings.beats >= limits.meter[1];
+  if (ui.pasteSlots.children.length !== count) {
+    ui.pasteSlots.replaceChildren(...Array.from({ length: count }, (_, slot) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'paste-slot';
+      btn.dataset.insert = slot;
+      btn.dataset.focusKey = `paste-slot-${slot}`;
+      btn.textContent = '+';
+      btn.addEventListener('click', () => insertCopiedBeatAt(Number(btn.dataset.insert)));
+      return btn;
+    }));
+  }
+  const src = beatClipboard?.sourceBeat != null ? `beat ${beatClipboard.sourceBeat + 1}` : 'copied beat';
+  [...ui.pasteSlots.children].forEach((btn, slot) => {
+    btn.dataset.insert = slot;
+    btn.style.left = `${100 * slot / settings.beats}%`;
+    btn.disabled = atMax;
+    const where = slot === 0 ? 'before beat 1'
+      : slot === settings.beats ? `after beat ${settings.beats}`
+      : `between beats ${slot} and ${slot + 1}`;
+    const desc = atMax ? `Maximum ${limits.meter[1]} beats` : `Insert ${src} ${where}`;
+    btn.setAttribute('aria-label', desc);
+    btn.title = desc;
+  });
+}
+
+function renderBeatHeaders() {
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  if (settings.beats > 0 && !settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[0] = true;
+  ensureBeatHeaderDom();
+  const starts = groupStarts(settings.grouping);
+  const activeCount = settings.beatEnabled.slice(0, settings.beats).filter(Boolean).length;
+  const hasClip = Boolean(beatClipboard);
+  if (ui.addBeat) {
+    ui.addBeat.disabled = settings.beats >= limits.meter[1];
+    ui.addBeat.title = ui.addBeat.disabled ? `Maximum ${limits.meter[1]} beats` : 'Add beat to bar';
+  }
+  if (ui.beatClipboard) {
+    ui.beatClipboard.hidden = !hasClip;
+    if (ui.clipboardLabel) {
+      ui.clipboardLabel.textContent = beatClipboard?.sourceBeat != null ? `B${beatClipboard.sourceBeat + 1} copied` : 'Copied';
+      ui.clipboardLabel.title = beatClipboard?.sourceBeat != null
+        ? `Beat ${beatClipboard.sourceBeat + 1} copied · Click a + slot above the ruler to insert it between beats`
+        : 'Copied beat · Click a + slot above the ruler to insert it between beats';
+    }
+  }
+  ui.ruler.toggleAttribute('data-has-clipboard', hasClip);
+  [...ui.ruler.children].forEach((head, beat) => {
+    const enabled = settings.beatEnabled[beat] !== false;
+    const onlyActive = enabled && activeCount <= 1;
+    const isSource = hasClip && beatClipboard.sourceBeat === beat;
+    head.dataset.beat = beat;
+    head.toggleAttribute('data-group-start', starts.includes(beat));
+    head.toggleAttribute('data-skipped', !enabled);
+    head.toggleAttribute('data-copied-source', isSource);
+    const checkWrap = head.querySelector('.beat-check-wrap');
+    const toggle = head.querySelector('.beat-toggle');
+    if (toggle) {
+      toggle.checked = enabled;
+      toggle.disabled = onlyActive;
+      toggle.setAttribute('aria-label', enabled ? `Include beat ${beat + 1} in loop` : `Include skipped beat ${beat + 1} in loop`);
+      if (checkWrap) {
+        checkWrap.title = onlyActive ? 'At least one beat must stay on'
+          : enabled ? `Beat ${beat + 1} on · Uncheck to skip` : `Beat ${beat + 1} skipped · Check to include`;
+      }
+    }
+    const copyBtn = head.querySelector('.beat-copy');
+    if (copyBtn) {
+      copyBtn.toggleAttribute('data-active', isSource);
+      copyBtn.setAttribute('aria-label', isSource ? `Beat ${beat + 1} copied — click to cancel` : `Copy beat ${beat + 1}`);
+      copyBtn.title = isSource ? `Beat ${beat + 1} copied · Click + above ruler to insert, or click again to cancel` : `Copy beat ${beat + 1}`;
+    }
+    const moreBtn = head.querySelector('.beat-more');
+    if (moreBtn) moreBtn.setAttribute('aria-expanded', String(beatMenuTarget === beat));
+  });
+  renderPasteSlots();
+  if (beatMenuTarget >= settings.beats) closeBeatMenu();
+  else renderBeatMenu();
+}
+
 function renderMeter() {
   const { beats, unit, grouping } = settings;
   ui.beats.value = beats;
@@ -642,16 +1391,8 @@ function renderMeter() {
   ui.groupingChoice.value = grouping.join('+');
   ui.groupingChoice.hidden = beats < 5;
   ui.groupingChoice.toggleAttribute('data-active', grouping.length > 1);
-  ui.ruler.replaceChildren();
-  currentBeat = -1;
+  renderBeatHeaders();
   const starts = groupStarts(grouping);
-  for (let beat = 0; beat < beats; beat++) {
-    const label = document.createElement('span');
-    label.style.left = `${100 * beat / beats}%`;
-    label.textContent = beat + 1;
-    label.toggleAttribute('data-group-start', starts.includes(beat));
-    ui.ruler.append(label);
-  }
   for (const lane of lanes) {
     if (lane.span) lane.span.options[0].text = `per ${unitNames[unit]}`;
     lane.guides.replaceChildren();
@@ -730,6 +1471,7 @@ function renderBeatCounts(lane, index) {
 function renderRhythms() {
   const focusedKey = document.activeElement?.dataset.focusKey;
   closeMarkerMenu();
+  closeBeatMenu();
   let minGap = 1;
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
@@ -785,8 +1527,13 @@ function renderRhythms() {
     lane.buttons.style.setProperty('--pulses', Math.max(lane.pulses.length, 1));
     lane.beatCounts.style.setProperty('--beats', settings.beats);
   });
-  const beatWidth = lanes.some((lane) => !lane.beatCounts.hidden) ? 70 : 48;
-  ui.rhythmPanel.style.setProperty('--timeline-grid-width', `${Math.ceil(Math.max(240, settings.beats * beatWidth, 24 / minGap))}px`);
+  const beatWidth = settings.beats > 4 ? 260 : 76;
+  const minMarkerWidth = Math.ceil(Math.max(240, 24 / minGap));
+  ui.rhythmPanel.toggleAttribute('data-extended', settings.beats > 4);
+  ui.rhythmPanel.style.setProperty('--beats', settings.beats);
+  ui.rhythmPanel.style.setProperty('--min-marker-width', `${minMarkerWidth}px`);
+  ui.rhythmPanel.style.setProperty('--timeline-grid-width', `${Math.ceil(Math.max(minMarkerWidth, settings.beats * beatWidth))}px`);
+  renderBeatHeaders();
   renderTrim();
   renderMix();
   if (focusedKey) document.querySelector(`[data-focus-key="${focusedKey}"]`)?.focus({ preventScroll: true });
@@ -832,8 +1579,10 @@ function applyBeatEnd(beat, next, { saveState = true } = {}) {
 }
 
 function clearAllBeatEnds() {
-  if (!hasBeatTrim(settings.beatEnds, settings.beats)) return false;
+  if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats)) return false;
   settings.beatEnds = Array(32).fill(null);
+  settings.beatEnabled = Array(32).fill(true);
+  renderBeatHeaders();
   renderTrim();
   renderMix();
   renderPreset();
@@ -877,14 +1626,12 @@ function finishTrimDrag() {
   delete ui.rhythmPanel.dataset.trimming;
   renderTrim();
   if (JSON.stringify(settings) !== trimDragBefore) {
-    undoStack.push(trimDragBefore);
-    if (undoStack.length > 40) undoStack.shift();
-    save();
     const end = normalizeBeatEnd(settings.beatEnds[beat]);
-    const total = formatTotalBeats(settings.beatEnds, settings.beats);
+    const total = formatTotalBeats(settings.beatEnds, settings.beats, { beatEnabled: settings.beatEnabled });
     const label = end ? `${formatBeatTrimLabel(beat, end)} (${total})` : formatBeatTrimLabel(beat, null);
+    pushUndo(trimDragBefore, { toast: label, label });
+    save();
     ui.pulseFeedback.textContent = `${label}.`;
-    showUndo(label);
   }
 }
 
@@ -996,34 +1743,46 @@ function ensureBeatTrimDom() {
 
 function renderTrim() {
   settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  if (settings.beats > 0 && !settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[0] = true;
   ensureBeatTrimDom();
-  const layout = beatLayout(settings.beats, settings.beatEnds);
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
   beatSnaps = Array.from({ length: settings.beats }, (_, beat) => makeBeatSnapPoints(settings.lanes, settings.beats, beat));
   ui.rhythmPanel.toggleAttribute('data-trimmed', layout.trimmed);
-  ui.rulerRow?.toggleAttribute('data-trimmed', layout.trimmed);
+  ui.rhythmPanel.toggleAttribute('data-skipped', layout.skipped);
+  ui.rulerRow?.toggleAttribute('data-trimmed', layout.shortened);
   if (ui.trimBadge && ui.trimLabel) {
-    ui.trimBadge.hidden = !layout.trimmed;
-    const total = formatTotalBeats(settings.beatEnds, settings.beats);
-    ui.trimLabel.textContent = total;
-    const parts = layout.ends.flatMap((end, beat) => end ? [`Beat ${beat + 1}: ${formatBeatTrim(end)}`] : []);
-    ui.trimBadge.title = layout.trimmed ? `${parts.join(', ')} · Bar total: ${total}` : '';
+    ui.trimBadge.hidden = !layout.shortened;
+    const total = formatTotalBeats(settings.beatEnds, settings.beats, { beatEnabled: settings.beatEnabled });
+    const activeCount = layout.enabled.filter(Boolean).length;
+    ui.trimLabel.textContent = layout.trimmed ? total : layout.skipped ? `${activeCount}/${settings.beats} beats` : '';
+    ui.trimBadge.toggleAttribute('data-skipped-only', layout.skipped && !layout.trimmed);
+    const parts = [];
+    layout.enabled.forEach((on, beat) => {
+      if (!on) parts.push(`Beat ${beat + 1}: skipped`);
+      else if (layout.ends[beat]) parts.push(`Beat ${beat + 1}: ${formatBeatTrim(layout.ends[beat])}`);
+    });
+    ui.trimBadge.title = layout.shortened ? `${parts.join(', ')} · Bar total: ${total}` : '';
   }
   for (let beat = 0; beat < settings.beats; beat++) {
-    const end = layout.ends[beat];
-    const ratio = layout.lengthsFloat[beat];
+    const skipped = !layout.enabled[beat];
+    const end = skipped ? null : layout.ends[beat];
+    const ratio = skipped ? 0 : layout.lengthsFloat[beat];
     const beatStartPct = 100 * beat / settings.beats;
+    const beatWidthPct = 100 / settings.beats;
     const activeWidthPct = 100 * ratio / settings.beats;
     const cutPct = 100 * (beat + ratio) / settings.beats;
     const tailWidthPct = 100 * (1 - ratio) / settings.beats;
     const rail = ui.trimRails?.children[beat];
     if (rail) {
       rail.style.left = `${beatStartPct}%`;
-      rail.style.width = `${activeWidthPct}%`;
+      rail.style.width = `${skipped ? 0 : activeWidthPct}%`;
       rail.toggleAttribute('data-trimmed', Boolean(end));
+      rail.toggleAttribute('data-skipped', skipped);
     }
     const handle = ui.trimHandles?.children[beat];
     if (handle) {
-      const canTrim = beatSnaps[beat].length > 1 || Boolean(end);
+      const canTrim = !skipped && (beatSnaps[beat].length > 1 || Boolean(layout.ends[beat]));
       handle.hidden = !canTrim;
       handle.disabled = !canTrim;
       handle.style.left = `${cutPct}%`;
@@ -1038,27 +1797,31 @@ function renderTrim() {
     for (const lane of lanes) {
       const tail = lane.trimTails?.children[beat];
       if (tail) {
-        tail.style.left = `${cutPct}%`;
-        tail.style.width = `${tailWidthPct}%`;
-        tail.toggleAttribute('data-trimmed', Boolean(end));
+        tail.style.left = `${skipped ? beatStartPct : cutPct}%`;
+        tail.style.width = `${skipped ? beatWidthPct : tailWidthPct}%`;
+        tail.toggleAttribute('data-skipped', skipped);
+        tail.toggleAttribute('data-trimmed', !skipped && Boolean(end));
       }
     }
   }
   updateTrimPreview();
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
-    lane.activeEvents = makeLaneCyclePhases(profile, settings.beats, layout.ends);
+    lane.activeEvents = makeLaneCyclePhases(profile, settings.beats, layout.ends, layout.enabled);
     lane.pulses.forEach((pulse, hit) => {
       const onset = lane.onsets[hit];
-      const active = isPulseActiveInBeat(onset, profile, layout.ends);
+      const beatSkipped = profile.span !== 'bar' && !layout.enabled[onset.beat];
+      const active = isPulseActiveInBeat(onset, profile, layout.ends, layout.enabled);
       const frac = lane.beatFractions[hit];
       const beatEnd = layout.ends[onset.beat];
-      pulse.toggleAttribute('data-trimmed', !active);
-      pulse.toggleAttribute('data-trim-target', Boolean(trimDragBeat === onset.beat && beatEnd && frac && frac[0] === beatEnd[0] && frac[1] === beatEnd[1]));
+      pulse.toggleAttribute('data-skipped', beatSkipped);
+      pulse.toggleAttribute('data-trimmed', !beatSkipped && !active);
+      pulse.toggleAttribute('data-trim-target', Boolean(!beatSkipped && trimDragBeat === onset.beat && beatEnd && frac && frac[0] === beatEnd[0] && frac[1] === beatEnd[1]));
     });
     if (index > 0 && lane.beatCounts) {
       [...lane.beatCounts.children].forEach((stepper, beat) => {
-        stepper.toggleAttribute('data-beat-trimmed', Boolean(layout.ends[beat]));
+        stepper.toggleAttribute('data-beat-skipped', !layout.enabled[beat]);
+        stepper.toggleAttribute('data-beat-trimmed', layout.enabled[beat] && Boolean(layout.ends[beat]));
       });
     }
   });
@@ -1140,6 +1903,22 @@ function editPulse(lane, pulse, accentOnly = false) {
     if (accentOnly) {
       if (profile.accents.includes(pulse)) profile.accents = profile.accents.filter((hit) => hit !== pulse);
       else profile.accents.push(pulse);
+    } else if (lane === 0) {
+      if (profile.rests.includes(pulse)) {
+        profile.rests = profile.rests.filter((hit) => hit !== pulse);
+        delete profile.pulseSounds[pulse];
+        profile.accents = profile.accents.filter((hit) => hit !== pulse);
+      } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
+        if (!profile.accents.includes(pulse)) {
+          profile.accents.push(pulse);
+        } else {
+          profile.accents = profile.accents.filter((hit) => hit !== pulse);
+          profile.pulseSounds[pulse] = laneSound === 'kick' ? 'hat' : 'kick';
+        }
+      } else {
+        profile.rests.push(pulse);
+        profile.accents = profile.accents.filter((hit) => hit !== pulse);
+      }
     } else if (profile.rests.includes(pulse)) {
       profile.rests = profile.rests.filter((hit) => hit !== pulse);
       delete profile.pulseSounds[pulse];
@@ -1245,6 +2024,7 @@ function positionMarkerMenu() {
   menu.style.top = `${top + window.scrollY}px`;
 }
 function openMarkerMenu(lane, pulse) {
+  closeBeatMenu();
   menuTarget = { lane, pulse };
   renderMarkerMenu();
   ui.markerMenu.hidden = false;
@@ -1293,15 +2073,20 @@ ui.markerTrim?.addEventListener('click', () => {
   ui.pulseFeedback.textContent = `${label}.`;
 });
 ui.trimReset?.addEventListener('click', () => {
-  if (!hasBeatTrim(settings.beatEnds, settings.beats)) return;
+  if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats)) return;
   undoable(() => clearAllBeatEnds(), 'Full bar restored');
   ui.pulseFeedback.textContent = 'Full bar restored.';
 });
-window.addEventListener('resize', () => closeMarkerMenu());
+window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); });
 
 function renderMix() {
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
+    lane.sound.value = settings.sounds[index];
+    if (lane.rowSound) {
+      lane.rowSound.value = settings.sounds[index];
+      lane.rowSound.dataset.sound = settings.sounds[index];
+    }
     lane.element.toggleAttribute('data-muted', laneMuted(profile));
     if (lane.enabled) {
       lane.enabled.disabled = index > 0 && (!profile.enabled || lane.onsets.length === 0);
@@ -1315,8 +2100,9 @@ function renderMix() {
       const sound = profile.pulseSounds[hit];
       const rest = profile.rests.includes(hit);
       const accented = profile.accents.includes(hit);
+      const skipped = pulse.hasAttribute('data-skipped');
       const trimmed = pulse.hasAttribute('data-trimmed');
-      const label = `${pulseName(index, hit)} · ${rest ? 'Rest' : soundNames.get(sound ?? settings.sounds[index])}${!rest && accented ? ' · Accent' : ''}${trimmed ? ' · Trimmed' : ''}`;
+      const label = `${pulseName(index, hit)} · ${rest ? 'Rest' : soundNames.get(sound ?? settings.sounds[index])}${!rest && accented ? ' · Accent' : ''}${skipped ? ' · Skipped' : trimmed ? ' · Trimmed' : ''}`;
       pulse.dataset.sound = rest ? 'off' : sound ?? 'default';
       pulse.toggleAttribute('data-accented', accented);
       pulse.setAttribute('aria-label', label);
@@ -1324,6 +2110,7 @@ function renderMix() {
     });
   });
   renderMarkerMenu();
+  renderBeatMenu();
 }
 function presetLanes(preset) {
   return preset.lanes.map((lane) => {
@@ -1336,7 +2123,7 @@ function presetLanes(preset) {
 }
 function renderPreset() {
   renderReset();
-  if (hasBeatTrim(settings.beatEnds, settings.beats)) { ui.preset.value = ''; return; }
+  if (hasBeatTrim(settings.beatEnds, settings.beats) || hasBeatSkip(settings.beatEnabled, settings.beats)) { ui.preset.value = ''; return; }
   const match = rhythmPresets.find((preset) => {
     if (preset.beats !== settings.beats || preset.unit !== settings.unit || preset.groups.join('+') !== settings.grouping.join('+')) return false;
     const expected = presetLanes(preset);
@@ -1382,7 +2169,9 @@ ui.preset.addEventListener('change', () => {
     settings.unit = preset.unit;
     settings.grouping = [...preset.groups];
     settings.beatEnds = Array(32).fill(null);
+    settings.beatEnabled = Array(32).fill(true);
     settings.lanes = presetLanes(preset);
+    if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
     renderMeter();
     timingChanged({ meter, rhythm: true });
   }, `Loaded ${preset.label}`);
@@ -1397,6 +2186,9 @@ ui.beats.addEventListener('change', () => undoable(() => {
   settings.beats = Number(ui.beats.value);
   settings.grouping = [settings.beats];
   settings.beatEnds = Array(32).fill(null);
+  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  if (!settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[0] = true;
+  if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
   timingChanged({ meter: true });
 }));
 ui.unit.addEventListener('change', () => undoable(() => { settings.unit = Number(ui.unit.value); settings.beatEnds = Array(32).fill(null); timingChanged({ meter: true }); }));
@@ -1419,17 +2211,22 @@ ui.applyGrouping.addEventListener('click', () => {
 });
 ui.grouping.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); ui.applyGrouping.click(); } });
 lanes.forEach((lane, index) => {
-  for (const [id, label] of soundOptions) lane.sound.add(new Option(label, id));
+  for (const [id, label] of soundOptions) {
+    lane.sound.add(new Option(label, id));
+    lane.rowSound?.add(new Option(chipNames[id] ?? label, id));
+  }
+  const setRowSound = (sound) => {
+    undoable(() => { settings.sounds[index] = sound; mixChanged(); });
+    void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+  };
   lane.enabled?.addEventListener('click', () => undoable(() => {
     const profile = settings.lanes[index];
     if (index === 0) profile.enabled = !profile.enabled;
     else profile.muted = !profile.muted;
     mixChanged();
   }));
-  lane.sound.addEventListener('change', () => {
-    undoable(() => { settings.sounds[index] = lane.sound.value; mixChanged(); });
-    void previewSound(index, lane.sound.value, false);
-  });
+  lane.sound.addEventListener('change', () => setRowSound(lane.sound.value));
+  lane.rowSound?.addEventListener('change', () => setRowSound(lane.rowSound.value));
   if (!lane.count) return;
   lane.count.addEventListener('change', () => {
     const value = lane.count.value;
@@ -1452,6 +2249,7 @@ lanes.forEach((lane, index) => {
   lane.offbeats.addEventListener('change', () => undoable(() => editLaneTiming(index, (profile) => { profile.offbeatsOnly = lane.offbeats.checked; })));
 });
 ui.undo.addEventListener('click', undo);
+ui.headerUndo?.addEventListener('click', undo);
 ui.bpm.addEventListener('change', () => setTempo(ui.bpm.valueAsNumber));
 ui.bpm.addEventListener('keydown', (event) => { if (event.key === 'Enter') ui.bpm.blur(); });
 ui.tempoRange.addEventListener('input', () => setTempo(ui.tempoRange.valueAsNumber));
@@ -1508,8 +2306,21 @@ ui.muteAll.addEventListener('click', () => {
 });
 ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => {
   closeMarkerMenu();
+  closeBeatMenu();
+  if (!programmaticScroll) manualScrollUntil = performance.now() + 2000;
   for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft;
 }));
+ui.rhythmPanel.addEventListener('wheel', (event) => {
+  const scroll = ui.rulerScroll;
+  if (!scroll || scroll.scrollWidth <= scroll.clientWidth) return;
+  if (event.ctrlKey || event.metaKey || !event.deltaY) return;
+  const pageCanScrollY = document.documentElement.scrollHeight > window.innerHeight + 2;
+  const wantsHorizontal = event.shiftKey || (!pageCanScrollY && Math.abs(event.deltaY) > Math.abs(event.deltaX));
+  if (!wantsHorizontal) return;
+  event.preventDefault();
+  manualScrollUntil = performance.now() + 2000;
+  setTimelineScroll(scroll.scrollLeft + event.deltaY, false);
+}, { passive: false });
 
 // After a mouse or touch press, Space belongs to Start/Stop rather than
 // repeating the button, checkbox or slider the press happened to focus.
@@ -1518,17 +2329,39 @@ let pointerFocus = false;
 document.addEventListener('pointerdown', (event) => {
   pointerFocus = true;
   if (menuTarget && !ui.markerMenu.contains(event.target)) closeMarkerMenu();
+  if (beatMenuTarget >= 0 && !ui.beatMenu.contains(event.target) && !event.target.closest('.beat-more')) closeBeatMenu();
 }, true);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Tab') pointerFocus = false;
   if (ui.shareDialog?.open) return;
-  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z' &&
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey &&
       !event.target.closest('input:not([type="range"]):not([type="checkbox"]), textarea, [contenteditable]')) {
-    if (undoStack.length) { event.preventDefault(); undo(); }
-    return;
+    const key = event.key.toLowerCase();
+    if (key === 'z') {
+      if (undoStack.length) { event.preventDefault(); undo(); }
+      return;
+    }
+    const beatHead = event.target.closest?.('.beat-head');
+    if (beatHead && (key === 'c' || key === 'v')) {
+      const beat = Number(beatHead.dataset.beat);
+      if (key === 'c') {
+        event.preventDefault();
+        copyBeat(beat);
+        return;
+      }
+      if (key === 'v' && beatClipboard) {
+        event.preventDefault();
+        pasteOntoBeat(beat);
+        return;
+      }
+    }
   }
   if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
-  if (event.key === 'Escape' && menuTarget) { closeMarkerMenu(true); event.preventDefault(); return; }
+  if (event.key === 'Escape') {
+    if (menuTarget) { closeMarkerMenu(true); event.preventDefault(); return; }
+    if (beatMenuTarget >= 0) { closeBeatMenu(true); event.preventDefault(); return; }
+    if (beatClipboard) { clearBeatClipboard(true); event.preventDefault(); return; }
+  }
   if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable]')) return;
   if (event.key === '+' || event.key === '=' || event.key === '-') { event.preventDefault(); setTempo(settings.bpm + (event.key === '-' ? -5 : 5)); return; }
   if (event.code === 'Space') {
@@ -1549,6 +2382,7 @@ renderTempoUnit();
 renderMeter();
 renderRhythms();
 renderPreset();
+renderUndo();
 renderVolume();
 if (isEmbed) {
   if (ui.embedMore) ui.embedMore.hidden = false;

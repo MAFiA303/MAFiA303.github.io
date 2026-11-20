@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=reset1">
-  <script type="module" src="./app.js?v=reset2"></script>
+  <link rel="stylesheet" href="./styles.css?v=beats4">
+  <script type="module" src="./app.js?v=beats3"></script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +23,7 @@
       <div class="header-actions">
         <div class="visually-hidden" id="status" role="status"><span id="status-text">Ready</span> <span id="position" aria-hidden="true"></span></div>
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
+        <button type="button" id="header-undo" class="header-button undo-button" aria-label="Undo" title="Undo (Ctrl/⌘+Z)" disabled>Undo</button>
         <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to 4/4, 120 BPM" title="Reset to 4/4, 120 BPM, 100% volume">Reset</button>
         <button type="button" id="share" class="header-button share-button" aria-label="Share current setup">Share</button>
         <span id="share-feedback" class="visually-hidden" role="status"></span>
@@ -51,6 +52,13 @@
       <section class="rhythm-panel" aria-label="Beat grid">
         <div class="ruler-row">
           <div class="ruler-side">
+            <div class="ruler-actions">
+              <button type="button" id="add-beat" class="ruler-action add-beat" aria-label="Add beat" title="Add beat to bar">+ Beat</button>
+              <div id="beat-clipboard" class="beat-clipboard" hidden>
+                <span id="clipboard-label" class="clipboard-label">Copied</span>
+                <button type="button" id="clear-clipboard" class="clipboard-clear" aria-label="Done copying beat" title="Done copying (Esc)">×</button>
+              </div>
+            </div>
             <div id="trim-badge" class="trim-badge" hidden>
               <span id="trim-label" class="trim-label"></span>
               <button type="button" id="trim-reset" class="trim-reset" aria-label="Restore full bar" title="Restore full bar">×</button>
@@ -59,7 +67,8 @@
           <div class="timeline-scroll ruler-scroll" data-timeline-scroll>
             <div class="ruler-track">
               <div class="ruler-stage">
-                <div class="ruler" id="ruler" aria-hidden="true"></div>
+                <div class="paste-slots" id="paste-slots" role="group" aria-label="Insert copied beat" hidden></div>
+                <div class="ruler" id="ruler" role="list" aria-label="Beats"></div>
                 <div class="trim-rails" id="trim-rails" aria-hidden="true"></div>
                 <div class="trim-handles" id="trim-handles"></div>
               </div>
@@ -67,18 +76,18 @@
           </div>
         </div>
         <section class="lane lane-a" data-lane="0" aria-label="Beat">
-          <div class="lane-controls"><h2 class="lane-name">Beat</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute beat" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button></div>
+          <div class="lane-controls"><h2 class="lane-name">Beat</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute beat" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><select class="lane-sound" aria-label="Beat row sound"></select></div>
           <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Beat timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts" hidden></div><div class="playhead" aria-hidden="true"></div></div></div></div>
         </section>
         <section class="lane lane-b" data-lane="1" aria-label="Subdivision 1">
-          <div class="lane-controls"><h2 class="lane-name">Subdiv 1</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 1" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 1 count">‹</button><select class="lane-count" aria-label="Subdivision 1 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 1 count">›</button></div></div>
+          <div class="lane-controls"><h2 class="lane-name">Subdiv 1</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 1" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 1 count">‹</button><select class="lane-count" aria-label="Subdivision 1 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 1 count">›</button></div><select class="lane-sound" aria-label="Subdivision 1 row sound"></select></div>
           <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 1 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div></div>
         </section>
         <section class="lane lane-c" data-lane="2" aria-label="Subdivision 2">
-          <div class="lane-controls"><h2 class="lane-name">Subdiv 2</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 2" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 2 count">‹</button><select class="lane-count" aria-label="Subdivision 2 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 2 count">›</button></div></div>
+          <div class="lane-controls"><h2 class="lane-name">Subdiv 2</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 2" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 2 count">‹</button><select class="lane-count" aria-label="Subdivision 2 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 2 count">›</button></div><select class="lane-sound" aria-label="Subdivision 2 row sound"></select></div>
           <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 2 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div></div>
         </section>
-        <span id="pulse-hint" hidden>Click to cycle sound and rest. Right-click or long-press for every sound and accent.</span>
+        <span id="pulse-hint" hidden>Click a beat to cycle normal, main accent, alternate sound, and rest. Right-click or long-press for every sound and accent.</span>
         <output id="pulse-feedback" class="visually-hidden" role="status"></output>
       </section>
 
@@ -108,7 +117,7 @@
                 <label class="check-option" for="offbeats-2"><input id="offbeats-2" type="checkbox" class="offbeats-only">Offbeats only</label>
               </fieldset>
             </div>
-            <p class="advanced-help">Click a marker to cycle its sound and rest. Right-click or long-press for every sound, accent, or to end that beat early. Drag any beat’s end handle on the ruler to shorten that beat while keeping tick spacing. <kbd>Space</kbd> plays, <kbd>T</kbd> taps tempo, <kbd>Ctrl/⌘+Z</kbd> undoes.</p>
+            <p class="advanced-help">Use the beat top bar to check beats on/off (skip), add beats, copy a beat and click any <kbd>+</kbd> slot above the ruler to insert it between beats, or drag beat numbers to reorder (hold <kbd>Alt/⌥</kbd> while dragging to copy). Click any Beat marker to cycle normal, full main accent, alternate sound, and rest; right-click or long-press any marker for every sound, accent, or beat end. Drag a beat’s trim handle to shorten it while keeping tick spacing. <kbd>Space</kbd> plays, <kbd>T</kbd> taps tempo, <kbd>Ctrl/⌘+Z</kbd> undoes.</p>
           </div>
         </details>
         <a id="embed-more" class="embed-more-link" href="./" target="_top" hidden>More</a>
@@ -131,6 +140,23 @@
     <div class="marker-actions">
       <button type="button" id="marker-accent" class="sound-chip accent-chip" aria-pressed="false">Accent</button>
       <button type="button" id="marker-trim" class="sound-chip trim-chip" aria-pressed="false">End beat here</button>
+    </div>
+  </div>
+  <div id="beat-menu" class="beat-menu" role="dialog" aria-labelledby="beat-menu-title" hidden>
+    <div class="marker-menu-header">
+      <p id="beat-menu-title" class="marker-menu-title"></p>
+      <button type="button" id="beat-menu-close" class="icon-button marker-menu-close" aria-label="Close beat menu">×</button>
+    </div>
+    <div class="beat-menu-actions" role="group" aria-label="Beat actions">
+      <button type="button" id="beat-menu-accent" class="beat-menu-item beat-menu-accent" aria-pressed="false">Main beat</button>
+      <button type="button" id="beat-menu-copy" class="beat-menu-item">Copy beat</button>
+      <button type="button" id="beat-menu-insert-copy" class="beat-menu-item">Insert copy after</button>
+      <button type="button" id="beat-menu-paste" class="beat-menu-item">Replace with copy</button>
+      <button type="button" id="beat-menu-duplicate" class="beat-menu-item">Duplicate</button>
+      <button type="button" id="beat-menu-toggle" class="beat-menu-item">Skip beat</button>
+      <button type="button" id="beat-menu-left" class="beat-menu-item">Move left</button>
+      <button type="button" id="beat-menu-right" class="beat-menu-item">Move right</button>
+      <button type="button" id="beat-menu-delete" class="beat-menu-item beat-menu-danger">Delete beat</button>
     </div>
   </div>
   <dialog id="share-dialog" class="share-dialog" closedby="any" aria-labelledby="share-title">
