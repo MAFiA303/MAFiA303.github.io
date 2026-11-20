@@ -13,9 +13,9 @@ const starterSettings = {
   sounds: ['click', 'hat', 'cowbell'],
   outputVolume: 160,
   lanes: [
-    { accents: [] },
+    { accents: [0] },
     { count: 3, beatCounts: [null, 2, 2] },
-    { count: 4, beatCounts: [null, 5, 5], accents: [0] },
+    { count: 4, beatCounts: [null, 5, 5] },
   ],
 };
 const soundIds = new Set(soundOptions.map(([id]) => id));
