@@ -1246,6 +1246,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .lane-sound {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   min-width: 0;
   min-block-size: 28px;
   padding: 4px 22px 4px 8px;
@@ -1262,8 +1263,26 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   font-weight: 600;
   font-size: .71rem;
   line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.lane-sound:hover { border-color: var(--line-control); border-left-color: var(--pulse-color); background-color: var(--surface); }
+.lane-sound-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lane-sound:not(:disabled):hover {
+  border-color: var(--line-control);
+  border-left-color: var(--pulse-color);
+  background: var(--surface) var(--chevron) no-repeat right 6px center / 11px 11px;
+}
+.lane-sound[aria-expanded='true'],
+.lane-sound[aria-expanded='true']:not(:disabled):hover {
+  border-color: var(--pulse-color);
+  border-left-color: var(--pulse-color);
+  background: var(--surface) var(--chevron) no-repeat right 6px center / 11px 11px;
+}
 .lane-a .lane-sound {
   margin-inline-start: auto;
   flex: 0 0 106px;
@@ -1487,7 +1506,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .lane[data-empty] .beat-counts { bottom: 50%; transform: translateY(50%); }
 
 /* Pulse markers & sound color tokens (color-coded by sound, not subdivision row) */
-.pulse, .sound-chip, .lane-sound { --pulse-color: var(--lane-color); }
+.pulse, .sound-chip, .lane-sound, .sound-menu-item { --pulse-color: var(--lane-color); }
 [data-sound='click'] { --pulse-color: var(--sound-click); }
 [data-sound='woodblock'] { --pulse-color: var(--sound-woodblock); }
 [data-sound='clave'] { --pulse-color: var(--sound-clave); }
@@ -1789,6 +1808,132 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   border-color: var(--accent);
   background: color-mix(in oklab, var(--accent) 16%, var(--surface));
   color: var(--text);
+}
+
+/* Row sound popup menu (Popover + CSS Anchor Positioning with JS fallback) */
+.sound-menu {
+  min-inline-size: 164px;
+  max-inline-size: min(220px, calc(100vw - 16px));
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: #1b1e26;
+  color: var(--text);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  overflow: visible;
+}
+.sound-menu[hidden] { display: none; }
+.sound-menu:is(:popover-open, .\:popover-open) { display: block; }
+@supports (position-area: block-end) {
+  [popover].sound-menu {
+    position-area: block-end span-inline-end;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    inset: auto;
+    margin: 4px 0 0;
+  }
+}
+@supports not (position-area: block-end) {
+  [popover].sound-menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    z-index: 20;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  [popover].sound-menu {
+    opacity: 0;
+    translate: 0 -.25rem;
+    transition: opacity, translate, display, overlay;
+    transition-duration: .12s;
+    transition-behavior: allow-discrete;
+  }
+  [popover].sound-menu:is(:popover-open, .\:popover-open) {
+    opacity: 1;
+    translate: 0 0;
+    transition-duration: .09s;
+    @starting-style { opacity: 0; translate: 0 -.25rem; }
+  }
+}
+.sound-menu [focusgroup~="menu"] {
+  --menu-icon-size: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.sound-menu .sound-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sound-menu [focusgroup~="menu"] hr {
+  width: 100%;
+  height: 1px;
+  margin: 4px 0;
+  border: 0;
+  background: var(--line);
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  width: 100%;
+  min-block-size: 30px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item:active { scale: none; }
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item::before {
+  content: "";
+  flex: none;
+  inline-size: var(--menu-icon-size);
+  color: var(--pulse-color);
+  font-size: .78rem;
+  text-align: center;
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item[aria-checked="true"]::before {
+  content: "✓";
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item::after {
+  content: "";
+  flex: none;
+  margin-inline-start: auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 2.5px;
+  background: var(--pulse-color);
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item[data-sound='off']::after {
+  background: linear-gradient(-45deg, transparent 43%, var(--pulse-color) 43%, var(--pulse-color) 57%, transparent 57%);
+  border: 1.5px solid var(--pulse-color);
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item:not(:disabled):hover,
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item:focus {
+  background: var(--surface);
+  border-color: var(--line);
+  outline: none;
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item:focus-visible {
+  border-color: var(--pulse-color);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--pulse-color) 40%, transparent);
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item[aria-checked="true"] {
+  background: color-mix(in oklab, var(--pulse-color) 14%, var(--surface));
+  border-color: color-mix(in oklab, var(--pulse-color) 45%, transparent);
+}
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item[aria-checked="true"]:not(:disabled):hover,
+.sound-menu [focusgroup~="menu"] > [role="group"] > button.sound-menu-item[aria-checked="true"]:focus {
+  background: color-mix(in oklab, var(--pulse-color) 24%, var(--surface));
+  border-color: var(--pulse-color);
 }
 
 /* Footer: More accordion and master volume */
@@ -2277,7 +2422,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 
 @media (pointer: coarse) {
   .header-button, .tap-button, .tempo-step, .grouping-choice, .setting select { min-block-size: 40px; }
-  .sound-chip, .beat-menu-item { min-block-size: 42px; }
+  .sound-chip, .beat-menu-item, .sound-menu-item { min-block-size: 40px; }
   .ruler-action { min-block-size: 32px; }
   .ruler-row[data-pasting] .ruler-stage { --paste-strip: 34px; }
   .paste-slot { min-inline-size: 30px; min-block-size: 30px; }

@@ -32,10 +32,15 @@ const ui = {
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
 const lanes = [...document.querySelectorAll('.lane')].map((element, index) => {
   const options = index === 0 ? null : byId(`subdiv-${index}-options`);
+  const rowSound = element.querySelector('.lane-sound');
+  const soundMenu = element.querySelector('.sound-menu');
   return {
     element, enabled: element.querySelector('.lane-enabled'), count: element.querySelector('.lane-count'),
     steps: [...element.querySelectorAll('.lane-controls [data-delta]')], span: options?.querySelector('.lane-span'),
-    sound: byId(['sound-a', 'sound-b', 'sound-c'][index]), rowSound: element.querySelector('.lane-sound'),
+    sound: byId(['sound-a', 'sound-b', 'sound-c'][index]), rowSound,
+    rowSoundLabel: rowSound?.querySelector('.lane-sound-label'),
+    soundMenu, soundMenuList: soundMenu?.querySelector('[focusgroup~="menu"]'),
+    soundMenuGroup: soundMenu?.querySelector('.sound-menu-group'),
     options, offbeats: options?.querySelector('.offbeats-only'), beatCounts: element.querySelector('.beat-counts'),
     guides: element.querySelector('.guides'), trimTails: element.querySelector('.trim-tails'), buttons: element.querySelector('.pulse-buttons'),
     pulses: [], onsets: [], beatFractions: [], activeEvents: [], lit: null,
@@ -584,6 +589,8 @@ function undo() {
   if (beatClipboard && beatClipboard.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
   closeMarkerMenu();
   closeBeatMenu();
+  closeSoundMenus();
+  clearCycleFromDefault();
   displayTempo(settings.bpm);
   renderVolume();
   ui.countIn.checked = settings.countIn;
@@ -608,6 +615,7 @@ function resetSetup() {
     taps = [];
     closeMarkerMenu();
     closeBeatMenu();
+    closeSoundMenus();
     displayTempo(settings.bpm);
     renderVolume();
     ui.countIn.checked = settings.countIn;
@@ -941,6 +949,7 @@ function onBeatDragMove(event) {
     beatDrag.active = true;
     closeMarkerMenu();
     closeBeatMenu();
+    closeSoundMenus();
     beatDrag.handle.setPointerCapture?.(event.pointerId);
     document.documentElement.classList.add('beat-dragging');
     beatDrag.head.setAttribute('data-dragging', '');
@@ -1108,6 +1117,7 @@ function positionBeatMenu() {
 function openBeatMenu(beat, anchor = null) {
   if (!ui.beatMenu || beat < 0 || beat >= settings.beats) return;
   closeMarkerMenu();
+  closeSoundMenus();
   beatMenuTarget = beat;
   beatMenuAnchor = anchor ?? ui.ruler.children[beat]?.querySelector('.beat-more') ?? ui.ruler.children[beat];
   renderBeatMenu();
@@ -1439,6 +1449,8 @@ function renderRhythms() {
   const focusedKey = document.activeElement?.dataset.focusKey;
   closeMarkerMenu();
   closeBeatMenu();
+  closeSoundMenus();
+  clearCycleFromDefault();
   let minGap = 1;
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
@@ -1863,52 +1875,89 @@ function announceMarker(lane, pulse) {
   ui.pulseFeedback.textContent = `${pulseName(lane, pulse)} · ${sound === 'off' ? 'Rest' : soundNames.get(sound)}${accented && sound !== 'off' ? ' · Accent' : ''}`;
   void previewSound(lane, sound, accented);
 }
+let cycleFromDefault = null;
+function clearCycleFromDefault() { cycleFromDefault = null; }
+const allSoundIds = soundOptions.map(([id]) => id);
+function cycleOrderForLane(lane, laneSound) {
+  const firstAlt = lane === 1
+    ? (laneSound === 'off' ? 'hat' : laneSound !== 'cowbell' ? 'cowbell' : 'kick')
+    : lane === 2
+      ? (laneSound === 'off' ? 'cowbell' : laneSound !== 'kick' ? 'kick' : 'hat')
+      : (laneSound === 'kick' ? 'hat' : 'kick');
+  const secondAlt = laneSound === 'off' ? (lane === 1 ? 'cowbell' : 'kick') : null;
+  const preferred = [firstAlt, ...(secondAlt ? [secondAlt] : [])];
+  const rest = allSoundIds.filter((id) => id !== laneSound && !preferred.includes(id));
+  return [...preferred, ...rest];
+}
 function editPulse(lane, pulse, accentOnly = false) {
   const profile = settings.lanes[lane];
   const laneSound = settings.sounds[lane];
+  const wasRestoredHere = !accentOnly && lane > 0 && laneSound !== 'off'
+    && cycleFromDefault?.lane === lane && cycleFromDefault?.pulse === pulse;
+  clearCycleFromDefault();
   undoable(() => {
     if (accentOnly) {
       if (profile.accents.includes(pulse)) profile.accents = profile.accents.filter((hit) => hit !== pulse);
       else profile.accents.push(pulse);
-    } else if (lane === 0) {
-      if (profile.rests.includes(pulse)) {
-        profile.rests = profile.rests.filter((hit) => hit !== pulse);
-        delete profile.pulseSounds[pulse];
-        profile.accents = profile.accents.filter((hit) => hit !== pulse);
-      } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
-        if (!profile.accents.includes(pulse)) {
+    } else {
+      const order = cycleOrderForLane(lane, laneSound);
+      if (lane === 0) {
+        const primaryAlt = order[0];
+        if (profile.rests.includes(pulse)) {
+          profile.rests = profile.rests.filter((hit) => hit !== pulse);
           delete profile.pulseSounds[pulse];
+          profile.accents = profile.accents.filter((hit) => hit !== pulse);
+        } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
+          if (!profile.accents.includes(pulse)) {
+            delete profile.pulseSounds[pulse];
+            profile.accents.push(pulse);
+          } else {
+            profile.accents = profile.accents.filter((hit) => hit !== pulse);
+            profile.pulseSounds[pulse] = primaryAlt;
+          }
+        } else if (profile.pulseSounds[pulse] === primaryAlt && !profile.accents.includes(pulse)) {
           profile.accents.push(pulse);
         } else {
+          const currentIndex = order.indexOf(profile.pulseSounds[pulse]);
           profile.accents = profile.accents.filter((hit) => hit !== pulse);
-          profile.pulseSounds[pulse] = laneSound === 'kick' ? 'hat' : 'kick';
+          if (currentIndex >= 0 && currentIndex + 1 < order.length) {
+            profile.pulseSounds[pulse] = order[currentIndex + 1];
+          } else {
+            profile.rests.push(pulse);
+          }
         }
-      } else if (!profile.accents.includes(pulse)) {
-        profile.accents.push(pulse);
-      } else {
-        profile.rests.push(pulse);
-        profile.accents = profile.accents.filter((hit) => hit !== pulse);
-      }
-    } else if (laneSound === 'off') {
-      const primary = lane === 1 ? 'hat' : 'cowbell';
-      const secondary = lane === 1 ? 'cowbell' : 'kick';
-      if (profile.rests.includes(pulse)) {
+      } else if (laneSound === 'off') {
+        if (profile.rests.includes(pulse) || !profile.pulseSounds[pulse]) {
+          profile.rests = profile.rests.filter((hit) => hit !== pulse);
+          profile.pulseSounds[pulse] = order[0];
+        } else {
+          const currentIndex = order.indexOf(profile.pulseSounds[pulse]);
+          if (currentIndex >= 0 && currentIndex + 1 < order.length) {
+            profile.pulseSounds[pulse] = order[currentIndex + 1];
+          } else {
+            delete profile.pulseSounds[pulse];
+          }
+        }
+      } else if (profile.rests.includes(pulse)) {
         profile.rests = profile.rests.filter((hit) => hit !== pulse);
-        profile.pulseSounds[pulse] = primary;
-      } else if (!profile.pulseSounds[pulse]) {
-        profile.pulseSounds[pulse] = primary;
-      } else if (profile.pulseSounds[pulse] === primary) {
-        profile.pulseSounds[pulse] = secondary;
-      } else {
         delete profile.pulseSounds[pulse];
+        cycleFromDefault = { lane, pulse };
+      } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
+        if (wasRestoredHere) {
+          profile.pulseSounds[pulse] = order[0];
+        } else {
+          delete profile.pulseSounds[pulse];
+          profile.rests.push(pulse);
+        }
+      } else {
+        const currentIndex = order.indexOf(profile.pulseSounds[pulse]);
+        if (currentIndex >= 0 && currentIndex + 1 < order.length) {
+          profile.pulseSounds[pulse] = order[currentIndex + 1];
+        } else {
+          delete profile.pulseSounds[pulse];
+          profile.rests.push(pulse);
+        }
       }
-    } else if (profile.rests.includes(pulse)) {
-      profile.rests = profile.rests.filter((hit) => hit !== pulse);
-      delete profile.pulseSounds[pulse];
-    } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
-      profile.pulseSounds[pulse] = lane === 1 && laneSound !== 'cowbell' ? 'cowbell' : laneSound === 'kick' ? 'hat' : 'kick';
-    } else {
-      profile.rests.push(pulse);
     }
     mixChanged();
   });
@@ -2012,6 +2061,8 @@ function positionMarkerMenu() {
 }
 function openMarkerMenu(lane, pulse) {
   closeBeatMenu();
+  closeSoundMenus();
+  clearCycleFromDefault();
   menuTarget = { lane, pulse };
   renderMarkerMenu();
   ui.markerMenu.hidden = false;
@@ -2078,19 +2129,26 @@ ui.trimReset?.addEventListener('click', () => {
   undoable(() => clearAllBeatEnds(), 'Full bar restored');
   ui.pulseFeedback.textContent = 'Full bar restored.';
 });
-window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); });
+window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); closeSoundMenus(); });
 
 function renderMix() {
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
     const rowSound = settings.sounds[index];
+    const rowLabel = rowSound === 'off' ? 'Mute' : (chipNames[rowSound] ?? soundNames.get(rowSound));
     lane.element.dataset.rowSound = rowSound;
     lane.sound.value = rowSound;
     lane.sound.closest('.setting-lane')?.setAttribute('data-row-sound', rowSound);
     lane.options?.setAttribute('data-row-sound', rowSound);
     if (lane.rowSound) {
-      lane.rowSound.value = rowSound;
       lane.rowSound.dataset.sound = rowSound;
+      lane.rowSound.setAttribute('aria-label', `${laneNames[index]} row sound: ${rowLabel}`);
+      if (lane.rowSoundLabel) lane.rowSoundLabel.textContent = rowLabel;
+    }
+    if (lane.soundMenu) {
+      lane.soundMenu.querySelectorAll('.sound-menu-item').forEach((item) => {
+        item.setAttribute('aria-checked', String(item.dataset.sound === rowSound));
+      });
     }
     lane.element.toggleAttribute('data-muted', laneMuted(profile));
     if (lane.enabled) {
@@ -2113,8 +2171,8 @@ function renderMix() {
       pulse.toggleAttribute('data-accented', accented);
       pulse.setAttribute('aria-label', label);
       pulse.title = index === 0
-        ? `${label} · Click to cycle normal, main accent, alt sound, and rest; right-click for all sounds`
-        : `${label} · Click to cycle, right-click for more`;
+        ? `${label} · Click to cycle all sounds, main accent, and rest; right-click to jump directly`
+        : `${label} · Click to turn off, restore row sound, or cycle all sounds; right-click for more`;
     });
   });
   renderMarkerMenu();
@@ -2217,19 +2275,199 @@ ui.applyGrouping.addEventListener('click', () => {
   applyGrouping(grouping);
 });
 ui.grouping.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); ui.applyGrouping.click(); } });
+const supportsPopover = typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover') && typeof HTMLElement.prototype.showPopover === 'function';
+const supportsInvoker = typeof HTMLButtonElement !== 'undefined' && 'commandForElement' in HTMLButtonElement.prototype;
+const supportsFocusgroup = typeof HTMLElement !== 'undefined' && 'focusGroup' in HTMLElement.prototype;
+const supportsAnchorArea = () => Boolean(window.CSS?.supports?.('position-area', 'block-end'));
+const supportsToggleSource = typeof ToggleEvent !== 'undefined' && 'source' in ToggleEvent.prototype;
+const enterSoundMenuOnOpen = new WeakSet();
+let pointerSoundTrigger = null;
+
+function isSoundMenuOpen(menu) {
+  if (!menu) return false;
+  return supportsPopover ? menu.matches(':popover-open') : menu.classList.contains(':popover-open');
+}
+function soundMenuItems(lane) {
+  return [...(lane.soundMenu?.querySelectorAll('.sound-menu-item') ?? [])]
+    .filter((item) => !item.disabled && item.getAttribute('aria-disabled') !== 'true');
+}
+function positionSoundMenu(lane) {
+  const menu = lane.soundMenu;
+  const trigger = lane.rowSound;
+  if (!menu || !trigger || supportsAnchorArea()) return;
+  const rect = trigger.getBoundingClientRect();
+  const viewWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewHeight = document.documentElement.clientHeight || window.innerHeight;
+  const width = menu.offsetWidth || 168;
+  const height = menu.offsetHeight || 280;
+  const left = Math.max(8, Math.min(rect.left, viewWidth - width - 8));
+  const fitsBelow = rect.bottom + 4 + height <= viewHeight - 8;
+  const top = fitsBelow || rect.top - height - 4 < 8
+    ? Math.max(8, Math.min(rect.bottom + 4, viewHeight - height - 8))
+    : rect.top - height - 4;
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+function onSoundMenuToggle(lane, open) {
+  lane.rowSound?.setAttribute('aria-expanded', String(open));
+  if (!open) {
+    enterSoundMenuOnOpen.delete(lane.soundMenu);
+    return;
+  }
+  closeMarkerMenu();
+  closeBeatMenu();
+  positionSoundMenu(lane);
+  if (enterSoundMenuOnOpen.has(lane.soundMenu)) {
+    enterSoundMenuOnOpen.delete(lane.soundMenu);
+    soundMenuItems(lane)[0]?.focus({ preventScroll: true });
+  } else {
+    lane.rowSound?.focus({ focusVisible: false, preventScroll: true });
+  }
+}
+function openSoundMenu(lane, { enter = false } = {}) {
+  const menu = lane.soundMenu;
+  if (!menu || isSoundMenuOpen(menu)) return;
+  if (enter) enterSoundMenuOnOpen.add(menu);
+  if (supportsPopover) {
+    try { menu.showPopover({ source: lane.rowSound }); } catch { menu.showPopover(); }
+  } else {
+    closeSoundMenus();
+    menu.hidden = false;
+    menu.classList.add(':popover-open');
+    onSoundMenuToggle(lane, true);
+  }
+}
+function closeSoundMenu(lane, { restore = false, fromPointer = false } = {}) {
+  const menu = lane.soundMenu;
+  if (!menu || !isSoundMenuOpen(menu)) return;
+  if (restore) lane.rowSound?.focus(fromPointer ? { focusVisible: false, preventScroll: true } : { preventScroll: true });
+  if (supportsPopover) {
+    try { menu.hidePopover(); } catch { /* Already hidden */ }
+  } else {
+    menu.classList.remove(':popover-open');
+    menu.hidden = true;
+    onSoundMenuToggle(lane, false);
+  }
+}
+function closeSoundMenus() {
+  lanes.forEach((lane) => closeSoundMenu(lane));
+}
+
 lanes.forEach((lane, index) => {
+  const setRowSound = (sound) => {
+    clearCycleFromDefault();
+    const profile = settings.lanes[index];
+    const visibleCount = index === 0 || profile.enabled
+      ? makeLanePulses({ ...profile, enabled: true }, settings.beats).length
+      : 0;
+    const hadOverrides = profile.rests.some((hit) => hit < visibleCount)
+      || Object.keys(profile.pulseSounds).some((hit) => Number(hit) < visibleCount);
+    if (settings.sounds[index] === sound && !hadOverrides) {
+      if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+      return;
+    }
+    const label = sound === 'off' ? 'Mute' : (chipNames[sound] ?? soundNames.get(sound));
+    undoable(() => {
+      settings.sounds[index] = sound;
+      profile.rests = profile.rests.filter((hit) => hit >= visibleCount);
+      for (const key of Object.keys(profile.pulseSounds)) {
+        if (Number(key) < visibleCount) delete profile.pulseSounds[key];
+      }
+      mixChanged();
+    }, hadOverrides ? `${laneNames[index]} markers set to ${label}` : '');
+    if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
+  };
+  const addSoundMenuItem = (id, label) => {
+    if (!lane.soundMenuGroup) return;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'sound-menu-item';
+    item.setAttribute('role', 'menuitemradio');
+    item.setAttribute('aria-checked', 'false');
+    item.dataset.sound = id;
+    item.textContent = label;
+    item.addEventListener('pointermove', () => item.focus({ focusVisible: false, preventScroll: true }));
+    item.addEventListener('click', (event) => {
+      const fromPointer = event.detail !== 0;
+      setRowSound(id);
+      closeSoundMenu(lane, { restore: true, fromPointer });
+    });
+    lane.soundMenuGroup.appendChild(item);
+  };
   for (const [id, label] of soundOptions) {
     lane.sound.add(new Option(label, id));
-    lane.rowSound?.add(new Option(chipNames[id] ?? label, id));
+    addSoundMenuItem(id, chipNames[id] ?? label);
   }
   if (index > 0) {
     lane.sound.add(new Option('Mute', 'off'));
-    lane.rowSound?.add(new Option('Mute', 'off'));
+    if (lane.soundMenuGroup) lane.soundMenuGroup.appendChild(document.createElement('hr'));
+    addSoundMenuItem('off', 'Mute');
   }
-  const setRowSound = (sound) => {
-    undoable(() => { settings.sounds[index] = sound; mixChanged(); });
-    if (sound !== 'off') void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
-  };
+  if (lane.soundMenu) {
+    if (!supportsPopover) lane.soundMenu.hidden = true;
+    if (!supportsFocusgroup) lane.soundMenuList?.setAttribute('role', 'menu');
+    if (supportsPopover && supportsAnchorArea() && !supportsInvoker && !supportsToggleSource) {
+      const anchorName = `--lane-sound-anchor-${index}`;
+      lane.rowSound?.style.setProperty('anchor-name', anchorName);
+      lane.soundMenu.style.setProperty('position-anchor', anchorName);
+    }
+    if (supportsPopover) {
+      lane.soundMenu.addEventListener('toggle', (event) => onSoundMenuToggle(lane, event.newState === 'open'));
+    }
+    lane.soundMenu.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeSoundMenu(lane, { restore: true, fromPointer: false });
+        return;
+      }
+      if (event.key === 'Tab') {
+        closeSoundMenu(lane);
+        return;
+      }
+      const isNavKey = event.key === 'Home' || event.key === 'End' || (!supportsFocusgroup && (event.key === 'ArrowDown' || event.key === 'ArrowUp'));
+      if (!isNavKey) return;
+      const items = soundMenuItems(lane);
+      const current = items.indexOf(document.activeElement);
+      if (!items.length || current < 0) return;
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (current + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      items[next].focus({ preventScroll: true });
+    }, true);
+  }
+  if (lane.rowSound && lane.soundMenu) {
+    lane.rowSound.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      pointerSoundTrigger = lane.rowSound;
+    });
+    lane.rowSound.addEventListener('click', (event) => {
+      const fromPointer = pointerSoundTrigger === lane.rowSound && event.detail !== 0;
+      pointerSoundTrigger = null;
+      if (supportsPopover && supportsInvoker) {
+        if (!fromPointer && !isSoundMenuOpen(lane.soundMenu)) enterSoundMenuOnOpen.add(lane.soundMenu);
+        return;
+      }
+      event.preventDefault();
+      if (isSoundMenuOpen(lane.soundMenu)) closeSoundMenu(lane, { restore: true, fromPointer });
+      else openSoundMenu(lane, { enter: !fromPointer });
+    });
+    lane.rowSound.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (isSoundMenuOpen(lane.soundMenu)) {
+          soundMenuItems(lane)[0]?.focus({ preventScroll: true });
+        } else {
+          enterSoundMenuOnOpen.add(lane.soundMenu);
+          lane.rowSound.click();
+        }
+      } else if (event.key === 'Escape' && isSoundMenuOpen(lane.soundMenu)) {
+        event.preventDefault();
+        closeSoundMenu(lane, { restore: true, fromPointer: false });
+      }
+    });
+  }
   lane.enabled?.addEventListener('click', () => undoable(() => {
     const profile = settings.lanes[index];
     if (index === 0) profile.enabled = !profile.enabled;
@@ -2237,7 +2475,6 @@ lanes.forEach((lane, index) => {
     mixChanged();
   }));
   lane.sound.addEventListener('change', () => setRowSound(lane.sound.value));
-  lane.rowSound?.addEventListener('change', () => setRowSound(lane.rowSound.value));
   if (!lane.count) return;
   lane.count.addEventListener('change', () => {
     const value = lane.count.value;
@@ -2318,6 +2555,7 @@ ui.muteAll.addEventListener('click', () => {
 ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => {
   closeMarkerMenu();
   closeBeatMenu();
+  closeSoundMenus();
   if (!programmaticScroll) manualScrollUntil = performance.now() + 2000;
   for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft;
 }));
@@ -2341,7 +2579,23 @@ document.addEventListener('pointerdown', (event) => {
   pointerFocus = true;
   if (menuTarget && !ui.markerMenu.contains(event.target)) closeMarkerMenu();
   if (beatMenuTarget >= 0 && !ui.beatMenu.contains(event.target) && !event.target.closest('.beat-more')) closeBeatMenu();
+  if (!supportsPopover) {
+    lanes.forEach((lane) => {
+      if (lane.soundMenu && isSoundMenuOpen(lane.soundMenu) &&
+          !lane.soundMenu.contains(event.target) && !lane.rowSound?.contains(event.target)) {
+        closeSoundMenu(lane);
+      }
+    });
+  }
 }, true);
+document.addEventListener('focusin', (event) => {
+  lanes.forEach((lane) => {
+    if (lane.soundMenu && isSoundMenuOpen(lane.soundMenu) &&
+        !lane.soundMenu.contains(event.target) && !lane.rowSound?.contains(event.target)) {
+      closeSoundMenu(lane);
+    }
+  });
+});
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Tab') pointerFocus = false;
   if (ui.shareDialog?.open) return;
@@ -2371,11 +2625,14 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (menuTarget) { closeMarkerMenu(true); event.preventDefault(); return; }
     if (beatMenuTarget >= 0) { closeBeatMenu(true); event.preventDefault(); return; }
+    const openLane = lanes.find((lane) => isSoundMenuOpen(lane.soundMenu));
+    if (openLane) { closeSoundMenu(openLane, { restore: true, fromPointer: false }); event.preventDefault(); return; }
     if (beatClipboard) { clearBeatClipboard(true); event.preventDefault(); return; }
   }
-  if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable]')) return;
+  if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable], .sound-menu')) return;
   if (event.key === '+' || event.key === '=' || event.key === '-') { event.preventDefault(); setTempo(settings.bpm + (event.key === '-' ? -5 : 5)); return; }
   if (event.code === 'Space') {
+    if (event.target.closest('.lane-sound[aria-expanded="true"]')) return;
     const control = event.target.closest('button, input, select, textarea, a, summary, [contenteditable]');
     const pressed = pointerFocus && control?.matches('button, summary, input[type="checkbox"], input[type="range"]');
     if (control && !pressed) return;
