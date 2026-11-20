@@ -1,0 +1,11 @@
+{
+  "name": "Oddmeter practice metronome",
+  "short_name": "Oddmeter",
+  "description": "A practice metronome for beat subdivisions, polyrhythms, and odd meters.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0e11",
+  "theme_color": "#0d0e11",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
