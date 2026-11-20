@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=beats4">
-  <script type="module" src="./app.js?v=beats3"></script>
+  <link rel="stylesheet" href="./styles.css?v=beats6">
+  <script type="module" src="./app.js?v=beats6"></script>
 </head>
 <body>
   <header class="site-header">
@@ -24,7 +24,7 @@
         <div class="visually-hidden" id="status" role="status"><span id="status-text">Ready</span> <span id="position" aria-hidden="true"></span></div>
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
         <button type="button" id="header-undo" class="header-button undo-button" aria-label="Undo" title="Undo (Ctrl/⌘+Z)" disabled>Undo</button>
-        <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to 4/4, 120 BPM" title="Reset to 4/4, 120 BPM, 100% volume">Reset</button>
+        <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to 4/4, 60 BPM" title="Reset to 4/4, 60 BPM, 100% volume">Reset</button>
         <button type="button" id="share" class="header-button share-button" aria-label="Share current setup">Share</button>
         <span id="share-feedback" class="visually-hidden" role="status"></span>
       </div>
@@ -148,8 +148,7 @@
       <button type="button" id="beat-menu-close" class="icon-button marker-menu-close" aria-label="Close beat menu">×</button>
     </div>
     <div class="beat-menu-actions" role="group" aria-label="Beat actions">
-      <button type="button" id="beat-menu-accent" class="beat-menu-item beat-menu-accent" aria-pressed="false">Main beat</button>
-      <button type="button" id="beat-menu-copy" class="beat-menu-item">Copy beat</button>
+      <button type="button" id="beat-menu-copy" class="beat-menu-item beat-menu-full">Copy beat</button>
       <button type="button" id="beat-menu-insert-copy" class="beat-menu-item">Insert copy after</button>
       <button type="button" id="beat-menu-paste" class="beat-menu-item">Replace with copy</button>
       <button type="button" id="beat-menu-duplicate" class="beat-menu-item">Duplicate</button>

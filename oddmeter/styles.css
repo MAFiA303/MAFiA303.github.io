@@ -1496,6 +1496,9 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .pulse[data-accented]:not([data-sound='default'], [data-sound='off'])::after {
   box-shadow: inset 0 0 0 2px var(--well), 0 0 8px color-mix(in oklab, var(--pulse-color) 32%, transparent);
 }
+.lane-a .pulse[data-accented]:not([data-sound='off'])::after {
+  box-shadow: 0 0 8px color-mix(in oklab, var(--pulse-color) 32%, transparent);
+}
 .pulse[data-sound='off']::after {
   background: var(--well);
   border-width: 1.5px;
@@ -1725,24 +1728,8 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   border-color: var(--line-strong);
   background: var(--surface);
 }
-.beat-menu-accent::before {
-  content: '';
-  flex-shrink: 0;
-  width: 7px;
-  height: 12px;
-  border-radius: 2px;
-  border: 1.5px solid var(--accent);
-  background: var(--well);
-}
-.beat-menu-accent[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 28%, transparent);
-}
-.beat-menu-accent[aria-pressed='true']::before {
-  background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
+.beat-menu-full {
+  grid-column: 1 / -1;
 }
 .beat-menu-danger {
   grid-column: 1 / -1;
@@ -2377,7 +2364,6 @@ html.oddmeter-embed .volume-control {
   .paste-slot { border-color: ButtonText; background: ButtonFace; color: ButtonText; }
   .paste-slot:not(:disabled):hover, .paste-slot:not(:disabled):focus-visible { border-color: Highlight; background: Highlight; color: HighlightText; }
   .paste-slot::after { background: Highlight; }
-  .beat-menu-accent[aria-pressed='true'] { border-color: Highlight; outline: 2px solid Highlight; }
   .ruler[data-drop='move']::before, .ruler[data-drop='copy-append']::before { border-color: Highlight; background: Canvas; }
   .ruler[data-drop='move']::after, .ruler[data-drop='copy-append']::after { background: Highlight; }
   .beat-toggle { border-color: ButtonText; background: Canvas; }

@@ -21,7 +21,7 @@ const ui = {
   pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), more: document.querySelector('.advanced-settings'), embedMore: byId('embed-more'),
   markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerMenuClose: byId('marker-menu-close'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'), markerTrim: byId('marker-trim'),
   beatMenu: byId('beat-menu'), beatMenuTitle: byId('beat-menu-title'), beatMenuClose: byId('beat-menu-close'),
-  beatMenuAccent: byId('beat-menu-accent'), beatMenuCopy: byId('beat-menu-copy'), beatMenuInsertCopy: byId('beat-menu-insert-copy'), beatMenuPaste: byId('beat-menu-paste'), beatMenuDuplicate: byId('beat-menu-duplicate'),
+  beatMenuCopy: byId('beat-menu-copy'), beatMenuInsertCopy: byId('beat-menu-insert-copy'), beatMenuPaste: byId('beat-menu-paste'), beatMenuDuplicate: byId('beat-menu-duplicate'),
   beatMenuToggle: byId('beat-menu-toggle'), beatMenuLeft: byId('beat-menu-left'), beatMenuRight: byId('beat-menu-right'), beatMenuDelete: byId('beat-menu-delete'),
   undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'), headerUndo: byId('header-undo'),
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
@@ -529,7 +529,7 @@ function paint(now) {
 
 // Undo covers every rhythm, sound and meter edit. Tempo and volume stay as
 // they are for rhythm undos; Reset restores tempo and volume on Undo too.
-const makeCleanSetup = () => ({ ...readSettings({ schemaVersion: 3 }), sounds: ['click', 'hat', 'cowbell'] });
+const makeCleanSetup = () => ({ ...readSettings({ schemaVersion: 3 }), bpm: 60, sounds: ['click', 'hat', 'cowbell'] });
 const resetSetupKey = makeSetupLink('http://oddmeter.local/', makeCleanSetup());
 function isResetState() {
   return makeSetupLink('http://oddmeter.local/', settings) === resetSetupKey;
@@ -615,8 +615,8 @@ function resetSetup() {
     renderTempoUnit();
     timingChanged({ meter: true, restart: meter });
     if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
-  }, 'Reset to 4/4 · 120 BPM', { restoreAll: true });
-  ui.pulseFeedback.textContent = 'Reset to 4/4, 120 BPM, 100% volume.';
+  }, 'Reset to 4/4 · 60 BPM', { restoreAll: true });
+  ui.pulseFeedback.textContent = 'Reset to 4/4, 60 BPM, 100% volume.';
 }
 ui.reset?.addEventListener('click', resetSetup);
 
@@ -795,26 +795,6 @@ function insertCopiedBeatAt(atIndex, sourceSnapshot = beatClipboard) {
   }, label);
   scrollBeatIntoView(atIndex);
   ui.pulseFeedback.textContent = `${label}.`;
-}
-
-function toggleMainBeat(beat) {
-  if (beat < 0 || beat >= settings.beats) return;
-  const profile = settings.lanes[0];
-  const wasMain = !profile.rests.includes(beat) && profile.accents.includes(beat);
-  const label = wasMain ? `Beat ${beat + 1} normal` : `Beat ${beat + 1} main accent`;
-  undoable(() => {
-    if (wasMain) {
-      profile.accents = profile.accents.filter((hit) => hit !== beat);
-    } else {
-      if (profile.rests.includes(beat)) {
-        profile.rests = profile.rests.filter((hit) => hit !== beat);
-        delete profile.pulseSounds[beat];
-      }
-      if (!profile.accents.includes(beat)) profile.accents.push(beat);
-    }
-    mixChanged();
-  }, label);
-  announceMarker(0, beat);
 }
 
 function duplicateBeat(beat) {
@@ -1088,15 +1068,7 @@ function renderBeatMenu() {
   const beat = beatMenuTarget;
   const enabled = settings.beatEnabled?.[beat] !== false;
   const activeCount = normalizeBeatEnabled(settings.beatEnabled, settings.beats).filter(Boolean).length;
-  const beatProfile = settings.lanes[0];
-  const isMain = !beatProfile.rests.includes(beat) && beatProfile.accents.includes(beat);
   ui.beatMenuTitle.textContent = `Beat ${beat + 1}`;
-  if (ui.beatMenuAccent) {
-    ui.beatMenuAccent.setAttribute('aria-pressed', String(isMain));
-    ui.beatMenuAccent.title = isMain
-      ? `Beat ${beat + 1} is accented (full orange) · Click for normal beat`
-      : `Make beat ${beat + 1} a main accented beat (full orange)`;
-  }
   ui.beatMenuCopy.textContent = `Copy beat ${beat + 1}`;
   if (ui.beatMenuInsertCopy) {
     ui.beatMenuInsertCopy.disabled = !beatClipboard || settings.beats >= limits.meter[1];
@@ -1142,7 +1114,7 @@ function openBeatMenu(beat, anchor = null) {
   ui.beatMenu.hidden = false;
   positionBeatMenu();
   renderBeatHeaders();
-  (ui.beatMenuAccent ?? ui.beatMenuCopy).focus({ preventScroll: true });
+  ui.beatMenuCopy.focus({ preventScroll: true });
 }
 
 function closeBeatMenu(returnFocus = false) {
@@ -1158,11 +1130,6 @@ function closeBeatMenu(returnFocus = false) {
 ui.addBeat?.addEventListener('click', addBeat);
 ui.clearClipboard?.addEventListener('click', () => clearBeatClipboard(true));
 ui.beatMenuClose?.addEventListener('click', () => closeBeatMenu(true));
-ui.beatMenuAccent?.addEventListener('click', () => {
-  if (beatMenuTarget < 0) return;
-  toggleMainBeat(beatMenuTarget);
-  renderBeatMenu();
-});
 ui.beatMenuCopy?.addEventListener('click', () => {
   if (beatMenuTarget < 0) return;
   const beat = beatMenuTarget;
@@ -1268,7 +1235,7 @@ function ensureBeatHeaderDom() {
     moreBtn.setAttribute('aria-label', `Beat ${beat + 1} actions`);
     moreBtn.setAttribute('aria-haspopup', 'menu');
     moreBtn.setAttribute('aria-expanded', 'false');
-    moreBtn.title = `Beat ${beat + 1} actions (main accent, copy, insert, replace, move, delete)`;
+    moreBtn.title = `Beat ${beat + 1} actions (copy, insert, replace, duplicate, move, delete)`;
     const moreIcon = document.createElement('span');
     moreIcon.className = 'beat-icon icon-more';
     moreIcon.setAttribute('aria-hidden', 'true');
@@ -1910,11 +1877,14 @@ function editPulse(lane, pulse, accentOnly = false) {
         profile.accents = profile.accents.filter((hit) => hit !== pulse);
       } else if ((profile.pulseSounds[pulse] ?? laneSound) === laneSound) {
         if (!profile.accents.includes(pulse)) {
+          delete profile.pulseSounds[pulse];
           profile.accents.push(pulse);
         } else {
           profile.accents = profile.accents.filter((hit) => hit !== pulse);
           profile.pulseSounds[pulse] = laneSound === 'kick' ? 'hat' : 'kick';
         }
+      } else if (!profile.accents.includes(pulse)) {
+        profile.accents.push(pulse);
       } else {
         profile.rests.push(pulse);
         profile.accents = profile.accents.filter((hit) => hit !== pulse);
@@ -1990,7 +1960,7 @@ function renderMarkerMenu() {
   ui.markerMenu.dataset.lane = lane;
   ui.markerMenuTitle.textContent = pulseName(lane, pulse);
   for (const chip of ui.markerSounds.children) chip.setAttribute('aria-pressed', chip.dataset.sound === current);
-  ui.markerAccent.setAttribute('aria-pressed', profile.accents.includes(pulse));
+  ui.markerAccent.setAttribute('aria-pressed', !profile.rests.includes(pulse) && profile.accents.includes(pulse));
   if (ui.markerTrim) {
     const onset = lanes[lane].onsets[pulse];
     const frac = lanes[lane].beatFractions[pulse];
@@ -2058,7 +2028,18 @@ function setMarkerSound(sound) {
 }
 ui.markerAccent.addEventListener('click', () => {
   if (!menuTarget) return;
-  editPulse(menuTarget.lane, menuTarget.pulse, true);
+  const { lane, pulse } = menuTarget;
+  const profile = settings.lanes[lane];
+  if (profile.rests.includes(pulse)) {
+    undoable(() => {
+      profile.rests = profile.rests.filter((hit) => hit !== pulse);
+      if (!profile.accents.includes(pulse)) profile.accents.push(pulse);
+      mixChanged();
+    });
+    announceMarker(lane, pulse);
+  } else {
+    editPulse(lane, pulse, true);
+  }
   renderMarkerMenu();
 });
 ui.markerTrim?.addEventListener('click', () => {
@@ -2082,10 +2063,11 @@ window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); })
 function renderMix() {
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
-    lane.sound.value = settings.sounds[index];
+    const rowMuted = index > 0 && profile.muted === true;
+    lane.sound.value = rowMuted ? 'mute' : settings.sounds[index];
     if (lane.rowSound) {
-      lane.rowSound.value = settings.sounds[index];
-      lane.rowSound.dataset.sound = settings.sounds[index];
+      lane.rowSound.value = rowMuted ? 'mute' : settings.sounds[index];
+      lane.rowSound.dataset.sound = rowMuted ? 'off' : settings.sounds[index];
     }
     lane.element.toggleAttribute('data-muted', laneMuted(profile));
     if (lane.enabled) {
@@ -2106,11 +2088,12 @@ function renderMix() {
       pulse.dataset.sound = rest ? 'off' : sound ?? 'default';
       pulse.toggleAttribute('data-accented', accented);
       pulse.setAttribute('aria-label', label);
-      pulse.title = `${label} · Click to cycle, right-click for more`;
+      pulse.title = index === 0
+        ? `${label} · Click to cycle normal, main accent, alt sound, and rest; right-click for all sounds`
+        : `${label} · Click to cycle, right-click for more`;
     });
   });
   renderMarkerMenu();
-  renderBeatMenu();
 }
 function presetLanes(preset) {
   return preset.lanes.map((lane) => {
@@ -2215,8 +2198,20 @@ lanes.forEach((lane, index) => {
     lane.sound.add(new Option(label, id));
     lane.rowSound?.add(new Option(chipNames[id] ?? label, id));
   }
+  if (index > 0) {
+    lane.sound.add(new Option('Mute', 'mute'));
+    lane.rowSound?.add(new Option('Mute', 'mute'));
+  }
   const setRowSound = (sound) => {
-    undoable(() => { settings.sounds[index] = sound; mixChanged(); });
+    if (index > 0 && sound === 'mute') {
+      undoable(() => { settings.lanes[index].muted = true; mixChanged(); });
+      return;
+    }
+    undoable(() => {
+      settings.sounds[index] = sound;
+      if (index > 0 && settings.lanes[index].muted) settings.lanes[index].muted = false;
+      mixChanged();
+    });
     void previewSound(index, sound, index === 0 && settings.lanes[0].accents.includes(0));
   };
   lane.enabled?.addEventListener('click', () => undoable(() => {
