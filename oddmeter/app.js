@@ -1,7 +1,8 @@
 import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=beats1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=beats1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, makeSetupLink, readSetupLink } from './settings.js?v=beats3';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=ideas1';
+import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas7';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -14,11 +15,13 @@ const ui = {
   trimBadge: byId('trim-badge'), trimLabel: byId('trim-label'), trimReset: byId('trim-reset'),
   trimRails: byId('trim-rails'), trimHandles: byId('trim-handles'),
   preset: byId('preset'), status: byId('status'), statusText: byId('status-text'), position: byId('position'),
-  bpm: byId('bpm'), tempoBeat: byId('tempo-beat'), tempoRange: byId('tempo-range'), tempoUnit: byId('tempo-unit'),
+  bpm: byId('bpm'), tempoRange: byId('tempo-range'), tempoUnit: byId('tempo-unit'),
+  tempoBeatPopover: byId('tempo-beat-popover'), tempoBeatList: byId('tempo-beat-list'),
   tempoDown: byId('tempo-down'), tempoUp: byId('tempo-up'), tap: byId('tap'),
   beats: byId('meter-beats'), unit: byId('meter-unit'), ruler: byId('ruler'), groupingChoice: byId('grouping-choice'),
   grouping: byId('grouping'), groupingHelp: byId('grouping-help'), groupingError: byId('grouping-error'), applyGrouping: byId('apply-grouping'),
-  pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), more: document.querySelector('.advanced-settings'), embedMore: byId('embed-more'),
+  optionsButton: byId('options-button'), optionsPopover: byId('options-popover'), optionsClose: byId('options-close'),
+  pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), embedMore: byId('embed-more'),
   markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerMenuClose: byId('marker-menu-close'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'), markerTrim: byId('marker-trim'),
   beatMenu: byId('beat-menu'), beatMenuTitle: byId('beat-menu-title'), beatMenuClose: byId('beat-menu-close'),
   beatMenuCopy: byId('beat-menu-copy'), beatMenuInsertCopy: byId('beat-menu-insert-copy'), beatMenuPaste: byId('beat-menu-paste'), beatMenuDuplicate: byId('beat-menu-duplicate'),
@@ -26,7 +29,16 @@ const ui = {
   undoToast: byId('undo-toast'), undoText: byId('undo-text'), undo: byId('undo'), headerUndo: byId('header-undo'),
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
-  reset: byId('reset'), share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'), shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
+  reset: byId('reset'), headerSave: byId('header-save'), share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'),
+  shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
+  saveDialog: byId('save-dialog'), saveDialogClose: byId('save-dialog-close'), saveCancel: byId('save-cancel'),
+  saveGuestRow: byId('save-guest-row'), saveSigninRow: byId('save-signin-row'), saveSignin: byId('save-signin'),
+  saveAccountRow: byId('save-account-row'), saveAccountName: byId('save-account-name'), saveSignout: byId('save-signout'),
+  saveError: byId('save-error'),
+  ideasPanel: byId('ideas-panel'), ideaForm: byId('idea-form'), ideaTitle: byId('idea-title'), ideaAuthor: byId('idea-author'),
+  ideaSave: byId('idea-save'), ideaUpdate: byId('idea-update'),
+  ideasUser: byId('ideas-user'), authSignin: byId('auth-signin'), authSignout: byId('auth-signout'), ideasError: byId('ideas-error'),
+  ideasTbody: byId('ideas-tbody'), ideasEmpty: byId('ideas-empty'),
   scrolls: [...document.querySelectorAll('[data-timeline-scroll]')],
 };
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
@@ -37,7 +49,7 @@ const lanes = [...document.querySelectorAll('.lane')].map((element, index) => {
   return {
     element, enabled: element.querySelector('.lane-enabled'), count: element.querySelector('.lane-count'),
     steps: [...element.querySelectorAll('.lane-controls [data-delta]')], span: options?.querySelector('.lane-span'),
-    sound: byId(['sound-a', 'sound-b', 'sound-c'][index]), rowSound,
+    rowSound,
     rowSoundLabel: rowSound?.querySelector('.lane-sound-label'),
     soundMenu, soundMenuList: soundMenu?.querySelector('[focusgroup~="menu"]'),
     soundMenuGroup: soundMenu?.querySelector('.sound-menu-group'),
@@ -49,8 +61,12 @@ const lanes = [...document.querySelectorAll('.lane')].map((element, index) => {
 const soundNames = new Map(pulseSoundOptions);
 const unitNames = { 2: 'half note', 4: 'quarter note', 8: 'eighth note', 16: 'sixteenth note' };
 const tempoSymbols = new Map([[1, '♩'], [0.5, '♪'], [1.5, '♩.'], [2, '𝅗𝅥']]);
+const tempoBeatNames = new Map(tempoBeats);
 let saved;
 try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch { /* Storage is optional. */ }
+const initialIdeaParam = readIdeaParam(window.location.search);
+let pendingIdeaLoad = Boolean(initialIdeaParam);
+let activeIdea = null;
 const setupHash = window.location.hash.startsWith(setupLinkPrefix);
 const shared = readSetupLink(window.location.hash);
 const settings = shared ?? readSettings(saved);
@@ -58,10 +74,11 @@ const settings = shared ?? readSettings(saved);
 // icons hold a link. A link that matches this device's saved setup, or a first
 // visit with nothing saved, is the visitor's own setup and keeps saving.
 const ownLink = shared && (saved == null || makeSetupLink(window.location.href, readSettings(saved)) === makeSetupLink(window.location.href, shared));
-let saveLocally = !shared || window.history.state?.oddmeterLocalSetup === true || ownLink;
+let saveLocally = pendingIdeaLoad ? false : (!shared || window.history.state?.oddmeterLocalSetup === true || ownLink);
 let urlUpdateTimer;
 let lastUrlEdit = -Infinity;
-const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1' && window.parent !== window;
+const hasEmbedParam = new URLSearchParams(window.location.search).get('embed') === '1';
+const isEmbed = hasEmbedParam && window.parent !== window;
 let embedDirty = Boolean(isEmbed && setupHash && shared);
 
 function fullAppUrl() {
@@ -71,6 +88,10 @@ function fullAppUrl() {
 function shareBaseUrl() {
   if (!isEmbed) return window.location.href;
   try { return window.parent.location.href; } catch { return window.location.href; }
+}
+
+function isActiveIdeaDirty() {
+  return Boolean(activeIdea && encodeSetupSnapshot(settings) !== activeIdea.setup);
 }
 
 function syncEmbedState() {
@@ -85,8 +106,16 @@ function syncEmbedState() {
 }
 
 function updateSetupUrl() {
-  if (isEmbed) {
+  if (hasEmbedParam) {
     syncEmbedState();
+    return;
+  }
+  if (pendingIdeaLoad) return;
+  if (activeIdea?.source === 'cloud' && !isActiveIdeaDirty()) {
+    const shortUrl = makeIdeaLink(window.location.href, activeIdea.id);
+    if (shortUrl && shortUrl !== window.location.href) {
+      window.history.replaceState({ ...window.history.state, oddmeterLocalSetup: saveLocally }, '', shortUrl);
+    }
     return;
   }
   const link = makeSetupLink(window.location.href, settings);
@@ -111,6 +140,7 @@ function save() {
     try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Playback works without storage. */ }
   }
   renderReset();
+  renderIdeaUi();
   queueSetupUrl();
 }
 
@@ -147,56 +177,112 @@ async function closeTopLayer(dialog) {
   }
   dialog.close();
 }
-if (ui.shareDialog) {
-  ui.shareDialog.addEventListener('cancel', (event) => {
+function bindModalLightDismiss(dialog, onClose) {
+  if (!dialog) return;
+  dialog.addEventListener('cancel', (event) => {
     if (supportsTopLayerExit()) return;
     event.preventDefault();
-    void closeTopLayer(ui.shareDialog);
+    void closeTopLayer(dialog);
   });
+  dialog.addEventListener('close', () => onClose?.());
   // Fallback for browsers without native closedby="any" light-dismiss support.
   if (!('closedBy' in (window.HTMLDialogElement?.prototype ?? {}))) {
-    ui.shareDialog.addEventListener('click', (event) => {
-      if (event.target !== ui.shareDialog) return;
-      const rect = ui.shareDialog.getBoundingClientRect();
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
       const inside = rect.top <= event.clientY && event.clientY <= rect.top + rect.height &&
         rect.left <= event.clientX && event.clientX <= rect.left + rect.width;
-      if (!inside) void closeTopLayer(ui.shareDialog);
+      if (!inside) void closeTopLayer(dialog);
     });
   }
 }
-ui.shareCopy?.addEventListener('click', () => {
-  ui.shareLink.focus();
-  ui.shareLink.select();
-  void window.navigator.clipboard?.writeText(ui.shareLink.value).then(() => {
-    ui.shareFeedback.textContent = 'Setup link copied.';
-  }).catch(() => {});
+bindModalLightDismiss(ui.shareDialog);
+bindModalLightDismiss(ui.saveDialog);
+function flashShareCopied(message = 'Link copied.') {
+  if (ui.share) {
+    ui.share.textContent = 'Copied';
+    ui.share.dataset.copied = '';
+  }
+  if (ui.shareFeedback) ui.shareFeedback.textContent = message;
+  clearTimeout(shareFeedbackTimer);
+  shareFeedbackTimer = window.setTimeout(() => {
+    if (ui.share) {
+      ui.share.textContent = 'Share';
+      delete ui.share.dataset.copied;
+    }
+    if (ui.shareFeedback) ui.shareFeedback.textContent = '';
+  }, 1600);
+}
+async function copyTextSafe(text) {
+  if (!window.navigator?.clipboard?.writeText) return false;
+  try {
+    await window.navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function openShareFallback(link) {
+  if (!ui.shareDialog) return;
+  if (ui.shareLink) ui.shareLink.value = link;
+  ui.shareDialog.removeAttribute('data-closing');
+  if (!ui.shareDialog.open) ui.shareDialog.showModal();
+  ui.shareLink?.focus();
+  ui.shareLink?.select();
+}
+ui.shareCopy?.addEventListener('click', async () => {
+  ui.shareLink?.focus();
+  ui.shareLink?.select();
+  if (await copyTextSafe(ui.shareLink.value)) {
+    if (ui.shareFeedback) ui.shareFeedback.textContent = 'Link copied.';
+  }
 });
 ui.share?.addEventListener('click', async () => {
   if (isEmbed && !embedDirty) {
     embedDirty = true;
     syncEmbedState();
   }
+  if (!isEmbed && ideaStore.state.cloudAvailable) {
+    const snap = encodeSetupSnapshot(settings);
+    let target = activeIdea?.source === 'cloud' && activeIdea.setup === snap
+      ? activeIdea
+      : ideaStore.state.ideas.find((item) => item.source === 'cloud' && item.setup === snap) ?? null;
+    if (!target) {
+      ui.share.disabled = true;
+      try {
+        target = await saveCurrentIdea({
+          title: '',
+          authorName: readSavedAuthor(window.localStorage),
+          flashButton: false,
+          closeDialog: false,
+        });
+      } catch {
+        target = null;
+      } finally {
+        ui.share.disabled = false;
+      }
+    }
+    if (target) {
+      activeIdea = target;
+      updateSetupUrl();
+      renderIdeaUi();
+      const shortUrl = makeIdeaLink(shareBaseUrl(), target.id);
+      if (shortUrl && await copyTextSafe(shortUrl)) {
+        flashShareCopied('Short link copied.');
+      } else if (shortUrl) {
+        openShareFallback(shortUrl);
+      }
+      return;
+    }
+  }
   const link = makeSetupLink(shareBaseUrl(), settings);
-  try {
-    await window.navigator.clipboard.writeText(link);
-    ui.share.textContent = 'Copied';
-    ui.share.dataset.copied = '';
-    ui.shareFeedback.textContent = 'Setup link copied.';
-    clearTimeout(shareFeedbackTimer);
-    shareFeedbackTimer = window.setTimeout(() => {
-      ui.share.textContent = 'Share';
-      delete ui.share.dataset.copied;
-      ui.shareFeedback.textContent = '';
-    }, 1600);
-  } catch {
-    ui.shareLink.value = link;
-    ui.shareDialog.removeAttribute('data-closing');
-    if (!ui.shareDialog.open) ui.shareDialog.showModal();
-    ui.shareLink.focus();
-    ui.shareLink.select();
+  if (await copyTextSafe(link)) {
+    flashShareCopied('Setup link copied.');
+  } else {
+    openShareFallback(link);
   }
 });
-ui.keepSetup.hidden = saveLocally;
+ui.keepSetup.hidden = saveLocally || pendingIdeaLoad;
 ui.keepSetup.addEventListener('click', () => {
   saveLocally = true;
   ui.keepSetup.hidden = true;
@@ -594,16 +680,14 @@ function undo() {
   displayTempo(settings.bpm);
   renderVolume();
   ui.countIn.checked = settings.countIn;
-  ui.tempoBeat.value = settings.tempoBeat;
   renderTempoUnit();
   timingChanged({ meter: true, restart: meter });
   if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
   ui.pulseFeedback.textContent = 'Undone.';
 }
-function resetSetup() {
-  if (isResetState()) return;
-  undoable(() => {
-    const clean = makeCleanSetup();
+function applySettingsSnapshot(nextSettings, { toast = '', recordUndo = true } = {}) {
+  const apply = () => {
+    const clean = readSettings(nextSettings);
     const meter = settings.beats !== clean.beats || settings.unit !== clean.unit;
     const preserved = {
       ...(settings.legacyProfiles === undefined ? {} : { legacyProfiles: settings.legacyProfiles }),
@@ -616,14 +700,22 @@ function resetSetup() {
     closeMarkerMenu();
     closeBeatMenu();
     closeSoundMenus();
+    closeFloatingPopovers();
+    clearCycleFromDefault();
     displayTempo(settings.bpm);
     renderVolume();
     ui.countIn.checked = settings.countIn;
-    ui.tempoBeat.value = settings.tempoBeat;
     renderTempoUnit();
     timingChanged({ meter: true, restart: meter });
     if (!playing) processor?.port.postMessage({ type: 'mix', mix: mixSettings() });
-  }, 'Reset to 4/4 · 60 BPM', { restoreAll: true });
+  };
+  if (recordUndo) undoable(apply, toast, { restoreAll: true });
+  else apply();
+}
+function resetSetup() {
+  if (isResetState()) return;
+  activeIdea = null;
+  applySettingsSnapshot(makeCleanSetup(), { toast: 'Reset to 4/4 · 60 BPM', recordUndo: true });
   ui.pulseFeedback.textContent = 'Reset to 4/4, 60 BPM, 100% volume.';
 }
 ui.reset?.addEventListener('click', resetSetup);
@@ -658,6 +750,13 @@ function renderTempoUnit() {
   note.className = 'tempo-note';
   note.textContent = tempoSymbols.get(settings.tempoBeat) ?? '♩';
   ui.tempoUnit.replaceChildren(note, ' BPM');
+  const name = tempoBeatNames.get(settings.tempoBeat) ?? 'Quarter note';
+  ui.tempoUnit.setAttribute('aria-label', `Tempo beat unit: ${name}`);
+  ui.tempoUnit.title = `Tempo beat: ${name} · Click to change`;
+  ui.tempoUnit.dataset.tempoBeat = String(settings.tempoBeat);
+  ui.tempoBeatList?.querySelectorAll('.tempo-beat-option').forEach((button) => {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.tempoBeat) === settings.tempoBeat));
+  });
 }
 function setTempo(value, fromTap = false) {
   if (!fromTap) taps = [];
@@ -1474,7 +1573,6 @@ function renderRhythms() {
         : lane.count.selectedIndex >= lane.count.options.length - 1;
       lane.span.value = profile.span;
     }
-    lane.sound.value = settings.sounds[index];
     renderBeatCounts(lane, index);
     lane.element.toggleAttribute('data-empty', index > 0 && lane.onsets.length === 0);
     lane.onsets.forEach((onset, hit) => {
@@ -2129,7 +2227,7 @@ ui.trimReset?.addEventListener('click', () => {
   undoable(() => clearAllBeatEnds(), 'Full bar restored');
   ui.pulseFeedback.textContent = 'Full bar restored.';
 });
-window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); closeSoundMenus(); });
+window.addEventListener('resize', () => { closeMarkerMenu(); closeBeatMenu(); closeSoundMenus(); closeFloatingPopovers(); });
 
 function renderMix() {
   lanes.forEach((lane, index) => {
@@ -2137,8 +2235,6 @@ function renderMix() {
     const rowSound = settings.sounds[index];
     const rowLabel = rowSound === 'off' ? 'Mute' : (chipNames[rowSound] ?? soundNames.get(rowSound));
     lane.element.dataset.rowSound = rowSound;
-    lane.sound.value = rowSound;
-    lane.sound.closest('.setting-lane')?.setAttribute('data-row-sound', rowSound);
     lane.options?.setAttribute('data-row-sound', rowSound);
     if (lane.rowSound) {
       lane.rowSound.dataset.sound = rowSound;
@@ -2186,23 +2282,34 @@ function presetLanes(preset) {
     return result;
   });
 }
+function renderOptionsBadge() {
+  if (!ui.optionsButton) return;
+  const custom = settings.grouping.length > 1 ||
+    settings.lanes.slice(1).some((lane) => lane.enabled && (lane.span === 'bar' || !lane.offbeatsOnly));
+  ui.optionsButton.toggleAttribute('data-active', custom);
+}
 function renderPreset() {
   renderReset();
-  if (hasBeatTrim(settings.beatEnds, settings.beats) || hasBeatSkip(settings.beatEnabled, settings.beats)) { ui.preset.value = ''; return; }
-  const match = rhythmPresets.find((preset) => {
-    if (preset.beats !== settings.beats || preset.unit !== settings.unit || preset.groups.join('+') !== settings.grouping.join('+')) return false;
-    const expected = presetLanes(preset);
-    return settings.lanes.every((lane, index) => {
-      const target = expected[index];
-      const visibleCount = makeLanePulses({ ...lane, enabled: true }, settings.beats).length;
-      const accents = lane.accents.filter((hit) => hit < visibleCount);
-      return lane.count === target.count && lane.span === target.span && lane.enabled === target.enabled && !lane.muted && lane.offbeatsOnly === target.offbeatsOnly &&
-        (lane.span === 'bar' || lane.beatCounts.slice(0, settings.beats).every((count) => count === null || count === lane.count)) &&
-        accents.length === target.accents.length && target.accents.every((hit) => accents.includes(hit)) &&
-        !lane.rests.some((hit) => hit < visibleCount) && Object.keys(lane.pulseSounds).every((hit) => Number(hit) >= visibleCount);
+  renderOptionsBadge();
+  renderIdeaUi();
+  let matchedId = '';
+  if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats)) {
+    const match = rhythmPresets.find((preset) => {
+      if (preset.beats !== settings.beats || preset.unit !== settings.unit || preset.groups.join('+') !== settings.grouping.join('+')) return false;
+      const expected = presetLanes(preset);
+      return settings.lanes.every((lane, index) => {
+        const target = expected[index];
+        const visibleCount = makeLanePulses({ ...lane, enabled: true }, settings.beats).length;
+        const accents = lane.accents.filter((hit) => hit < visibleCount);
+        return lane.count === target.count && lane.span === target.span && lane.enabled === target.enabled && !lane.muted && lane.offbeatsOnly === target.offbeatsOnly &&
+          (lane.span === 'bar' || lane.beatCounts.slice(0, settings.beats).every((count) => count === null || count === lane.count)) &&
+          accents.length === target.accents.length && target.accents.every((hit) => accents.includes(hit)) &&
+          !lane.rests.some((hit) => hit < visibleCount) && Object.keys(lane.pulseSounds).every((hit) => Number(hit) >= visibleCount);
+      });
     });
-  });
-  ui.preset.value = match?.id ?? '';
+    matchedId = match?.id ?? '';
+  }
+  if (ui.preset) ui.preset.value = matchedId;
 }
 
 function applyGrouping(grouping) {
@@ -2220,14 +2327,105 @@ function applyGrouping(grouping) {
   ui.pulseFeedback.textContent = 'Grouping applied to per-note rhythms.';
 }
 
-for (const [value, label] of tempoBeats) ui.tempoBeat.add(new Option(label, value));
-ui.tempoBeat.value = settings.tempoBeat;
-for (let beats = 1; beats <= 32; beats++) ui.beats.add(new Option(beats, beats));
-for (const unit of beatUnits) ui.unit.add(new Option(unit, unit));
-for (const preset of rhythmPresets) ui.preset.add(new Option(preset.label, preset.id));
-ui.preset.addEventListener('change', () => {
-  const preset = rhythmPresets.find((value) => value.id === ui.preset.value);
+const supportsPopover = typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover') && typeof HTMLElement.prototype.showPopover === 'function';
+const supportsInvoker = typeof HTMLButtonElement !== 'undefined' && 'commandForElement' in HTMLButtonElement.prototype;
+const supportsFocusgroup = typeof HTMLElement !== 'undefined' && 'focusGroup' in HTMLElement.prototype;
+const supportsAnchorArea = () => Boolean(window.CSS?.supports?.('position-area', 'block-end'));
+const supportsToggleSource = typeof ToggleEvent !== 'undefined' && 'source' in ToggleEvent.prototype;
+
+const floatingPopovers = [
+  { popover: ui.tempoBeatPopover, trigger: ui.tempoUnit, preferAbove: false },
+  { popover: ui.optionsPopover, trigger: ui.optionsButton, preferAbove: true },
+].filter((entry) => entry.popover && entry.trigger);
+
+function isFloatingOpen(popover) {
+  if (!popover) return false;
+  return supportsPopover ? popover.matches(':popover-open') : popover.classList.contains(':popover-open');
+}
+function positionFloating(entry) {
+  const { popover, trigger, preferAbove } = entry;
+  if (!popover || !trigger || supportsAnchorArea()) return;
+  const rect = trigger.getBoundingClientRect();
+  const viewWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewHeight = document.documentElement.clientHeight || window.innerHeight;
+  const width = popover.offsetWidth || 240;
+  const height = popover.offsetHeight || 220;
+  const left = Math.max(8, Math.min(rect.left, viewWidth - width - 8));
+  const fitsBelow = rect.bottom + 6 + height <= viewHeight - 8;
+  const fitsAbove = rect.top - height - 6 >= 8;
+  const placeAbove = preferAbove ? (fitsAbove || !fitsBelow) : (!fitsBelow && fitsAbove);
+  const top = placeAbove
+    ? Math.max(8, rect.top - height - 6)
+    : Math.max(8, Math.min(rect.bottom + 6, viewHeight - height - 8));
+  popover.style.left = `${Math.round(left)}px`;
+  popover.style.top = `${Math.round(top)}px`;
+}
+function openFloating(popover) {
+  const entry = floatingPopovers.find((item) => item.popover === popover);
+  if (!entry || isFloatingOpen(popover)) return;
+  closeMarkerMenu();
+  closeBeatMenu();
+  closeSoundMenus();
+  floatingPopovers.forEach((other) => { if (other !== entry) closeFloating(other.popover); });
+  if (supportsPopover) {
+    try { popover.showPopover({ source: entry.trigger }); } catch { popover.showPopover(); }
+  } else {
+    popover.hidden = false;
+    popover.classList.add(':popover-open');
+    entry.trigger.setAttribute('aria-expanded', 'true');
+    positionFloating(entry);
+  }
+}
+function closeFloating(popover, { restore = false } = {}) {
+  const entry = floatingPopovers.find((item) => item.popover === popover);
+  if (!entry || !isFloatingOpen(popover)) return;
+  if (supportsPopover) {
+    try { popover.hidePopover(); } catch { /* Already hidden */ }
+  } else {
+    popover.classList.remove(':popover-open');
+    popover.hidden = true;
+    entry.trigger.setAttribute('aria-expanded', 'false');
+  }
+  if (restore) entry.trigger.focus({ preventScroll: true });
+}
+function closeFloatingPopovers() {
+  floatingPopovers.forEach((entry) => closeFloating(entry.popover));
+}
+floatingPopovers.forEach((entry) => {
+  const { popover, trigger } = entry;
+  if (!supportsPopover) popover.hidden = true;
+  if (supportsPopover) {
+    popover.addEventListener('toggle', (event) => {
+      const open = event.newState === 'open';
+      trigger.setAttribute('aria-expanded', String(open));
+      if (open) {
+        closeMarkerMenu();
+        closeBeatMenu();
+        closeSoundMenus();
+        positionFloating(entry);
+      }
+    });
+  }
+  trigger.addEventListener('click', (event) => {
+    if (supportsPopover && supportsInvoker) return;
+    event.preventDefault();
+    if (isFloatingOpen(popover)) closeFloating(popover, { restore: true });
+    else openFloating(popover);
+  });
+});
+ui.optionsClose?.addEventListener('click', (event) => {
+  if (!supportsPopover || !supportsInvoker) {
+    event.preventDefault();
+    closeFloating(ui.optionsPopover, { restore: true });
+    return;
+  }
+  // Return focus to the trigger when hiding a popover from a button inside it.
+  queueMicrotask(() => ui.optionsButton?.focus({ preventScroll: true }));
+});
+
+function loadStarterPreset(preset) {
   if (!preset) return;
+  activeIdea = null;
   undoable(() => {
     const meter = settings.beats !== preset.beats || settings.unit !== preset.unit;
     settings.beats = preset.beats;
@@ -2240,13 +2438,40 @@ ui.preset.addEventListener('change', () => {
     renderMeter();
     timingChanged({ meter, rhythm: true });
   }, `Loaded ${preset.label}`);
+}
+
+for (const [value, label] of tempoBeats) {
+  if (!ui.tempoBeatList) break;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tempo-beat-option';
+  button.dataset.tempoBeat = String(value);
+  button.setAttribute('aria-pressed', String(value === settings.tempoBeat));
+  const symbol = document.createElement('span');
+  symbol.className = 'tempo-beat-option-note';
+  symbol.setAttribute('aria-hidden', 'true');
+  symbol.textContent = tempoSymbols.get(value) ?? '♩';
+  const text = document.createElement('span');
+  text.textContent = label;
+  button.append(symbol, text);
+  button.addEventListener('click', () => {
+    undoable(() => {
+      settings.tempoBeat = value;
+      taps = [];
+      renderTempoUnit();
+      timingChanged();
+    });
+    closeFloating(ui.tempoBeatPopover, { restore: true });
+  });
+  ui.tempoBeatList.appendChild(button);
+}
+for (let beats = 1; beats <= 32; beats++) ui.beats.add(new Option(beats, beats));
+for (const unit of beatUnits) ui.unit.add(new Option(unit, unit));
+for (const preset of rhythmPresets) ui.preset?.add(new Option(preset.label, preset.id));
+ui.preset?.addEventListener('change', () => {
+  const preset = rhythmPresets.find((value) => value.id === ui.preset.value);
+  if (preset) loadStarterPreset(preset);
 });
-ui.tempoBeat.addEventListener('change', () => undoable(() => {
-  settings.tempoBeat = Number(ui.tempoBeat.value);
-  taps = [];
-  renderTempoUnit();
-  timingChanged();
-}));
 ui.beats.addEventListener('change', () => undoable(() => {
   settings.beats = Number(ui.beats.value);
   settings.grouping = [settings.beats];
@@ -2260,7 +2485,7 @@ ui.unit.addEventListener('change', () => undoable(() => { settings.unit = Number
 ui.groupingChoice.addEventListener('change', () => {
   if (ui.groupingChoice.value === 'custom') {
     ui.groupingChoice.value = settings.grouping.join('+');
-    ui.more.open = true;
+    openFloating(ui.optionsPopover);
     ui.grouping.focus();
     ui.grouping.select();
     return;
@@ -2275,11 +2500,6 @@ ui.applyGrouping.addEventListener('click', () => {
   applyGrouping(grouping);
 });
 ui.grouping.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); ui.applyGrouping.click(); } });
-const supportsPopover = typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover') && typeof HTMLElement.prototype.showPopover === 'function';
-const supportsInvoker = typeof HTMLButtonElement !== 'undefined' && 'commandForElement' in HTMLButtonElement.prototype;
-const supportsFocusgroup = typeof HTMLElement !== 'undefined' && 'focusGroup' in HTMLElement.prototype;
-const supportsAnchorArea = () => Boolean(window.CSS?.supports?.('position-area', 'block-end'));
-const supportsToggleSource = typeof ToggleEvent !== 'undefined' && 'source' in ToggleEvent.prototype;
 const enterSoundMenuOnOpen = new WeakSet();
 let pointerSoundTrigger = null;
 
@@ -2414,11 +2634,9 @@ lanes.forEach((lane, index) => {
     lane.soundMenuGroup.appendChild(item);
   };
   for (const [id, label] of soundOptions) {
-    lane.sound.add(new Option(label, id));
     addSoundMenuItem(id, chipNames[id] ?? label);
   }
   if (index > 0) {
-    lane.sound.add(new Option('Mute', 'off'));
     if (lane.soundMenuGroup) lane.soundMenuGroup.appendChild(document.createElement('hr'));
     addSoundMenuItem('off', 'Mute');
   }
@@ -2493,7 +2711,6 @@ lanes.forEach((lane, index) => {
     else profile.muted = !profile.muted;
     mixChanged();
   }));
-  lane.sound.addEventListener('change', () => setRowSound(lane.sound.value));
   if (!lane.count) return;
   lane.count.addEventListener('change', () => {
     const value = lane.count.value;
@@ -2561,9 +2778,356 @@ document.querySelector('.tempo-dial').addEventListener('wheel', (event) => {
   }
   if (steps) setTempo(settings.bpm - steps * (event.shiftKey ? 5 : 1));
 }, { passive: false });
+const isJsdom = /jsdom/i.test(window.navigator?.userAgent ?? '');
+const cloudAdapter = window.__oddmeterCloud ?? (isJsdom ? null : createFirebaseCloudAdapter());
+const ideaStore = createIdeaStore({ storage: window.localStorage, cloud: cloudAdapter });
+let confirmDeleteId = '';
+let ideaUiInitialized = false;
+
+function canModifyIdea(idea) {
+  if (!idea) return false;
+  if (idea.source === 'local') return true;
+  return Boolean(ideaStore.state.user && idea.ownerUid === ideaStore.state.user.uid);
+}
+
+function showIdeasError(message = '') {
+  if (!ui.ideasError) return;
+  ui.ideasError.textContent = message;
+  ui.ideasError.hidden = message === '';
+}
+
+function loadSavedIdea(idea) {
+  const decoded = decodeSetupSnapshot(idea.setup);
+  if (!decoded) {
+    showIdeasError('Could not load that idea.');
+    return;
+  }
+  activeIdea = idea;
+  saveLocally = true;
+  ui.keepSetup.hidden = true;
+  applySettingsSnapshot(decoded, { toast: `Loaded ${idea.title}`, recordUndo: true });
+  updateSetupUrl();
+}
+
+async function copyIdeaLink(idea, button) {
+  const link = idea.source === 'cloud'
+    ? makeIdeaLink(shareBaseUrl(), idea.id)
+    : makeSetupLink(shareBaseUrl(), decodeSetupSnapshot(idea.setup) ?? settings);
+  if (!link) return;
+  if (await copyTextSafe(link)) {
+    flashShareCopied('Link copied.');
+    if (button) {
+      button.dataset.copied = '';
+      window.setTimeout(() => delete button.dataset.copied, 1400);
+    }
+  } else {
+    openShareFallback(link);
+  }
+}
+
+function showSaveError(message = '') {
+  if (!ui.saveError) return;
+  ui.saveError.textContent = message;
+  ui.saveError.hidden = message === '';
+}
+
+function renderIdeaUi() {
+  if (!ideaUiInitialized || !ui.ideasPanel) return;
+  const { account, loading, cloudAvailable, cloudError, ideas, nextTitle } = ideaStore.state;
+  const canUpdate = Boolean(activeIdea && canModifyIdea(activeIdea) && isActiveIdeaDirty());
+
+  if (ui.ideaTitle) ui.ideaTitle.placeholder = canUpdate ? activeIdea.title : nextTitle;
+  if (ui.ideaAuthor) ui.ideaAuthor.placeholder = cloudAvailable ? defaultGuestName : 'Local';
+  if (ui.ideaUpdate) ui.ideaUpdate.hidden = !canUpdate;
+  if (ui.ideaSave) ui.ideaSave.textContent = canUpdate ? 'Save new' : 'Save';
+  if (ui.saveGuestRow) ui.saveGuestRow.hidden = Boolean(account);
+  if (ui.saveSigninRow) ui.saveSigninRow.hidden = !cloudAvailable || Boolean(account);
+  if (ui.saveAccountRow) ui.saveAccountRow.hidden = !account;
+  if (ui.saveAccountName && account) ui.saveAccountName.textContent = authorNameFromUser(account);
+  if (ui.ideasUser) {
+    ui.ideasUser.hidden = !account;
+    if (account) ui.ideasUser.textContent = authorNameFromUser(account);
+  }
+  if (ui.authSignin) ui.authSignin.hidden = !cloudAvailable || Boolean(account);
+  if (ui.authSignout) ui.authSignout.hidden = !account;
+  showIdeasError(cloudError);
+
+  if (ui.ideasEmpty) {
+    ui.ideasEmpty.hidden = ideas.length > 0;
+    ui.ideasEmpty.textContent = loading ? 'Loading…' : 'No saved ideas yet.';
+  }
+  if (!ui.ideasTbody) return;
+
+  const rows = ideas.map((idea) => {
+    const tr = document.createElement('tr');
+    tr.dataset.ideaId = idea.id;
+    const isCurrent = activeIdea?.id === idea.id;
+    tr.toggleAttribute('data-active', isCurrent);
+
+    const nameCell = document.createElement('th');
+    nameCell.scope = 'row';
+    const loadBtn = document.createElement('button');
+    loadBtn.type = 'button';
+    loadBtn.className = 'idea-row-btn';
+    loadBtn.textContent = idea.title;
+    loadBtn.title = `${idea.title} · Click to load`;
+    if (isCurrent) loadBtn.setAttribute('aria-current', 'true');
+    loadBtn.addEventListener('click', () => loadSavedIdea(idea));
+    nameCell.appendChild(loadBtn);
+
+    const byCell = document.createElement('td');
+    byCell.className = 'idea-row-author';
+    byCell.textContent = idea.authorName;
+    byCell.title = idea.authorName;
+
+    const actCell = document.createElement('td');
+    actCell.className = 'idea-row-actions';
+    const actGroup = document.createElement('div');
+    actGroup.className = 'idea-actions-group';
+    const confirming = confirmDeleteId === idea.id;
+
+    if (!confirming) {
+      const linkBtn = document.createElement('button');
+      linkBtn.type = 'button';
+      linkBtn.className = 'idea-icon-btn idea-link-icon';
+      linkBtn.setAttribute('aria-label', `Copy link for ${idea.title}`);
+      linkBtn.title = 'Copy link';
+      linkBtn.addEventListener('click', () => { void copyIdeaLink(idea, linkBtn); });
+      actGroup.appendChild(linkBtn);
+    }
+
+    if (canModifyIdea(idea)) {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'idea-icon-btn idea-del-btn';
+      delBtn.toggleAttribute('data-confirm', confirming);
+      delBtn.textContent = confirming ? 'Delete?' : '×';
+      delBtn.setAttribute('aria-label', confirming ? `Confirm delete ${idea.title}` : `Delete ${idea.title}`);
+      delBtn.title = confirming ? 'Click again to delete' : 'Delete';
+      delBtn.addEventListener('click', async () => {
+        if (confirmDeleteId !== idea.id) {
+          confirmDeleteId = idea.id;
+          renderIdeaUi();
+          return;
+        }
+        delBtn.disabled = true;
+        try {
+          await ideaStore.remove(idea.id);
+          if (activeIdea?.id === idea.id) activeIdea = null;
+          confirmDeleteId = '';
+          renderIdeaUi();
+        } catch (error) {
+          showIdeasError(error?.message || 'Could not delete idea.');
+          delBtn.disabled = false;
+        }
+      });
+      actGroup.appendChild(delBtn);
+    }
+
+    actCell.appendChild(actGroup);
+    tr.append(nameCell, byCell, actCell);
+    return tr;
+  });
+  ui.ideasTbody.replaceChildren(...rows);
+}
+
+async function handleGoogleSignIn(triggerButton, { inDialog = false } = {}) {
+  if (triggerButton) triggerButton.disabled = true;
+  if (inDialog) showSaveError('');
+  try {
+    await ideaStore.signIn();
+    renderIdeaUi();
+  } catch (error) {
+    if (inDialog) showSaveError(error?.message || 'Sign-in failed.');
+  } finally {
+    if (triggerButton) triggerButton.disabled = false;
+  }
+}
+
+async function handleGoogleSignOut(triggerButton) {
+  if (triggerButton) triggerButton.disabled = true;
+  try {
+    await ideaStore.signOut();
+    confirmDeleteId = '';
+    if (ui.ideaAuthor) ui.ideaAuthor.value = readSavedAuthor(window.localStorage);
+    renderIdeaUi();
+  } finally {
+    if (triggerButton) triggerButton.disabled = false;
+  }
+}
+
+ui.authSignin?.addEventListener('click', () => { void handleGoogleSignIn(ui.authSignin); });
+ui.authSignout?.addEventListener('click', () => { void handleGoogleSignOut(ui.authSignout); });
+ui.saveSignin?.addEventListener('click', () => { void handleGoogleSignIn(ui.saveSignin, { inDialog: true }); });
+ui.saveSignout?.addEventListener('click', () => { void handleGoogleSignOut(ui.saveSignout); });
+
+function openSaveDialog() {
+  if (!ui.saveDialog) return;
+  showSaveError('');
+  const savedTitle = readSavedTitle(window.localStorage);
+  const preferredTitle = activeIdea?.title || savedTitle;
+  const savedAuthor = readSavedAuthor(window.localStorage);
+  const ownedAuthor = activeIdea && canModifyIdea(activeIdea)
+    && activeIdea.authorName
+    && activeIdea.authorName.toLowerCase() !== defaultGuestName.toLowerCase()
+    && activeIdea.authorName !== 'Local'
+    ? activeIdea.authorName
+    : '';
+  if (ui.ideaTitle) ui.ideaTitle.value = preferredTitle;
+  if (ui.ideaAuthor) ui.ideaAuthor.value = savedAuthor || ownedAuthor;
+  renderIdeaUi();
+  ui.saveDialog.removeAttribute('data-closing');
+  if (!ui.saveDialog.open) ui.saveDialog.showModal();
+  ui.ideaTitle?.focus();
+  ui.ideaTitle?.select?.();
+}
+
+function closeSaveDialog() {
+  if (ui.saveDialog?.open) void closeTopLayer(ui.saveDialog);
+}
+
+ui.saveDialogClose?.addEventListener('click', closeSaveDialog);
+ui.saveCancel?.addEventListener('click', closeSaveDialog);
+
+let saveFeedbackTimer;
+function flashSavedButton(title) {
+  if (ui.headerSave) {
+    ui.headerSave.textContent = 'Saved';
+    ui.headerSave.dataset.saved = '';
+  }
+  if (ui.shareFeedback) ui.shareFeedback.textContent = `Saved ${title}.`;
+  clearTimeout(saveFeedbackTimer);
+  saveFeedbackTimer = window.setTimeout(() => {
+    if (ui.headerSave) {
+      ui.headerSave.textContent = 'Save';
+      delete ui.headerSave.dataset.saved;
+    }
+  }, 1600);
+}
+
+async function saveCurrentIdea({ title = '', authorName = '', flashButton = true, closeDialog = false } = {}) {
+  showIdeasError('');
+  showSaveError('');
+  if (ui.ideaSave) ui.ideaSave.disabled = true;
+  if (ui.headerSave) ui.headerSave.disabled = true;
+  try {
+    const savedIdea = await ideaStore.save({
+      title,
+      authorName,
+      settings,
+    });
+    activeIdea = savedIdea;
+    saveLocally = true;
+    ui.keepSetup.hidden = true;
+    if (ui.ideaTitle) ui.ideaTitle.value = '';
+    if (closeDialog) closeSaveDialog();
+    updateSetupUrl();
+    renderIdeaUi();
+    if (flashButton) flashSavedButton(savedIdea.title);
+    return savedIdea;
+  } catch (error) {
+    const message = error?.message || 'Could not save idea.';
+    if (closeDialog && ui.saveDialog?.open) showSaveError(message);
+    else showIdeasError(message);
+    return null;
+  } finally {
+    if (ui.ideaSave) ui.ideaSave.disabled = false;
+    if (ui.headerSave) ui.headerSave.disabled = false;
+  }
+}
+
+ui.headerSave?.addEventListener('click', openSaveDialog);
+ui.ideaForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const rawTitle = (ui.ideaTitle?.value ?? '').trim();
+  const isUnchangedAutoTitle = Boolean(activeIdea && rawTitle === activeIdea.title && isDefaultIdeaTitle(rawTitle));
+  const targetTitle = isUnchangedAutoTitle ? '' : rawTitle;
+  const typedAuthor = ideaStore.state.account ? '' : (ui.ideaAuthor?.value ?? '');
+  writeSavedTitle(window.localStorage, targetTitle);
+  if (!ideaStore.state.account) writeSavedAuthor(window.localStorage, typedAuthor);
+  void saveCurrentIdea({
+    title: targetTitle,
+    authorName: typedAuthor,
+    flashButton: true,
+    closeDialog: true,
+  });
+});
+ui.ideaUpdate?.addEventListener('click', async () => {
+  if (!activeIdea || !canModifyIdea(activeIdea)) return;
+  showIdeasError('');
+  showSaveError('');
+  ui.ideaUpdate.disabled = true;
+  try {
+    const nextTitle = ui.ideaTitle?.value.trim() ? ui.ideaTitle.value.trim() : activeIdea.title;
+    const typedAuthor = ideaStore.state.account ? '' : (ui.ideaAuthor?.value ?? '');
+    writeSavedTitle(window.localStorage, nextTitle);
+    if (!ideaStore.state.account) writeSavedAuthor(window.localStorage, typedAuthor);
+    const updated = await ideaStore.save({
+      id: activeIdea.id,
+      title: nextTitle,
+      authorName: typedAuthor,
+      settings,
+    });
+    activeIdea = updated;
+    if (ui.ideaTitle) ui.ideaTitle.value = '';
+    closeSaveDialog();
+    updateSetupUrl();
+    renderIdeaUi();
+    flashSavedButton(updated.title);
+    if (ui.shareFeedback) ui.shareFeedback.textContent = `Updated ${updated.title}.`;
+  } catch (error) {
+    showSaveError(error?.message || 'Could not update idea.');
+  } finally {
+    ui.ideaUpdate.disabled = false;
+  }
+});
+
+ideaStore.subscribe((storeState) => {
+  if (activeIdea) {
+    const match = storeState.ideas.find((item) => item.id === activeIdea.id);
+    if (match) activeIdea = match;
+  }
+  renderIdeaUi();
+});
+
+async function loadInitialSharedIdea() {
+  if (!initialIdeaParam) return;
+  try {
+    const remote = await ideaStore.fetchById(initialIdeaParam);
+    pendingIdeaLoad = false;
+    if (!remote) {
+      saveLocally = true;
+      ui.keepSetup.hidden = true;
+      showMessage('This idea could not be found.');
+      updateSetupUrl();
+      return;
+    }
+    const decoded = decodeSetupSnapshot(remote.setup);
+    if (!decoded) {
+      saveLocally = true;
+      ui.keepSetup.hidden = true;
+      showMessage('This idea could not be loaded.');
+      updateSetupUrl();
+      return;
+    }
+    const isOwner = Boolean(ideaStore.state.user && remote.ownerUid === ideaStore.state.user.uid);
+    activeIdea = remote;
+    saveLocally = isOwner;
+    ui.keepSetup.hidden = isOwner;
+    applySettingsSnapshot(decoded, { recordUndo: false });
+    renderIdeaUi();
+  } catch {
+    pendingIdeaLoad = false;
+    saveLocally = true;
+    ui.keepSetup.hidden = true;
+    showMessage('Could not load this idea right now.');
+    updateSetupUrl();
+  }
+}
+
 ui.tap.addEventListener('click', tapTempo);
 ui.play.addEventListener('click', togglePlayback);
-window.addEventListener('pagehide', stop);
+window.addEventListener('pagehide', () => { stop(); ideaStore.dispose(); });
 ui.countIn.addEventListener('change', () => undoable(() => { settings.countIn = ui.countIn.checked; save(); }));
 ui.volume.addEventListener('input', () => { settings.outputVolume = ui.volume.valueAsNumber; settings.masterMuted = false; renderVolume(); save(); });
 ui.muteAll.addEventListener('click', () => {
@@ -2575,6 +3139,7 @@ ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => {
   closeMarkerMenu();
   closeBeatMenu();
   closeSoundMenus();
+  closeFloatingPopovers();
   if (!programmaticScroll) manualScrollUntil = performance.now() + 2000;
   for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft;
 }));
@@ -2596,6 +3161,10 @@ ui.rhythmPanel.addEventListener('wheel', (event) => {
 let pointerFocus = false;
 document.addEventListener('pointerdown', (event) => {
   pointerFocus = true;
+  if (confirmDeleteId && !event.target.closest('.idea-del-btn')) {
+    confirmDeleteId = '';
+    renderIdeaUi();
+  }
   if (menuTarget && !ui.markerMenu.contains(event.target)) closeMarkerMenu();
   if (beatMenuTarget >= 0 && !ui.beatMenu.contains(event.target) && !event.target.closest('.beat-more')) closeBeatMenu();
   if (!supportsPopover) {
@@ -2603,6 +3172,12 @@ document.addEventListener('pointerdown', (event) => {
       if (lane.soundMenu && isSoundMenuOpen(lane.soundMenu) &&
           !lane.soundMenu.contains(event.target) && !lane.rowSound?.contains(event.target)) {
         closeSoundMenu(lane);
+      }
+    });
+    floatingPopovers.forEach((entry) => {
+      if (isFloatingOpen(entry.popover) &&
+          !entry.popover.contains(event.target) && !entry.trigger.contains(event.target)) {
+        closeFloating(entry.popover);
       }
     });
   }
@@ -2617,7 +3192,7 @@ document.addEventListener('focusin', (event) => {
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Tab') pointerFocus = false;
-  if (ui.shareDialog?.open) return;
+  if (ui.shareDialog?.open || ui.saveDialog?.open) return;
   if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey &&
       !event.target.closest('input:not([type="range"]):not([type="checkbox"]), textarea, [contenteditable]')) {
     const key = event.key.toLowerCase();
@@ -2646,12 +3221,14 @@ document.addEventListener('keydown', (event) => {
     if (beatMenuTarget >= 0) { closeBeatMenu(true); event.preventDefault(); return; }
     const openLane = lanes.find((lane) => isSoundMenuOpen(lane.soundMenu));
     if (openLane) { closeSoundMenu(openLane, { restore: true, fromPointer: false }); event.preventDefault(); return; }
+    const openFloat = floatingPopovers.find((entry) => isFloatingOpen(entry.popover));
+    if (openFloat) { closeFloating(openFloat.popover, { restore: true }); event.preventDefault(); return; }
     if (beatClipboard) { clearBeatClipboard(true); event.preventDefault(); return; }
   }
-  if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable], .sound-menu')) return;
+  if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable], .sound-menu, .floating-popover')) return;
   if (event.key === '+' || event.key === '=' || event.key === '-') { event.preventDefault(); setTempo(settings.bpm + (event.key === '-' ? -5 : 5)); return; }
   if (event.code === 'Space') {
-    if (event.target.closest('.lane-sound[aria-expanded="true"]')) return;
+    if (event.target.closest('.lane-sound[aria-expanded="true"], .tempo-unit-button[aria-expanded="true"], .footer-options-button[aria-expanded="true"]')) return;
     const control = event.target.closest('button, input, select, textarea, a, summary, [contenteditable]');
     const pressed = pointerFocus && control?.matches('button, summary, input[type="checkbox"], input[type="range"]');
     if (control && !pressed) return;
@@ -2663,6 +3240,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 't') tapTempo();
 });
 
+ideaUiInitialized = true;
 ui.countIn.checked = settings.countIn;
 displayTempo(settings.bpm);
 renderTempoUnit();
@@ -2671,8 +3249,13 @@ renderRhythms();
 renderPreset();
 renderUndo();
 renderVolume();
+if (hasEmbedParam) {
+  if (ui.embedMore) {
+    ui.embedMore.hidden = false;
+    ui.embedMore.href = makeSetupLink(fullAppUrl(), settings);
+  }
+}
 if (isEmbed) {
-  if (ui.embedMore) ui.embedMore.hidden = false;
   const postEmbedHeight = () => {
     const h = Math.ceil(document.documentElement.scrollHeight);
     try { window.parent.postMessage({ type: 'oddmeter:resize', height: h }, window.location.origin); } catch { /* Ignore */ }
@@ -2682,6 +3265,10 @@ if (isEmbed) {
   }
   window.addEventListener('load', postEmbedHeight);
   postEmbedHeight();
+}
+if (!isEmbed) {
+  void ideaStore.init();
+  if (initialIdeaParam) void loadInitialSharedIdea();
 }
 if (setupHash && !shared) showMessage('This setup link could not be loaded.');
 else updateSetupUrl();

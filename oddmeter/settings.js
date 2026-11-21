@@ -3,8 +3,11 @@ import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=bea
 import { defaultSounds, soundOptions } from './sounds.js?v=audio1';
 
 export const storageKey = 'oddmeter-settings-v1';
+export const ideasStorageKey = 'oddmeter-ideas-v1';
 export const defaultVolume = 100;
 export const setupLinkPrefix = '#setup=';
+export const ideaLinkParam = 'p';
+export const ideaIdPattern = /^[A-Za-z0-9_-]{8,24}$/;
 const starterSettings = {
   schemaVersion: 3,
   bpm: 70,
@@ -189,7 +192,7 @@ export function readSettings(value) {
   };
 }
 
-export function makeSetupLink(base, settings) {
+export function encodeSetupSnapshot(settings) {
   const { schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn } = settings;
   const beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
   const lastTrim = beatEnds.slice(0, beats).findLastIndex((value) => value !== null);
@@ -204,16 +207,11 @@ export function makeSetupLink(base, settings) {
       beatCounts: beatCounts.slice(0, beatCounts.findLastIndex((value) => value !== null) + 1),
     })),
   };
-  const encoded = btoa(JSON.stringify(snapshot)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
-  const url = new URL(base);
-  url.search = '';
-  url.hash = setupLinkPrefix + encoded;
-  return url.href;
+  return btoa(JSON.stringify(snapshot)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 }
 
-export function readSetupLink(hash) {
-  if (!hash.startsWith(setupLinkPrefix) || hash.length > 65536) return null;
-  const encoded = hash.slice(setupLinkPrefix.length);
+export function decodeSetupSnapshot(encoded) {
+  if (typeof encoded !== 'string' || encoded.length === 0 || encoded.length > 65536) return null;
   if (!/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
   try {
     const snapshot = JSON.parse(atob(encoded.replaceAll('-', '+').replaceAll('_', '/')));
@@ -223,4 +221,58 @@ export function readSetupLink(hash) {
   } catch {
     return null;
   }
+}
+
+export function makeSetupLink(base, settings) {
+  const encoded = encodeSetupSnapshot(settings);
+  const url = new URL(base);
+  url.search = '';
+  url.hash = setupLinkPrefix + encoded;
+  return url.href;
+}
+
+export function readSetupLink(hash) {
+  if (typeof hash !== 'string' || !hash.startsWith(setupLinkPrefix) || hash.length > 65536) return null;
+  return decodeSetupSnapshot(hash.slice(setupLinkPrefix.length));
+}
+
+export function makeIdeaLink(base, ideaId) {
+  if (typeof ideaId !== 'string' || !ideaIdPattern.test(ideaId)) return null;
+  const url = new URL(base);
+  url.search = `?${ideaLinkParam}=${ideaId}`;
+  url.hash = '';
+  return url.href;
+}
+
+export function readIdeaParam(search) {
+  if (typeof search !== 'string' || !search) return null;
+  const id = new URLSearchParams(search).get(ideaLinkParam);
+  return id && ideaIdPattern.test(id) ? id : null;
+}
+
+export function describeSetup(settings) {
+  const safe = readSettings(settings);
+  const subdivs = [];
+  for (let index = 1; index <= 2; index++) {
+    const lane = safe.lanes[index];
+    if (!lane.enabled) continue;
+    if (lane.span === 'bar') {
+      if (lane.count > 1) subdivs.push(`${lane.count}/bar`);
+      continue;
+    }
+    const counts = Array.from({ length: safe.beats }, (_, beat) => lane.beatCounts[beat] ?? lane.count);
+    if (!counts.some((count) => count > 1)) continue;
+    if (counts.every((count) => count === counts[0])) subdivs.push(`×${counts[0]}`);
+    else if (safe.beats <= 6) subdivs.push(counts.map((count) => (count > 1 ? `×${count}` : '·')).join('/'));
+    else subdivs.push('Mix');
+  }
+  const meter = `${safe.beats}/${safe.unit}`;
+  return {
+    bpm: safe.bpm,
+    beats: safe.beats,
+    unit: safe.unit,
+    meter,
+    subdivs,
+    summary: [`${safe.bpm} BPM`, meter, ...subdivs].join(' · '),
+  };
 }

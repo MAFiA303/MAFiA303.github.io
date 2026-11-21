@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=beats9">
-  <script type="module" src="./app.js?v=beats12"></script>
+  <link rel="stylesheet" href="./styles.css?v=ideas5">
+  <script type="module" src="./app.js?v=ideas7"></script>
 </head>
 <body>
   <header class="site-header">
@@ -25,6 +25,7 @@
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
         <button type="button" id="header-undo" class="header-button undo-button" aria-label="Undo" title="Undo (Ctrl/⌘+Z)" disabled>Undo</button>
         <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to 4/4, 60 BPM" title="Reset to 4/4, 60 BPM, 100% volume">Reset</button>
+        <button type="button" id="header-save" class="header-button save-button" aria-label="Save idea" title="Save current rhythm to Ideas">Save</button>
         <button type="button" id="share" class="header-button share-button" aria-label="Share current setup">Share</button>
         <span id="share-feedback" class="visually-hidden" role="status"></span>
       </div>
@@ -39,7 +40,11 @@
           <button type="button" class="step tempo-step" id="tempo-down" aria-label="Decrease tempo" title="Decrease tempo (−1, Shift −5)">−</button>
           <div class="tempo-readout">
             <input id="bpm" class="bpm" type="number" aria-label="Tempo in selected beats per minute" min="20" max="300" step="1" value="70" inputmode="numeric">
-            <span class="label tempo-unit" id="tempo-unit" aria-hidden="true"><span class="tempo-note">♩</span> BPM</span>
+            <button type="button" id="tempo-unit" class="label tempo-unit tempo-unit-button" aria-label="Tempo beat unit: Quarter note" aria-expanded="false" commandfor="tempo-beat-popover" command="toggle-popover" title="Tempo beat unit · Click to change"><span class="tempo-note">♩</span> BPM</button>
+            <div id="tempo-beat-popover" class="floating-popover tempo-beat-popover" popover="auto" aria-labelledby="tempo-beat-title">
+              <div id="tempo-beat-title" class="popover-title">Tempo beat</div>
+              <div id="tempo-beat-list" class="tempo-beat-list" role="group" aria-label="Tempo beat unit"></div>
+            </div>
           </div>
           <button type="button" class="step tempo-step" id="tempo-up" aria-label="Increase tempo" title="Increase tempo (+1, Shift +5)">+</button>
         </div>
@@ -92,35 +97,33 @@
       </section>
 
       <div class="console-footer">
-        <details class="advanced-settings"><summary>More</summary>
-          <div class="more-body">
-            <div class="more-grid">
-              <label class="setting" for="preset"><span class="label">Preset</span><select id="preset" aria-label="Practice preset"><option value="">Custom</option></select></label>
-              <label class="setting" for="tempo-beat"><span class="label">Tempo beat</span><select id="tempo-beat" aria-label="Tempo beat unit"></select></label>
-              <label class="setting setting-lane setting-lane-a" for="sound-a"><span class="label">Beat sound</span><select id="sound-a" aria-label="Beat sound"></select></label>
-              <label class="setting setting-lane setting-lane-b" for="sound-b"><span class="label">Subdiv 1 sound</span><select id="sound-b" aria-label="Subdivision 1 sound"></select></label>
-              <label class="setting setting-lane setting-lane-c" for="sound-c"><span class="label">Subdiv 2 sound</span><select id="sound-c" aria-label="Subdivision 2 sound"></select></label>
-              <label class="count-control setting" for="count-in">
-                <input type="checkbox" id="count-in">
-                <span class="switch" aria-hidden="true"></span>
-                <span title="One bar of clicks in the time signature’s denominator unit">Count-in <small>1 bar</small></span>
-              </label>
+        <div class="footer-controls">
+          <label class="count-control footer-count-in" for="count-in" title="One bar of clicks in the time signature’s denominator unit">
+            <input type="checkbox" id="count-in" role="switch">
+            <span class="switch" aria-hidden="true"></span>
+            <span>Count-in</span>
+          </label>
+          <button type="button" id="options-button" class="footer-options-button" aria-expanded="false" commandfor="options-popover" command="toggle-popover" title="Starter, subdivision fit, offbeats, and custom grouping">Options</button>
+          <div id="options-popover" class="floating-popover options-popover" popover="auto" aria-labelledby="options-popover-title">
+            <div class="popover-header">
+              <span id="options-popover-title" class="popover-title">Options</span>
+              <button type="button" id="options-close" class="icon-button popover-close" aria-label="Close options" commandfor="options-popover" command="hide-popover">×</button>
             </div>
-            <div class="more-secondary">
-              <div class="grouping-setting"><label class="label" for="grouping">Custom grouping</label><div class="grouping-entry"><input id="grouping" type="text" value="4" autocomplete="off" spellcheck="false" aria-describedby="grouping-help grouping-error"><button type="button" id="apply-grouping">Apply accents</button></div><span id="grouping-help">Group starts are accented.</span><span id="grouping-error" role="alert" hidden></span></div>
+            <div class="options-stack">
+              <label class="options-preset" for="preset"><span class="label">Starter</span><select id="preset" aria-label="Practice preset"><option value="">Custom</option></select></label>
               <fieldset class="subdiv-options subdiv-options-b" id="subdiv-1-options"><legend>Subdiv 1</legend>
-                <label for="span-1">Fit clicks <select id="span-1" class="lane-span" aria-label="Subdivision 1 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
+                <label for="span-1">Fit <select id="span-1" class="lane-span" aria-label="Subdivision 1 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
                 <label class="check-option" for="offbeats-1"><input id="offbeats-1" type="checkbox" class="offbeats-only">Offbeats only</label>
               </fieldset>
               <fieldset class="subdiv-options subdiv-options-c" id="subdiv-2-options"><legend>Subdiv 2</legend>
-                <label for="span-2">Fit clicks <select id="span-2" class="lane-span" aria-label="Subdivision 2 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
+                <label for="span-2">Fit <select id="span-2" class="lane-span" aria-label="Subdivision 2 span"><option value="beat">per quarter note</option><option value="bar">per bar</option></select></label>
                 <label class="check-option" for="offbeats-2"><input id="offbeats-2" type="checkbox" class="offbeats-only">Offbeats only</label>
               </fieldset>
+              <div class="grouping-setting"><label class="label" for="grouping">Custom grouping</label><div class="grouping-entry"><input id="grouping" type="text" value="4" autocomplete="off" spellcheck="false" aria-describedby="grouping-help grouping-error"><button type="button" id="apply-grouping">Apply</button></div><span id="grouping-help">Group starts are accented.</span><span id="grouping-error" role="alert" hidden></span></div>
             </div>
-            <p class="advanced-help">Use the beat top bar to check beats on/off (skip), add beats, copy a beat and click any <kbd>+</kbd> slot above the ruler to insert it between beats, or drag beat numbers to reorder (hold <kbd>Alt/⌥</kbd> while dragging to copy). Click any marker to cycle through all sounds and rest (Beat also includes main accents); right-click or long-press any marker to jump directly to any sound, accent, or beat end. Drag a beat’s trim handle to shorten it while keeping tick spacing. <kbd>Space</kbd> plays, <kbd>T</kbd> taps tempo, <kbd>Ctrl/⌘+Z</kbd> undoes.</p>
           </div>
-        </details>
-        <a id="embed-more" class="embed-more-link" href="./" target="_top" hidden>More</a>
+          <a id="embed-more" class="embed-more-link" href="./" target="_top" hidden>Open full app</a>
+        </div>
         <div class="volume-control">
           <button type="button" id="mute-all" class="icon-button" aria-label="Mute master volume" title="Mute master volume" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button>
           <input class="range" type="range" id="volume" min="0" max="200" value="160" aria-label="Master volume">
@@ -128,9 +131,37 @@
         </div>
       </div>
     </div>
+
+    <section id="ideas-panel" class="ideas-panel" aria-labelledby="ideas-heading">
+      <div class="ideas-toolbar">
+        <h2 id="ideas-heading" class="ideas-heading">Ideas</h2>
+        <div class="ideas-auth">
+          <span id="ideas-user" class="ideas-user" hidden></span>
+          <button type="button" id="auth-signin" class="ideas-auth-btn">Sign in</button>
+          <button type="button" id="auth-signout" class="ideas-signout-btn" hidden>Sign out</button>
+        </div>
+      </div>
+      <p id="ideas-error" class="ideas-error" role="alert" hidden></p>
+      <div class="ideas-table-wrap" tabindex="0" role="region" aria-labelledby="ideas-heading">
+        <table class="ideas-table">
+          <thead>
+            <tr>
+              <th scope="col">Idea</th>
+              <th scope="col">By</th>
+              <th scope="col" class="ideas-col-actions"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="ideas-tbody"></tbody>
+        </table>
+        <p id="ideas-empty" class="ideas-empty">No saved ideas yet.</p>
+      </div>
+    </section>
+
     <p id="message" class="message" role="alert" hidden></p>
   </main>
+
   <div id="undo-toast" class="undo-toast" hidden><span id="undo-text" role="status"></span><button type="button" id="undo">Undo</button></div>
+
   <div id="marker-menu" class="marker-menu" role="dialog" aria-labelledby="marker-menu-title" hidden>
     <div class="marker-menu-header">
       <p id="marker-menu-title" class="marker-menu-title"></p>
@@ -142,6 +173,7 @@
       <button type="button" id="marker-trim" class="sound-chip trim-chip" aria-pressed="false">End beat here</button>
     </div>
   </div>
+
   <div id="beat-menu" class="beat-menu" role="dialog" aria-labelledby="beat-menu-title" hidden>
     <div class="marker-menu-header">
       <p id="beat-menu-title" class="marker-menu-title"></p>
@@ -158,9 +190,44 @@
       <button type="button" id="beat-menu-delete" class="beat-menu-item beat-menu-danger">Delete beat</button>
     </div>
   </div>
+
+  <dialog id="save-dialog" class="save-dialog" closedby="any" aria-labelledby="save-dialog-title">
+    <form id="idea-form" class="save-dialog-form" novalidate>
+      <div class="save-dialog-header">
+        <h2 id="save-dialog-title" class="save-dialog-title">Save idea</h2>
+        <button type="button" id="save-dialog-close" class="icon-button popover-close" aria-label="Close save dialog">×</button>
+      </div>
+      <label class="save-field" for="idea-title">
+        <span class="label">Name</span>
+        <input id="idea-title" type="text" maxlength="60" autocomplete="off" placeholder="Idea 1">
+      </label>
+      <div id="save-guest-row" class="save-user-block">
+        <label class="save-field" for="idea-author">
+          <span class="label">User</span>
+          <input id="idea-author" type="text" maxlength="40" autocomplete="nickname" placeholder="Anon">
+        </label>
+        <div id="save-signin-row" class="save-signin-row">
+          <span class="save-or">or</span>
+          <button type="button" id="save-signin" class="save-google-btn">Sign in with Google</button>
+        </div>
+      </div>
+      <div id="save-account-row" class="save-account-row" hidden>
+        <span class="label">User</span>
+        <span id="save-account-name" class="ideas-user"></span>
+        <button type="button" id="save-signout" class="ideas-signout-btn">Sign out</button>
+      </div>
+      <p id="save-error" class="save-dialog-error" role="alert" hidden></p>
+      <div class="save-dialog-actions">
+        <button type="button" id="save-cancel" class="save-cancel-btn">Cancel</button>
+        <button type="button" id="idea-update" class="ideas-update-btn" hidden>Update</button>
+        <button type="submit" id="idea-save" class="ideas-save-btn">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="share-dialog" class="share-dialog" closedby="any" aria-labelledby="share-title">
     <form method="dialog">
-      <label id="share-title" class="share-dialog-title" for="share-link">Copy setup link</label>
+      <label id="share-title" class="share-dialog-title" for="share-link">Copy link</label>
       <input type="url" id="share-link" readonly>
       <div class="share-dialog-actions">
         <button type="button" id="share-copy" class="share-copy-btn">Select link</button>
