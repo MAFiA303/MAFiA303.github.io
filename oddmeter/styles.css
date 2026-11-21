@@ -666,21 +666,38 @@ kbd {
 }
 .beat-selection {
   display: inline-flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   min-width: 0;
+  max-width: 100%;
   border: 1px solid color-mix(in oklab, var(--sound-cowbell) 58%, var(--line));
   border-radius: var(--radius-sm);
   background: color-mix(in oklab, var(--sound-cowbell) 14%, var(--well));
   overflow: hidden;
 }
+.beat-selection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
 .beat-selection .clipboard-label {
   color: var(--sound-cowbell);
-  padding-inline: 6px;
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.beat-selection-actions {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid color-mix(in oklab, var(--sound-cowbell) 32%, transparent);
 }
 .selection-copy,
-.selection-repeat {
+.selection-repeat,
+.selection-delete {
+  flex: 1 0 auto;
   min-block-size: 24px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border: 0;
   border-left: 1px solid color-mix(in oklab, var(--sound-cowbell) 32%, transparent);
   border-radius: 0;
@@ -691,6 +708,9 @@ kbd {
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
+}
+.selection-copy {
+  border-left: 0;
 }
 .selection-copy:not(:disabled):hover {
   background: color-mix(in oklab, var(--sound-cowbell) 34%, transparent);
@@ -703,7 +723,19 @@ kbd {
   background: color-mix(in oklab, var(--repeat) 36%, transparent);
   color: var(--text);
 }
+.selection-delete {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent-hover);
+}
+.selection-delete:not(:disabled):hover {
+  background: color-mix(in oklab, var(--accent) 34%, transparent);
+  color: var(--text);
+}
+.beat-selection button:focus-visible {
+  outline-offset: -2px;
+}
 .beat-selection .clipboard-clear {
+  min-block-size: 22px;
   border-left-color: color-mix(in oklab, var(--sound-cowbell) 32%, transparent);
   color: var(--sound-cowbell);
 }

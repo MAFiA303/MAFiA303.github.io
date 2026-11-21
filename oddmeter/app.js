@@ -1,8 +1,8 @@
 import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatRepeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, playbackSequence, pulseBeatFraction, subdivisionName } from './rhythm.js?v=repeat1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
-import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeat } from './practice.js?v=repeat1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=repeat1';
-import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=repeat1';
+import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats } from './practice.js?v=delete1';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
+import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=delete1';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -12,7 +12,7 @@ const ui = {
   timelineScroll: document.querySelector('[data-timeline-scroll]'),
   addBeat: byId('add-beat'),
   liveBeat: byId('live-beat'), liveBeatNum: byId('live-beat-num'), liveBeatPass: byId('live-beat-pass'),
-  beatSelection: byId('beat-selection'), selectionLabel: byId('selection-label'), selectionCopy: byId('selection-copy'), selectionRepeat: byId('selection-repeat'), clearSelection: byId('clear-selection'),
+  beatSelection: byId('beat-selection'), selectionLabel: byId('selection-label'), selectionCopy: byId('selection-copy'), selectionRepeat: byId('selection-repeat'), selectionDelete: byId('selection-delete'), clearSelection: byId('clear-selection'),
   beatClipboard: byId('beat-clipboard'), clipboardLabel: byId('clipboard-label'), clearClipboard: byId('clear-clipboard'),
   repeatBrackets: byId('repeat-brackets'), pasteSlots: byId('paste-slots'),
   trimBadge: byId('trim-badge'), trimLabel: byId('trim-label'), trimReset: byId('trim-reset'),
@@ -989,7 +989,7 @@ function toggleBeatSelection(beat, event = null) {
   renderBeatHeaders();
   const list = sortedSelectedBeats();
   ui.pulseFeedback.textContent = list.length
-    ? `Selected ${formatBeatRangeLabel(list)}. Click Copy or press Ctrl/⌘+C.`
+    ? `Selected ${formatBeatRangeLabel(list)}. Click Copy, Repeat, or Delete.`
     : 'Beat selection cleared.';
 }
 
@@ -1256,22 +1256,42 @@ function moveBeatColumn(fromBeat, toBeat, { focusKey = '' } = {}) {
   ui.pulseFeedback.textContent = `${label}.`;
 }
 
-function deleteBeatColumn(beat) {
-  if (settings.beats <= limits.meter[0] || beat < 0 || beat >= settings.beats) return;
-  const label = `Deleted beat ${beat + 1}`;
+function deleteBeatColumns(indices) {
+  const sorted = [...new Set(indices.filter((beat) => Number.isInteger(beat) && beat >= 0 && beat < settings.beats))].sort((a, b) => a - b);
+  if (!sorted.length) return;
+  if (settings.beats - sorted.length < limits.meter[0]) {
+    ui.pulseFeedback.textContent = 'At least one beat must stay in the bar.';
+    return;
+  }
+  const rangeLabel = formatBeatRangeLabel(sorted);
+  const label = sorted.length === 1 ? `Deleted beat ${sorted[0] + 1}` : `Deleted ${rangeLabel}`;
+  const delSet = new Set(sorted);
+  if (beatMenuTarget >= 0) closeBeatMenu();
   undoable(() => {
-    if (!deleteBeat(settings, beat)) return;
+    if (!deleteBeats(settings, sorted)) return;
     selectedBeats.clear();
     selectionAnchor = -1;
     if (beatClipboard?.sourceBeats?.length) {
       beatClipboard.sourceBeats = beatClipboard.sourceBeats
-        .filter((src) => src !== beat)
-        .map((src) => (src > beat ? src - 1 : src));
-      if (beatClipboard.sourceBeats.length) beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+        .filter((src) => !delSet.has(src))
+        .map((src) => src - sorted.filter((d) => d < src).length);
+      if (beatClipboard.sourceBeats.length === beatClipboard.snapshots.length) {
+        beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+      } else if (beatClipboard.snapshots.length > 1) {
+        beatClipboard.label = `${beatClipboard.snapshots.length} beats`;
+      }
     }
     timingChanged({ meter: true, restart: true });
   }, label);
   ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function deleteBeatColumn(beat) {
+  deleteBeatColumns([beat]);
+}
+
+function deleteSelectedBeats() {
+  deleteBeatColumns(sortedSelectedBeats());
 }
 
 function clearBeatDragIndicators() {
@@ -1588,6 +1608,7 @@ function closeBeatMenu(returnFocus = false) {
 ui.addBeat?.addEventListener('click', addBeat);
 ui.selectionCopy?.addEventListener('click', copySelectedBeats);
 ui.selectionRepeat?.addEventListener('click', repeatSelectedBeats);
+ui.selectionDelete?.addEventListener('click', deleteSelectedBeats);
 ui.clearSelection?.addEventListener('click', () => clearBeatSelection(true));
 ui.clearClipboard?.addEventListener('click', () => clearBeatClipboard(true));
 ui.beatMenuClose?.addEventListener('click', () => closeBeatMenu(true));
@@ -1843,17 +1864,27 @@ function renderBeatHeaders() {
   }
   if (ui.beatSelection) {
     ui.beatSelection.hidden = !hasSelection;
+    const selLabel = hasSelection ? formatBeatRangeLabel(selected) : '';
     if (ui.selectionLabel && hasSelection) {
-      const selLabel = formatBeatRangeLabel(selected);
       ui.selectionLabel.textContent = selLabel;
-      ui.selectionLabel.title = `${selLabel} selected · Click Copy, Repeat, or press Ctrl/⌘+C`;
+      ui.selectionLabel.title = `${selLabel} selected · Copy, Repeat, or Delete`;
     }
     if (ui.selectionRepeat) {
       const contiguous = isContiguousSelection(selected);
       ui.selectionRepeat.disabled = !contiguous;
       ui.selectionRepeat.title = contiguous
-        ? `Repeat ${formatBeatRangeLabel(selected)} (×2, ×3, …)`
+        ? `Repeat ${selLabel} (×2, ×3, …)`
         : 'Select adjacent beats to repeat as a section';
+    }
+    if (ui.selectionDelete) {
+      const canDelete = hasSelection && settings.beats - selected.length >= limits.meter[0];
+      ui.selectionDelete.disabled = !canDelete;
+      ui.selectionDelete.setAttribute('aria-label', selected.length === 1
+        ? `Delete beat ${selected[0] + 1}`
+        : `Delete selected beats (${selLabel})`);
+      ui.selectionDelete.title = canDelete
+        ? (selected.length === 1 ? `Delete beat ${selected[0] + 1} (Delete)` : `Delete ${selLabel} (Delete)`)
+        : 'At least one beat must stay in the bar';
     }
   }
   if (ui.beatClipboard) {
@@ -3802,6 +3833,13 @@ document.addEventListener('keydown', (event) => {
     if (openFloat) { closeFloating(openFloat.popover, { restore: true }); event.preventDefault(); return; }
     if (selectedBeats.size > 0) { clearBeatSelection(true); event.preventDefault(); return; }
     if (beatClipboard) { clearBeatClipboard(true); event.preventDefault(); return; }
+  }
+  if ((event.key === 'Delete' || event.key === 'Backspace') && selectedBeats.size > 0 &&
+      !menuTarget && beatMenuTarget < 0 &&
+      !event.target.closest('input:not([type="checkbox"]), select, textarea, [contenteditable], .trim-handle, .sound-menu, .floating-popover')) {
+    event.preventDefault();
+    if (!event.repeat) deleteSelectedBeats();
+    return;
   }
   if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable], .sound-menu, .floating-popover')) return;
   if (event.key === '+' || event.key === '=' || event.key === '-') { event.preventDefault(); setTempo(settings.bpm + (event.key === '-' ? -5 : 5)); return; }

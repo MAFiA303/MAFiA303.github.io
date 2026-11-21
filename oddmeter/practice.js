@@ -354,36 +354,68 @@ export function insertBeats(settings, atIndex, snapshots = [null]) {
   return true;
 }
 
-export function deleteBeat(settings, beat) {
-  if (settings.beats <= limits.meter[0]) return false;
-  if (!Number.isInteger(beat) || beat < 0 || beat >= settings.beats) return false;
+export function deleteBeats(settings, beats) {
+  if (!Array.isArray(beats) || beats.length === 0) return false;
   const prevBeats = settings.beats;
-  const nextBeats = prevBeats - 1;
+  if (!beats.every((beat) => Number.isInteger(beat) && beat >= 0 && beat < prevBeats)) return false;
+  const unique = [...new Set(beats)].sort((a, b) => a - b);
+  const nextBeats = prevBeats - unique.length;
+  if (nextBeats < limits.meter[0]) return false;
+  const delSet = new Set(unique);
   settings.beats = nextBeats;
   settings.grouping = [nextBeats];
   const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
-  settings.beatEnds = [...prevEnds];
-  settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
-  settings.beatEnds.splice(beat, 1);
-  settings.beatEnds.splice(nextBeats, 0, null);
-  settings.beatEnds.length = 32;
-  settings.beatEnabled.splice(beat, 1);
-  settings.beatEnabled.splice(nextBeats, 0, true);
-  settings.beatEnabled.length = 32;
+  const prevEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  const nextEnds = [];
+  const nextEnabled = [];
+  for (let beat = 0; beat < prevBeats; beat++) {
+    if (!delSet.has(beat)) {
+      nextEnds.push(prevEnds[beat]);
+      nextEnabled.push(prevEnabled[beat]);
+    }
+  }
+  while (nextEnds.length < prevBeats) {
+    nextEnds.push(null);
+    nextEnabled.push(true);
+  }
+  settings.beatEnds = [...nextEnds, ...prevEnds.slice(prevBeats, 32)].slice(0, 32);
+  settings.beatEnabled = [...nextEnabled, ...prevEnabled.slice(prevBeats, 32)].slice(0, 32);
   if (!settings.beatEnabled.slice(0, nextBeats).some(Boolean)) settings.beatEnabled[0] = true;
   if (Array.isArray(settings.beatRepeats)) {
+    const remap = new Map();
+    let mapped = 0;
+    for (let beat = 0; beat < prevBeats; beat++) {
+      if (!delSet.has(beat)) remap.set(beat, mapped++);
+    }
     settings.beatRepeats = normalizeBeatRepeats(settings.beatRepeats.flatMap((rep) => {
-      if (beat < rep.start) return [{ ...rep, start: rep.start - 1, end: rep.end - 1 }];
-      if (beat <= rep.end) return rep.start === rep.end ? [] : [{ ...rep, end: rep.end - 1 }];
-      return [rep];
+      let start = -1;
+      let end = -1;
+      const from = Math.max(0, rep.start);
+      const to = Math.min(prevBeats - 1, rep.end);
+      for (let beat = from; beat <= to; beat++) {
+        if (!remap.has(beat)) continue;
+        const idx = remap.get(beat);
+        if (start < 0) start = idx;
+        end = idx;
+      }
+      return start >= 0 ? [{ ...rep, start, end }] : [];
     }), nextBeats);
   }
   settings.lanes.forEach((lane, index) => {
     editLaneBeatColumns(lane, index, nextBeats, (columns) => {
-      columns.splice(beat, 1);
-      columns.splice(nextBeats, 0, { count: lane.count, explicit: null, markers: {} });
+      const kept = [];
+      for (let beat = 0; beat < prevBeats; beat++) {
+        if (!delSet.has(beat)) kept.push(columns[beat]);
+      }
+      while (kept.length < prevBeats) kept.push({ count: lane.count, explicit: null, markers: {} });
+      const dormant = columns.slice(prevBeats, 32);
+      columns.splice(0, columns.length, ...kept, ...dormant);
       columns.length = 32;
     }, prevEnds, settings.beatEnds);
   });
   return true;
+}
+
+export function deleteBeat(settings, beat) {
+  return deleteBeats(settings, [beat]);
 }

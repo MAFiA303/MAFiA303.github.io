@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=playhead2">
-  <script type="module" src="./app.js?v=playhead2"></script>
+  <link rel="stylesheet" href="./styles.css?v=delete1">
+  <script type="module" src="./app.js?v=delete1"></script>
 </head>
 <body>
   <header class="site-header">
@@ -67,10 +67,15 @@
                     <span id="live-beat-pass" class="live-beat-pass" hidden></span>
                   </div>
                   <div id="beat-selection" class="beat-selection" hidden>
-                    <span id="selection-label" class="clipboard-label"></span>
-                    <button type="button" id="selection-copy" class="selection-copy" aria-label="Copy selected beats" title="Copy selected beats (Ctrl/⌘+C)">Copy</button>
-                    <button type="button" id="selection-repeat" class="selection-repeat" aria-label="Repeat selected section" title="Repeat selected beats (×2, ×3, …)">Repeat</button>
-                    <button type="button" id="clear-selection" class="clipboard-clear" aria-label="Clear beat selection" title="Clear selection (Esc)">×</button>
+                    <div class="beat-selection-head">
+                      <span id="selection-label" class="clipboard-label"></span>
+                      <button type="button" id="clear-selection" class="clipboard-clear" aria-label="Clear beat selection" title="Clear selection (Esc)">×</button>
+                    </div>
+                    <div class="beat-selection-actions" role="group" aria-label="Selected beat actions">
+                      <button type="button" id="selection-copy" class="selection-copy" aria-label="Copy selected beats" title="Copy selected beats (Ctrl/⌘+C)">Copy</button>
+                      <button type="button" id="selection-repeat" class="selection-repeat" aria-label="Repeat selected section" title="Repeat selected beats (×2, ×3, …)">Repeat</button>
+                      <button type="button" id="selection-delete" class="selection-delete" aria-label="Delete selected beats" title="Delete selected beats (Delete)">Delete</button>
+                    </div>
                   </div>
                   <div id="beat-clipboard" class="beat-clipboard" hidden>
                     <span id="clipboard-label" class="clipboard-label">Copied</span>
