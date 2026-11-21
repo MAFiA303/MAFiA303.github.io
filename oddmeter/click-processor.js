@@ -1,4 +1,4 @@
-import { beatLayout, eventFrame, hasBeatSkip, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnabled, normalizeBeatEnds } from './rhythm.js?v=extend1';
+import { beatLayout, eventFrame, hasBeatRepeats, hasBeatSkip, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnabled, normalizeBeatEnds, normalizeBeatRepeats, playbackSequence } from './rhythm.js?v=repeat1';
 import { makeSoundBank } from './sounds.js?v=audio1';
 
 const regularGain = 0.45;
@@ -45,13 +45,14 @@ class ClickProcessor extends AudioWorkletProcessor {
     this.voices.push({ frame: Math.max(currentFrame, frame), wave, gain: accented ? accentGain : regularGain });
   }
 
-  postClock(id, countIn, beatEnds, beatEnabled) {
+  postClock(id, countIn, beatEnds, beatEnabled, beatRepeats) {
     const { origin, duration, countDuration, countStart, carry } = this.clock;
     this.port.postMessage({
       id, origin, duration, countStart, countIn,
       ...(beatEnds ? { beatEnds } : {}),
       ...(beatEnabled ? { beatEnabled } : {}),
-      ...(beatEnds || beatEnabled ? { countDuration } : {}),
+      ...(beatRepeats ? { beatRepeats } : {}),
+      ...(beatEnds || beatEnabled || beatRepeats ? { countDuration } : {}),
       ...(carry ? { carry } : {}),
     });
   }
@@ -59,11 +60,12 @@ class ClickProcessor extends AudioWorkletProcessor {
   startClock(frame, { id, settings, countIn, restart = false }) {
     const beatEnds = hasBeatTrim(settings.beatEnds, settings.beats) ? normalizeBeatEnds(settings.beatEnds, settings.beats) : null;
     const beatEnabled = hasBeatSkip(settings.beatEnabled, settings.beats) ? normalizeBeatEnabled(settings.beatEnabled, settings.beats) : null;
-    const fullDuration = measureSeconds({ ...settings, beatEnds: null, beatEnabled: null }) * sampleRate;
-    const duration = measureSeconds({ ...settings, beatEnds, beatEnabled }) * sampleRate;
-    const events = settings.lanes ? makeRhythmCycle(settings.lanes, settings.beats, beatEnds, beatEnabled)
+    const beatRepeats = hasBeatRepeats(settings.beatRepeats, settings.beats) ? normalizeBeatRepeats(settings.beatRepeats, settings.beats) : null;
+    const fullDuration = measureSeconds({ ...settings, beatEnds: null, beatEnabled: null, beatRepeats: null }) * sampleRate;
+    const duration = measureSeconds({ ...settings, beatEnds, beatEnabled, beatRepeats }) * sampleRate;
+    const events = settings.lanes ? makeRhythmCycle(settings.lanes, settings.beats, beatEnds, beatEnabled, beatRepeats)
       : settings.beatDivisions ? makeSubdivisionCycle(settings.beatDivisions) : makeCycle(settings.pulses);
-    const trimKey = beatEnds || beatEnabled ? JSON.stringify([beatEnds, beatEnabled]) : 'full';
+    const trimKey = beatEnds || beatEnabled || beatRepeats ? JSON.stringify([beatEnds, beatEnabled, beatRepeats]) : 'full';
     const key = JSON.stringify([settings.beats, settings.unit, trimKey, settings.lanes ?? settings.beatDivisions ?? settings.pulses]);
     const sameMeter = this.clock?.beats === settings.beats && this.clock?.unit === settings.unit;
     const sameTrim = (this.clock?.trimKey ?? 'full') === trimKey;
@@ -75,8 +77,8 @@ class ClickProcessor extends AudioWorkletProcessor {
       const progress = (frame - this.clock.countStart) / prevCountDuration;
       const countStart = Math.round(frame - progress * fullDuration);
       const origin = countStart + Math.round(fullDuration);
-      Object.assign(this.clock, { key, trimKey, beatEnds, beatEnabled, countStart, countDuration: fullDuration, origin, duration, events, carry: null });
-      this.postClock(id, true, beatEnds, beatEnabled);
+      Object.assign(this.clock, { key, trimKey, beatEnds, beatEnabled, beatRepeats, countStart, countDuration: fullDuration, origin, duration, events, carry: null });
+      this.postClock(id, true, beatEnds, beatEnabled, beatRepeats);
       return;
     }
     if (!restart && !countIn && this.clock && (frame >= this.clock.origin || hasActiveCarry)) {
@@ -87,7 +89,7 @@ class ClickProcessor extends AudioWorkletProcessor {
         this.clock.duration = duration;
         this.clock.countDuration = fullDuration;
         this.clock.carry = null;
-        this.postClock(id, false, beatEnds, beatEnabled);
+        this.postClock(id, false, beatEnds, beatEnabled, beatRepeats);
         return;
       }
       if (!hasActiveCarry && sameMeter && sameTrim) {
@@ -100,6 +102,7 @@ class ClickProcessor extends AudioWorkletProcessor {
           trimKey,
           beatEnds,
           beatEnabled,
+          beatRepeats,
           beats: settings.beats,
           unit: settings.unit,
           origin,
@@ -113,16 +116,17 @@ class ClickProcessor extends AudioWorkletProcessor {
           countBeats: 0,
           carry: null,
         };
-        this.postClock(id, false, beatEnds, beatEnabled);
+        this.postClock(id, false, beatEnds, beatEnabled, beatRepeats);
         return;
       }
       if (sameMeter) {
-        // Preserve the current beat and local position in real time:
+        // Preserve the current beat, pass, and local position in real time:
         // changes behind the playhead take effect on the next cycle, while
         // changes ahead of the playhead take effect as playback reaches them.
         const prevBeatSamples = (this.clock.countDuration ?? this.clock.duration) / this.clock.beats;
-        const prevLayout = beatLayout(this.clock.beats, this.clock.beatEnds, this.clock.beatEnabled);
+        const prevSeq = playbackSequence(this.clock.beats, this.clock.beatEnds, this.clock.beatEnabled, this.clock.beatRepeats);
         let curBeat;
+        let curPass = 1;
         let localOffset;
         if (hasActiveCarry) {
           curBeat = this.clock.carry.beat;
@@ -130,30 +134,34 @@ class ClickProcessor extends AudioWorkletProcessor {
         } else {
           const progress = (frame - this.clock.origin) / this.clock.duration;
           const barPhase = ((progress % 1) + 1) % 1;
-          const prevBeatTime = barPhase * prevLayout.totalFloat;
-          curBeat = prevLayout.enabled.lastIndexOf(true);
-          for (let beat = 0; beat < this.clock.beats; beat++) {
-            if (!prevLayout.enabled[beat]) continue;
-            if (prevBeatTime < prevLayout.startsFloat[beat] + prevLayout.lengthsFloat[beat]) {
-              curBeat = beat;
+          const prevBeatTime = barPhase * prevSeq.totalFloat;
+          let activeStep = prevSeq.steps[prevSeq.steps.length - 1];
+          for (const step of prevSeq.steps) {
+            if (prevBeatTime < step.startFloat + step.lenFloat) {
+              activeStep = step;
               break;
             }
           }
-          localOffset = Math.max(0, prevBeatTime - prevLayout.startsFloat[curBeat]);
+          curBeat = activeStep.beat;
+          curPass = activeStep.pass;
+          localOffset = Math.max(0, prevBeatTime - activeStep.startFloat);
         }
-        const newLayout = beatLayout(settings.beats, beatEnds, beatEnabled);
+        const newSeq = playbackSequence(settings.beats, beatEnds, beatEnabled, beatRepeats);
+        const newLayout = newSeq.layout;
         const beatSamples = fullDuration / settings.beats;
         let origin;
         let measure;
         let eventIndex;
         let carry = null;
         if (newLayout.enabled[curBeat]) {
-          const newLen = newLayout.lengthsFloat[curBeat];
+          const matching = newSeq.steps.filter((step) => step.beat === curBeat);
+          const targetStep = matching[Math.min(curPass - 1, matching.length - 1)] ?? newSeq.steps[0];
+          const newLen = targetStep.lenFloat;
           const clampedLocal = Math.min(localOffset, newLen);
-          const newBeatTime = newLayout.startsFloat[curBeat] + clampedLocal;
+          const newBeatTime = targetStep.startFloat + clampedLocal;
           origin = Math.round(frame - newBeatTime * beatSamples);
           if (localOffset >= newLen) {
-            const targetPhase = newBeatTime / newLayout.totalFloat;
+            const targetPhase = newBeatTime / newSeq.totalFloat;
             const nextEvent = targetPhase >= 1 - 1e-9 ? -1 : events.findIndex((event) => event.phase >= targetPhase - 1e-9);
             measure = nextEvent === -1 ? 1 : 0;
             eventIndex = nextEvent === -1 ? 0 : nextEvent;
@@ -163,13 +171,13 @@ class ClickProcessor extends AudioWorkletProcessor {
             eventIndex = nextEvent === -1 ? 0 : nextEvent;
           }
         } else {
-          const prevLen = hasActiveCarry ? this.clock.carry.len : prevLayout.lengthsFloat[curBeat];
+          const prevLen = hasActiveCarry ? this.clock.carry.len : prevSeq.layout.lengthsFloat[curBeat];
           const beatStart = Math.round(frame - localOffset * beatSamples);
           const boundaryFrame = Math.round(beatStart + prevLen * beatSamples);
           carry = { beat: curBeat, start: beatStart, end: boundaryFrame, len: prevLen };
-          const nextBeat = newLayout.enabled.findIndex((on, beat) => on && beat > curBeat);
-          if (nextBeat >= 0) {
-            const targetPhase = newLayout.startsFloat[nextBeat] / newLayout.totalFloat;
+          const nextStep = newSeq.steps.find((step) => step.beat > curBeat);
+          if (nextStep) {
+            const targetPhase = nextStep.startFloat / newSeq.totalFloat;
             origin = Math.round(boundaryFrame - targetPhase * duration);
             const nextEvent = events.findIndex((event) => event.phase >= targetPhase - 1e-9);
             measure = nextEvent === -1 ? 1 : 0;
@@ -185,6 +193,7 @@ class ClickProcessor extends AudioWorkletProcessor {
           trimKey,
           beatEnds,
           beatEnabled,
+          beatRepeats,
           beats: settings.beats,
           unit: settings.unit,
           origin,
@@ -198,7 +207,7 @@ class ClickProcessor extends AudioWorkletProcessor {
           countBeats: 0,
           carry,
         };
-        this.postClock(id, false, beatEnds, beatEnabled);
+        this.postClock(id, false, beatEnds, beatEnabled, beatRepeats);
         return;
       }
     }
@@ -209,6 +218,7 @@ class ClickProcessor extends AudioWorkletProcessor {
       trimKey,
       beatEnds,
       beatEnabled,
+      beatRepeats,
       beats: settings.beats,
       unit: settings.unit,
       origin,
@@ -222,7 +232,7 @@ class ClickProcessor extends AudioWorkletProcessor {
       countBeats: countIn ? settings.beats : 0,
       carry: null,
     };
-    this.postClock(id, countIn, beatEnds, beatEnabled);
+    this.postClock(id, countIn, beatEnds, beatEnabled, beatRepeats);
   }
 
   schedule(blockEnd) {

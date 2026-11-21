@@ -1,4 +1,4 @@
-import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds } from './rhythm.js?v=extend1';
+import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats } from './rhythm.js?v=repeat1';
 import { soundOptions } from './sounds.js?v=audio1';
 
 // Tempo references are measured in quarter notes, independently of the meter.
@@ -253,25 +253,36 @@ export function snapshotBeat(settings, beat) {
 }
 
 export function pasteBeat(settings, targetBeat, snapshot, { includeEnabled = false } = {}) {
-  if (!Number.isInteger(targetBeat) || targetBeat < 0 || targetBeat >= settings.beats) return false;
-  if (!snapshot || !Array.isArray(snapshot.lanes) || snapshot.lanes.length !== settings.lanes.length) return false;
+  return pasteBeats(settings, targetBeat, snapshot ? [snapshot] : [], { includeEnabled });
+}
+
+export function pasteBeats(settings, startBeat, snapshots, { includeEnabled = false } = {}) {
+  if (!Number.isInteger(startBeat) || startBeat < 0 || startBeat >= settings.beats) return false;
+  if (!Array.isArray(snapshots) || snapshots.length === 0) return false;
+  const usable = snapshots.slice(0, settings.beats - startBeat);
+  if (!usable.every((snap) => snap && Array.isArray(snap.lanes) && snap.lanes.length === settings.lanes.length)) return false;
   const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
   settings.beatEnds = [...prevEnds];
-  settings.beatEnds[targetBeat] = normalizeBeatEnd(snapshot.beatEnd);
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
-  if (includeEnabled) {
-    settings.beatEnabled[targetBeat] = snapshot.enabled !== false;
-    if (!settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[targetBeat] = true;
+  usable.forEach((snap, offset) => {
+    const target = startBeat + offset;
+    settings.beatEnds[target] = normalizeBeatEnd(snap.beatEnd);
+    if (includeEnabled) settings.beatEnabled[target] = snap.enabled !== false;
+  });
+  if (includeEnabled && !settings.beatEnabled.slice(0, settings.beats).some(Boolean)) {
+    settings.beatEnabled[startBeat] = true;
   }
   settings.lanes.forEach((lane, index) => {
-    const source = snapshot.lanes[index];
     editLaneBeatColumns(lane, index, settings.beats, (columns) => {
-      const count = index === 0 ? 1 : clampInt(source?.count, limits.pulses, lane.count);
-      columns[targetBeat] = {
-        count,
-        explicit: index === 0 ? null : count,
-        markers: cloneMarkerRecord(source?.markers),
-      };
+      usable.forEach((snap, offset) => {
+        const source = snap.lanes[index];
+        const count = index === 0 ? 1 : clampInt(source?.count, limits.pulses, lane.count);
+        columns[startBeat + offset] = {
+          count,
+          explicit: index === 0 ? null : count,
+          markers: cloneMarkerRecord(source?.markers),
+        };
+      });
     }, prevEnds, settings.beatEnds);
   });
   return true;
@@ -299,27 +310,44 @@ export function moveBeat(settings, fromBeat, toBeat) {
 }
 
 export function insertBeat(settings, atIndex, snapshot = null) {
-  if (settings.beats >= limits.meter[1]) return false;
+  return insertBeats(settings, atIndex, [snapshot]);
+}
+
+export function insertBeats(settings, atIndex, snapshots = [null]) {
+  if (!Array.isArray(snapshots) || snapshots.length === 0) return false;
+  if (settings.beats + snapshots.length > limits.meter[1]) return false;
   if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > settings.beats) return false;
-  const nextBeats = settings.beats + 1;
+  const countToAdd = snapshots.length;
+  const nextBeats = settings.beats + countToAdd;
   settings.beats = nextBeats;
   settings.grouping = [nextBeats];
   const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
   settings.beatEnds = [...prevEnds];
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
-  settings.beatEnds.splice(atIndex, 0, snapshot ? normalizeBeatEnd(snapshot.beatEnd) : null);
+  settings.beatEnds.splice(atIndex, 0, ...snapshots.map((snap) => (snap ? normalizeBeatEnd(snap.beatEnd) : null)));
   settings.beatEnds.length = 32;
-  settings.beatEnabled.splice(atIndex, 0, true);
+  settings.beatEnabled.splice(atIndex, 0, ...snapshots.map((snap) => (snap ? snap.enabled !== false : true)));
   settings.beatEnabled.length = 32;
+  if (!settings.beatEnabled.slice(0, nextBeats).some(Boolean)) settings.beatEnabled[atIndex] = true;
+  if (Array.isArray(settings.beatRepeats)) {
+    settings.beatRepeats = normalizeBeatRepeats(settings.beatRepeats.map((rep) => {
+      if (atIndex <= rep.start) return { ...rep, start: rep.start + countToAdd, end: rep.end + countToAdd };
+      if (atIndex <= rep.end) return { ...rep, end: rep.end + countToAdd };
+      return rep;
+    }), nextBeats);
+  }
   settings.lanes.forEach((lane, index) => {
-    const source = snapshot?.lanes?.[index];
     editLaneBeatColumns(lane, index, nextBeats, (columns) => {
-      const count = index === 0 ? 1 : source ? clampInt(source.count, limits.pulses, lane.count) : lane.count;
-      columns.splice(atIndex, 0, {
-        count,
-        explicit: index === 0 ? null : source ? count : null,
-        markers: source ? cloneMarkerRecord(source.markers) : {},
+      const inserted = snapshots.map((snap) => {
+        const source = snap?.lanes?.[index];
+        const count = index === 0 ? 1 : source ? clampInt(source.count, limits.pulses, lane.count) : lane.count;
+        return {
+          count,
+          explicit: index === 0 ? null : source ? count : null,
+          markers: source ? cloneMarkerRecord(source.markers) : {},
+        };
       });
+      columns.splice(atIndex, 0, ...inserted);
       columns.length = 32;
     }, prevEnds, settings.beatEnds);
   });
@@ -343,6 +371,13 @@ export function deleteBeat(settings, beat) {
   settings.beatEnabled.splice(nextBeats, 0, true);
   settings.beatEnabled.length = 32;
   if (!settings.beatEnabled.slice(0, nextBeats).some(Boolean)) settings.beatEnabled[0] = true;
+  if (Array.isArray(settings.beatRepeats)) {
+    settings.beatRepeats = normalizeBeatRepeats(settings.beatRepeats.flatMap((rep) => {
+      if (beat < rep.start) return [{ ...rep, start: rep.start - 1, end: rep.end - 1 }];
+      if (beat <= rep.end) return rep.start === rep.end ? [] : [{ ...rep, end: rep.end - 1 }];
+      return [rep];
+    }), nextBeats);
+  }
   settings.lanes.forEach((lane, index) => {
     editLaneBeatColumns(lane, index, nextBeats, (columns) => {
       columns.splice(beat, 1);

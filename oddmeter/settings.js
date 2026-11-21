@@ -1,5 +1,5 @@
-import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=extend1';
-import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=extend1';
+import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, presets } from './rhythm.js?v=repeat1';
+import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=repeat1';
 import { defaultSounds, soundOptions } from './sounds.js?v=audio1';
 
 export const storageKey = 'oddmeter-settings-v1';
@@ -189,6 +189,7 @@ export function readSettings(value) {
     countIn: saved.countIn === true,
     beatEnds: readBeatEnds(saved.beatEnds, saved.barEnd, rhythm.beats),
     beatEnabled: readBeatEnabled(saved.beatEnabled, rhythm.beats),
+    beatRepeats: normalizeBeatRepeats(saved.beatRepeats, rhythm.beats),
   };
 }
 
@@ -198,10 +199,12 @@ export function encodeSetupSnapshot(settings) {
   const lastTrim = beatEnds.slice(0, beats).findLastIndex((value) => value !== null);
   const beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   const lastSkip = hasBeatSkip(beatEnabled, beats) ? beatEnabled.slice(0, beats).findLastIndex((value) => value === false) : -1;
+  const beatRepeats = normalizeBeatRepeats(settings.beatRepeats, beats);
   const snapshot = {
     schemaVersion, bpm, tempoBeat, beats, unit, grouping, sounds, outputVolume, masterMuted, countIn,
     ...(lastTrim >= 0 ? { beatEnds: beatEnds.slice(0, lastTrim + 1) } : {}),
     ...(lastSkip >= 0 ? { beatEnabled: beatEnabled.slice(0, lastSkip + 1) } : {}),
+    ...(beatRepeats.length ? { beatRepeats } : {}),
     lanes: settings.lanes.map(({ count, span, enabled, muted, offbeatsOnly, beatCounts, accents, rests, pulseSounds }) => ({
       count, span, enabled, muted, offbeatsOnly, accents, rests, pulseSounds,
       beatCounts: beatCounts.slice(0, beatCounts.findLastIndex((value) => value !== null) + 1),

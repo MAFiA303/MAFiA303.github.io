@@ -1,4 +1,4 @@
-import { decodeSetupSnapshot, describeSetup, encodeSetupSnapshot, ideaIdPattern, ideasStorageKey, readSettings } from './settings.js?v=extend1';
+import { decodeSetupSnapshot, describeSetup, encodeSetupSnapshot, ideaIdPattern, ideasStorageKey, readSettings } from './settings.js?v=repeat1';
 
 export const firebaseConfig = {
   apiKey: 'AIzaSyChRd_f6wT3T8FOdItMbI5x78ErLDoi85A',

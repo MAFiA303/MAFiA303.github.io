@@ -1,17 +1,20 @@
-import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=extend1';
+import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatRepeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, playbackSequence, pulseBeatFraction, subdivisionName } from './rhythm.js?v=repeat1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
-import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=extend1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=extend1';
-import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=extend1';
+import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeat } from './practice.js?v=repeat1';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=repeat1';
+import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=repeat1';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
   console: document.querySelector('.console'),
   rhythmPanel: document.querySelector('.rhythm-panel'),
   rulerRow: document.querySelector('.ruler-row'),
-  rulerScroll: document.querySelector('.ruler-scroll'),
-  addBeat: byId('add-beat'), beatClipboard: byId('beat-clipboard'), clipboardLabel: byId('clipboard-label'), clearClipboard: byId('clear-clipboard'),
-  pasteSlots: byId('paste-slots'),
+  timelineScroll: document.querySelector('[data-timeline-scroll]'),
+  addBeat: byId('add-beat'),
+  liveBeat: byId('live-beat'), liveBeatNum: byId('live-beat-num'), liveBeatPass: byId('live-beat-pass'),
+  beatSelection: byId('beat-selection'), selectionLabel: byId('selection-label'), selectionCopy: byId('selection-copy'), selectionRepeat: byId('selection-repeat'), clearSelection: byId('clear-selection'),
+  beatClipboard: byId('beat-clipboard'), clipboardLabel: byId('clipboard-label'), clearClipboard: byId('clear-clipboard'),
+  repeatBrackets: byId('repeat-brackets'), pasteSlots: byId('paste-slots'),
   trimBadge: byId('trim-badge'), trimLabel: byId('trim-label'), trimReset: byId('trim-reset'),
   trimRails: byId('trim-rails'), trimHandles: byId('trim-handles'),
   preset: byId('preset'), status: byId('status'), statusText: byId('status-text'), position: byId('position'),
@@ -39,7 +42,6 @@ const ui = {
   ideaSave: byId('idea-save'), ideaUpdate: byId('idea-update'),
   ideasUser: byId('ideas-user'), authSignin: byId('auth-signin'), authSignout: byId('auth-signout'), ideasError: byId('ideas-error'),
   ideasTbody: byId('ideas-tbody'), ideasEmpty: byId('ideas-empty'),
-  scrolls: [...document.querySelectorAll('[data-timeline-scroll]')],
 };
 const laneNames = ['Beat', 'Subdivision 1', 'Subdivision 2'];
 const lanes = [...document.querySelectorAll('.lane')].map((element, index) => {
@@ -337,7 +339,8 @@ function timingSettings() {
   // saved setup starts muted, so Unmute works without rebuilding the clock.
   const beatEnds = hasBeatTrim(settings.beatEnds, beats) ? normalizeBeatEnds(settings.beatEnds, beats) : null;
   const beatEnabled = hasBeatSkip(settings.beatEnabled, beats) ? normalizeBeatEnabled(settings.beatEnabled, beats) : null;
-  return { bpm, tempoBeat, beats, unit, beatEnds, beatEnabled, lanes: settings.lanes.map(({ count, span, enabled, beatCounts, offbeatsOnly }, index) =>
+  const beatRepeats = hasBeatRepeats(settings.beatRepeats, beats) ? normalizeBeatRepeats(settings.beatRepeats, beats) : null;
+  return { bpm, tempoBeat, beats, unit, beatEnds, beatEnabled, ...(beatRepeats ? { beatRepeats } : {}), lanes: settings.lanes.map(({ count, span, enabled, beatCounts, offbeatsOnly }, index) =>
     ({ count, span, enabled: index === 0 || enabled, beatCounts, offbeatsOnly })) };
 }
 function sendTiming(countIn = false, restart = false) {
@@ -383,7 +386,7 @@ async function prepareAudio(retries = 2) {
 }
 
 async function connectAudio(audio) {
-  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=extend1', import.meta.url));
+  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=repeat1', import.meta.url));
   if (context !== audio || audio.state === 'closed') return;
   const node = new AudioWorkletNode(audio, 'oddmeter-click', {
     numberOfInputs: 0,
@@ -470,6 +473,8 @@ async function start() {
     // Only the request still owned by the transport may begin playback.
     if (id !== startId) return;
     playing = true;
+    manualScrollUntil = 0;
+    setTimelineScroll(0, true);
     delete ui.play.dataset.starting;
     ui.play.dataset.running = '';
     ui.playLabel.textContent = 'Stop';
@@ -527,18 +532,27 @@ function light(lane, pulse) {
   pulse?.setAttribute('data-lit', '');
   lane.lit = pulse;
 }
-let programmaticScroll = false;
+let expectedProgrammaticScroll = null;
 let manualScrollUntil = 0;
 
+function timelineTrackMetrics() {
+  const scroll = ui.timelineScroll;
+  const stage = ui.ruler.parentElement;
+  const track = stage?.parentElement;
+  const stickyLeft = (track && track.offsetLeft > 0) ? track.offsetLeft : 0;
+  const stageInTrack = stage ? Math.max(0, stage.offsetLeft - stickyLeft) : 0;
+  const visibleWidth = Math.max(0, (scroll?.clientWidth ?? 0) - stickyLeft);
+  return { scroll, stage, stickyLeft, stageInTrack, visibleWidth };
+}
+
 function setTimelineScroll(next, programmatic = true) {
-  const scroll = ui.rulerScroll;
+  const scroll = ui.timelineScroll;
   if (!scroll) return;
   const max = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-  const clamped = Math.max(0, Math.min(max, next));
-  if (clamped === scroll.scrollLeft) return;
-  if (programmatic) programmaticScroll = true;
-  for (const scroller of ui.scrolls) scroller.scrollLeft = clamped;
-  if (programmatic) Promise.resolve().then(() => { programmaticScroll = false; });
+  const clamped = Math.max(0, Math.min(max, Math.round(next)));
+  if (clamped === Math.round(scroll.scrollLeft)) return;
+  expectedProgrammaticScroll = programmatic ? clamped : null;
+  scroll.scrollLeft = clamped;
 }
 
 function setCurrentBeat(beat) {
@@ -548,9 +562,90 @@ function setCurrentBeat(beat) {
   currentBeat = beat;
   if (playing && beat >= 0) followBeatDuringPlayback(beat);
 }
+let activeRepeatPassKey = '';
+function setActiveRepeatPass(repeatIndex, pass, times) {
+  const key = repeatIndex >= 0 ? `${repeatIndex}:${pass}:${times}` : '';
+  if (key === activeRepeatPassKey) return;
+  activeRepeatPassKey = key;
+  if (!ui.repeatBrackets) return;
+  [...ui.repeatBrackets.children].forEach((el, index) => {
+    const active = index === repeatIndex && pass > 0;
+    el.toggleAttribute('data-active-pass', active);
+    const label = el.querySelector('.repeat-count');
+    if (label) label.textContent = active ? `${pass}/${times}` : `×${el.dataset.times}`;
+  });
+}
+let activeBeatBandKey = '';
+function updateActiveBeatBand(beat, layout, { countIn = false } = {}) {
+  if (beat < 0 || beat >= settings.beats || !layout || !(layout.visualTotal > 0)) {
+    if (!activeBeatBandKey) return;
+    activeBeatBandKey = '';
+    ui.console.style.removeProperty('--active-beat-start');
+    ui.console.style.removeProperty('--active-beat-width');
+    return;
+  }
+  const startPct = (layout.visualStarts[beat] / layout.visualTotal) * 100;
+  const widthSpan = countIn
+    ? layout.visualWidths[beat]
+    : (layout.enabled[beat] ? layout.lengthsFloat[beat] : layout.visualWidths[beat]);
+  const widthPct = (widthSpan / layout.visualTotal) * 100;
+  const key = `${startPct.toFixed(4)}:${widthPct.toFixed(4)}`;
+  if (key === activeBeatBandKey) return;
+  activeBeatBandKey = key;
+  ui.console.style.setProperty('--active-beat-start', `${startPct}%`);
+  ui.console.style.setProperty('--active-beat-width', `${widthPct}%`);
+}
+let liveBeatKey = '';
+function setLiveBeat({ beat = -1, total = settings.beats, countIn = false, pass = 0, times = 0 } = {}) {
+  const key = beat < 0 ? '' : `${beat}:${total}:${countIn ? 1 : 0}:${pass}:${times}`;
+  if (key === liveBeatKey) return;
+  liveBeatKey = key;
+  if (!ui.liveBeat) return;
+  if (beat < 0) {
+    ui.liveBeat.hidden = true;
+    return;
+  }
+  ui.liveBeat.hidden = false;
+  if (ui.liveBeatNum) ui.liveBeatNum.textContent = countIn ? `Count ${beat + 1}/${total}` : `Beat ${beat + 1}/${total}`;
+  if (ui.liveBeatPass) {
+    const showPass = !countIn && pass > 0 && times > 1;
+    ui.liveBeatPass.hidden = !showPass;
+    if (showPass) ui.liveBeatPass.textContent = `${pass}/${times}`;
+  }
+}
+function keepPlayheadVisible(visualPhase, beatIndex = -1) {
+  if (beatDrag?.active || trimDragBeat >= 0 || performance.now() < manualScrollUntil) return;
+  const { scroll, stage, stageInTrack, visibleWidth } = timelineTrackMetrics();
+  if (!scroll || !stage || scroll.scrollWidth <= scroll.clientWidth || visibleWidth <= 0) return;
+  const stageWidth = stage.offsetWidth || 0;
+  if (stageWidth <= 0) return;
+  const head = beatIndex >= 0 ? ui.ruler.children[beatIndex] : null;
+  const headLeft = head ? stageInTrack + head.offsetLeft : 0;
+  const headWidth = head ? head.offsetWidth : 0;
+  const playheadX = stageInTrack + visualPhase * stageWidth;
+  const viewLeft = scroll.scrollLeft;
+  const viewRight = viewLeft + visibleWidth;
+  if (beatIndex === 0 && (headLeft < viewLeft || playheadX < viewLeft + 16)) {
+    setTimelineScroll(0, true);
+  } else if (playheadX < viewLeft + 16) {
+    const target = head ? Math.min(headLeft - 24, playheadX - 28) : playheadX - 28;
+    setTimelineScroll(Math.max(0, target), true);
+  } else if (playheadX > viewRight - 28) {
+    const target = head && headWidth > 0 && headWidth <= visibleWidth - 48
+      ? headLeft - 24
+      : playheadX - Math.round(visibleWidth * 0.18);
+    setTimelineScroll(Math.max(0, target), true);
+  }
+}
+
 function clearPlayhead() {
   delete ui.console.dataset.playing;
+  delete ui.console.dataset.countIn;
+  delete ui.console.dataset.inRepeat;
   setCurrentBeat(-1);
+  setActiveRepeatPass(-1, 0, 0);
+  updateActiveBeatBand(-1, null);
+  setLiveBeat();
   for (const lane of lanes) light(lane, null);
 }
 function paint(now) {
@@ -565,44 +660,94 @@ function paint(now) {
     const visualPhase = (carryLayout.visualStarts[clock.carry.beat] + localRatio * clock.carry.len) / carryLayout.visualTotal;
     status('Playing', true);
     ui.position.textContent = `${clock.carry.beat + 1}/${settings.beats}`;
-    setCurrentBeat(clock.carry.beat);
+    delete ui.console.dataset.countIn;
+    delete ui.console.dataset.inRepeat;
     ui.console.dataset.playing = '';
+    setCurrentBeat(clock.carry.beat);
+    setActiveRepeatPass(-1, 0, 0);
+    updateActiveBeatBand(clock.carry.beat, carryLayout);
+    setLiveBeat({ beat: clock.carry.beat, total: settings.beats });
     ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
+    keepPlayheadVisible(visualPhase, clock.carry.beat);
     for (const lane of lanes) light(lane, null);
     return;
   }
   if (frame < clock.origin) {
     if (clock.countIn && frame >= clock.countStart) {
-      status('Count-in', true);
       const countDuration = clock.countDuration ?? clock.duration;
-      const beat = Math.min(settings.beats, Math.floor((frame - clock.countStart) * settings.beats / countDuration) + 1);
+      const countPhase = Math.max(0, Math.min(0.999999, (frame - clock.countStart) / countDuration));
+      const beat = Math.min(settings.beats, Math.floor(countPhase * settings.beats) + 1);
+      const countLayout = beatLayout(settings.beats, clock.beatEnds, clock.beatEnabled);
+      const localPhase = countPhase * settings.beats - (beat - 1);
+      const visualPhase = (countLayout.visualStarts[beat - 1] + localPhase * countLayout.visualWidths[beat - 1]) / countLayout.visualTotal;
+      status('Count-in', true);
       ui.position.textContent = `${beat}/${settings.beats}`;
+      delete ui.console.dataset.playing;
+      delete ui.console.dataset.inRepeat;
+      ui.console.dataset.countIn = '';
       setCurrentBeat(beat - 1);
+      setActiveRepeatPass(-1, 0, 0);
+      updateActiveBeatBand(beat - 1, countLayout, { countIn: true });
+      setLiveBeat({ beat: beat - 1, total: settings.beats, countIn: true });
+      ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
+      keepPlayheadVisible(visualPhase, beat - 1);
+      for (const lane of lanes) light(lane, null);
     }
     return;
   }
   const cyclePhase = ((frame - clock.origin) % clock.duration) / clock.duration;
-  const layout = beatLayout(settings.beats, clock.beatEnds, clock.beatEnabled);
-  let beatIndex = Math.min(settings.beats - 1, Math.floor(cyclePhase * settings.beats));
-  let visualPhase = cyclePhase;
-  if (layout.shortened) {
-    const activeBeatTime = cyclePhase * layout.totalFloat;
-    beatIndex = layout.enabled.lastIndexOf(true);
-    for (let beat = 0; beat < settings.beats; beat++) {
-      if (!layout.enabled[beat]) continue;
-      if (activeBeatTime < layout.startsFloat[beat] + layout.lengthsFloat[beat]) {
-        beatIndex = beat;
+  let beatIndex;
+  let visualPhase;
+  let activeLayout;
+  let repeatPass = 0;
+  let repeatTimes = 0;
+  if (clock.beatRepeats?.length) {
+    const seq = playbackSequence(settings.beats, clock.beatEnds, clock.beatEnabled, clock.beatRepeats);
+    activeLayout = seq.layout;
+    const activeTime = cyclePhase * seq.totalFloat;
+    let step = seq.steps[seq.steps.length - 1];
+    for (const candidate of seq.steps) {
+      if (activeTime < candidate.startFloat + candidate.lenFloat) {
+        step = candidate;
         break;
       }
     }
-    const localOffset = Math.max(0, Math.min(layout.lengthsFloat[beatIndex], activeBeatTime - layout.startsFloat[beatIndex]));
-    visualPhase = (layout.visualStarts[beatIndex] + localOffset) / layout.visualTotal;
+    beatIndex = step.beat;
+    const localOffset = Math.max(0, Math.min(step.lenFloat, activeTime - step.startFloat));
+    visualPhase = (seq.layout.visualStarts[beatIndex] + localOffset) / seq.layout.visualTotal;
+    repeatPass = step.repeatIndex >= 0 ? step.pass : 0;
+    repeatTimes = step.repeatIndex >= 0 ? step.times : 0;
+    setActiveRepeatPass(step.repeatIndex, step.pass, step.times);
+  } else {
+    activeLayout = beatLayout(settings.beats, clock.beatEnds, clock.beatEnabled);
+    beatIndex = Math.min(settings.beats - 1, Math.floor(cyclePhase * settings.beats));
+    visualPhase = cyclePhase;
+    if (activeLayout.shortened) {
+      const activeBeatTime = cyclePhase * activeLayout.totalFloat;
+      beatIndex = activeLayout.enabled.lastIndexOf(true);
+      for (let beat = 0; beat < settings.beats; beat++) {
+        if (!activeLayout.enabled[beat]) continue;
+        if (activeBeatTime < activeLayout.startsFloat[beat] + activeLayout.lengthsFloat[beat]) {
+          beatIndex = beat;
+          break;
+        }
+      }
+      const localOffset = Math.max(0, Math.min(activeLayout.lengthsFloat[beatIndex], activeBeatTime - activeLayout.startsFloat[beatIndex]));
+      visualPhase = (activeLayout.visualStarts[beatIndex] + localOffset) / activeLayout.visualTotal;
+    }
+    setActiveRepeatPass(-1, 0, 0);
   }
   status('Playing', true);
   ui.position.textContent = `${beatIndex + 1}/${settings.beats}`;
-  setCurrentBeat(beatIndex);
+  delete ui.console.dataset.countIn;
+  ui.console.toggleAttribute('data-in-repeat', repeatPass > 0);
   ui.console.dataset.playing = '';
+  setCurrentBeat(beatIndex);
+  updateActiveBeatBand(beatIndex, activeLayout);
+  setLiveBeat({ beat: beatIndex, total: settings.beats, pass: repeatPass, times: repeatTimes });
   ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
+  keepPlayheadVisible(visualPhase, beatIndex);
+  const hitFlashSeconds = Math.min(0.14, (clock.duration / context.sampleRate) * 0.5);
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
     const events = lane.activeEvents;
@@ -615,7 +760,7 @@ function paint(now) {
     if (eventIndex < 0) { light(lane, null); return; }
     const hit = events[eventIndex].hit;
     const elapsed = (cyclePhase - events[eventIndex].phase + Number(wrapped)) * clock.duration / context.sampleRate;
-    light(lane, elapsed < 0.08 && !laneMuted(profile) && markerSound(index, hit) !== 'off' && effectiveVolume() > 0 ? lane.pulses[hit] : null);
+    light(lane, elapsed < hitFlashSeconds && !laneMuted(profile) && markerSound(index, hit) !== 'off' ? lane.pulses[hit] : null);
   });
 }
 
@@ -697,6 +842,8 @@ function applySettingsSnapshot(nextSettings, { toast = '', recordUndo = true } =
     for (const key of Object.keys(settings)) delete settings[key];
     Object.assign(settings, clean, preserved);
     beatClipboard = null;
+    selectedBeats.clear();
+    selectionAnchor = -1;
     taps = [];
     closeMarkerMenu();
     closeBeatMenu();
@@ -790,24 +937,74 @@ function renderVolume() {
   if (master) master.setTargetAtTime(effectiveVolume(), context.currentTime, 0.007);
 }
 
+const selectedBeats = new Set();
+let selectionAnchor = -1;
+let suppressBeatClick = false;
 let beatClipboard = null;
 let beatMenuTarget = -1;
 let beatMenuAnchor = null;
 let beatDrag = null;
 let beatDragRaf = 0;
 
+function sortedSelectedBeats() {
+  for (const beat of [...selectedBeats]) {
+    if (!Number.isInteger(beat) || beat < 0 || beat >= settings.beats) selectedBeats.delete(beat);
+  }
+  return [...selectedBeats].sort((a, b) => a - b);
+}
+
+function formatBeatRangeLabel(indices) {
+  if (!indices.length) return '';
+  if (indices.length === 1) return `B${indices[0] + 1}`;
+  let contiguous = true;
+  for (let i = 1; i < indices.length; i++) {
+    if (indices[i] !== indices[i - 1] + 1) { contiguous = false; break; }
+  }
+  if (contiguous) return `B${indices[0] + 1}–B${indices[indices.length - 1] + 1}`;
+  if (indices.length === 2) return `B${indices[0] + 1}, B${indices[1] + 1}`;
+  return `${indices.length} beats`;
+}
+
+function clearBeatSelection(announce = false) {
+  if (!selectedBeats.size) return;
+  selectedBeats.clear();
+  selectionAnchor = -1;
+  renderBeatHeaders();
+  if (announce) ui.pulseFeedback.textContent = 'Beat selection cleared.';
+}
+
+function toggleBeatSelection(beat, event = null) {
+  if (beat < 0 || beat >= settings.beats) return;
+  if (event?.shiftKey && selectionAnchor >= 0 && selectionAnchor < settings.beats) {
+    const start = Math.min(selectionAnchor, beat);
+    const end = Math.max(selectionAnchor, beat);
+    for (let i = start; i <= end; i++) selectedBeats.add(i);
+  } else if (selectedBeats.has(beat)) {
+    selectedBeats.delete(beat);
+    if (!selectedBeats.size) selectionAnchor = -1;
+  } else {
+    selectedBeats.add(beat);
+    selectionAnchor = beat;
+  }
+  renderBeatHeaders();
+  const list = sortedSelectedBeats();
+  ui.pulseFeedback.textContent = list.length
+    ? `Selected ${formatBeatRangeLabel(list)}. Click Copy or press Ctrl/⌘+C.`
+    : 'Beat selection cleared.';
+}
+
 function scrollBeatIntoView(beat, { page = false } = {}) {
   const head = ui.ruler.children[beat];
-  const scroll = ui.rulerScroll;
-  if (!head || !scroll || scroll.scrollWidth <= scroll.clientWidth) return;
-  const stageOffset = ui.ruler.parentElement?.offsetLeft ?? 0;
-  const headLeft = stageOffset + head.offsetLeft;
+  const { scroll, stageInTrack, visibleWidth } = timelineTrackMetrics();
+  if (!head || !scroll || scroll.scrollWidth <= scroll.clientWidth || visibleWidth <= 0) return;
+  const headLeft = stageInTrack + head.offsetLeft;
   const headRight = headLeft + head.offsetWidth;
   const viewLeft = scroll.scrollLeft;
-  const viewRight = viewLeft + scroll.clientWidth;
+  const viewRight = viewLeft + visibleWidth;
   let next = viewLeft;
-  if (headLeft < viewLeft + 12) next = Math.max(0, headLeft - 24);
-  else if (headRight > viewRight - 12) next = page ? Math.max(0, headLeft - 24) : headRight - scroll.clientWidth + 24;
+  if (beat === 0 && (headLeft < viewLeft + 12 || (page && viewLeft > 0))) next = 0;
+  else if (headLeft < viewLeft + 12) next = Math.max(0, headLeft - 24);
+  else if (headRight > viewRight - 12) next = page ? Math.max(0, headLeft - 24) : headRight - visibleWidth + 24;
   if (next !== viewLeft) setTimelineScroll(next, true);
 }
 
@@ -838,21 +1035,113 @@ function toggleBeatEnabled(beat, enabled) {
   ui.pulseFeedback.textContent = `${label}.`;
 }
 
-function copyBeat(beat) {
-  beatClipboard = snapshotBeat(settings, beat);
+function copyBeats(indices) {
+  const sorted = [...new Set(indices.filter((beat) => Number.isInteger(beat) && beat >= 0 && beat < settings.beats))].sort((a, b) => a - b);
+  if (!sorted.length) return;
+  const snapshots = sorted.map((beat) => snapshotBeat(settings, beat)).filter(Boolean);
+  if (!snapshots.length) return;
+  const label = formatBeatRangeLabel(sorted);
+  beatClipboard = { sourceBeats: sorted, snapshots, label };
+  selectedBeats.clear();
+  selectionAnchor = -1;
   renderBeatHeaders();
-  ui.pulseFeedback.textContent = `Beat ${beat + 1} copied. Choose a + slot above the ruler to insert it between beats.`;
+  const desc = sorted.length === 1 ? `Beat ${sorted[0] + 1}` : label;
+  ui.pulseFeedback.textContent = `${desc} copied. Choose a + slot above the ruler to insert.`;
 }
 
-function toggleCopyBeat(beat) {
+function copyBeat(beat) {
+  copyBeats([beat]);
+}
+
+function isContiguousSelection(indices) {
+  return indices.length > 0 && indices[indices.length - 1] - indices[0] + 1 === indices.length;
+}
+
+function applyBeatRepeatsChange(nextRepeats, label) {
+  undoable(() => {
+    settings.beatRepeats = normalizeBeatRepeats(nextRepeats, settings.beats);
+    renderBeatHeaders();
+    renderTrim();
+    renderPreset();
+    save();
+    if (playing) sendTiming(false, false);
+  }, label);
+  ui.pulseFeedback.textContent = `${label}.`;
+}
+
+function repeatSelectedBeats() {
+  const selected = sortedSelectedBeats();
+  if (!isContiguousSelection(selected)) return;
+  const start = selected[0];
+  const end = selected[selected.length - 1];
+  const current = normalizeBeatRepeats(settings.beatRepeats, settings.beats);
+  const existing = current.find((rep) => rep.start === start && rep.end === end);
+  const nextTimes = existing ? Math.min(16, existing.times + 1) : 2;
+  const filtered = current.filter((rep) => rep.end < start || rep.start > end);
+  filtered.push({ start, end, times: nextTimes });
+  selectedBeats.clear();
+  selectionAnchor = -1;
+  const rangeLabel = formatBeatRangeLabel(selected);
+  applyBeatRepeatsChange(filtered, `Repeat ${rangeLabel} ×${nextTimes}`);
+}
+
+function stepRepeatBracket(index, delta) {
+  const current = normalizeBeatRepeats(settings.beatRepeats, settings.beats);
+  const rep = current[index];
+  if (!rep) return;
+  const nextTimes = rep.times + delta;
+  const rangeLabel = rep.start === rep.end ? `B${rep.start + 1}` : `B${rep.start + 1}–B${rep.end + 1}`;
+  if (nextTimes < 2) {
+    applyBeatRepeatsChange(current.filter((_, i) => i !== index), `Removed ${rangeLabel} repeat`);
+    return;
+  }
+  const clamped = Math.min(16, nextTimes);
+  if (clamped === rep.times) return;
+  const next = current.map((item, i) => (i === index ? { ...item, times: clamped } : item));
+  applyBeatRepeatsChange(next, `Repeat ${rangeLabel} ×${clamped}`);
+}
+
+function removeRepeatBracket(index) {
+  const current = normalizeBeatRepeats(settings.beatRepeats, settings.beats);
+  const rep = current[index];
+  if (!rep) return;
+  const rangeLabel = rep.start === rep.end ? `B${rep.start + 1}` : `B${rep.start + 1}–B${rep.end + 1}`;
+  applyBeatRepeatsChange(current.filter((_, i) => i !== index), `Removed ${rangeLabel} repeat`);
+}
+
+function copySelectedBeats() {
+  copyBeats(sortedSelectedBeats());
+}
+
+function toggleCopyBeat(beat, event = null) {
+  if (selectedBeats.has(beat)) {
+    copySelectedBeats();
+    return;
+  }
+  if (beatClipboard && event?.shiftKey && beatClipboard.sourceBeats.length) {
+    const anchor = beatClipboard.sourceBeats[beatClipboard.sourceBeats.length - 1];
+    const start = Math.min(anchor, beat);
+    const end = Math.max(anchor, beat);
+    const next = [...beatClipboard.sourceBeats];
+    for (let i = start; i <= end; i++) next.push(i);
+    copyBeats(next);
+    return;
+  }
+  if (beatClipboard && (event?.ctrlKey || event?.metaKey)) {
+    const next = new Set(beatClipboard.sourceBeats);
+    if (next.has(beat)) next.delete(beat);
+    else next.add(beat);
+    if (!next.size) clearBeatClipboard(true);
+    else copyBeats([...next]);
+    return;
+  }
   const next = snapshotBeat(settings, beat);
-  if (beatClipboard && beatClipboard.sourceBeat === beat && JSON.stringify(beatClipboard) === JSON.stringify(next)) {
+  if (beatClipboard && beatClipboard.sourceBeats.length === 1 && beatClipboard.sourceBeats[0] === beat &&
+      JSON.stringify(beatClipboard.snapshots[0]) === JSON.stringify(next)) {
     clearBeatClipboard(true);
     return;
   }
-  beatClipboard = next;
-  renderBeatHeaders();
-  ui.pulseFeedback.textContent = `Beat ${beat + 1} copied. Choose a + slot above the ruler to insert it between beats.`;
+  copyBeat(beat);
 }
 
 function clearBeatClipboard(announce = false) {
@@ -862,13 +1151,32 @@ function clearBeatClipboard(announce = false) {
   if (announce) ui.pulseFeedback.textContent = 'Copied beat cleared.';
 }
 
-function pasteOntoBeat(targetBeat, sourceSnapshot = beatClipboard, labelOverride = '') {
-  if (!sourceSnapshot || targetBeat < 0 || targetBeat >= settings.beats) return;
-  const label = labelOverride || (sourceSnapshot.sourceBeat != null
-    ? `Replaced beat ${targetBeat + 1} with beat ${sourceSnapshot.sourceBeat + 1}`
-    : `Replaced beat ${targetBeat + 1} with copied beat`);
+function clipboardSnapshots(source) {
+  if (!source) return null;
+  if (Array.isArray(source.snapshots)) return source.snapshots;
+  if (Array.isArray(source.lanes)) return [source];
+  return null;
+}
+
+function pasteOntoBeat(targetBeat, source = beatClipboard, labelOverride = '') {
+  const snapshots = clipboardSnapshots(source);
+  if (!snapshots?.length || targetBeat < 0 || targetBeat >= settings.beats) return;
+  const count = Math.min(snapshots.length, settings.beats - targetBeat);
+  let label = labelOverride;
+  if (!label) {
+    if (snapshots.length === 1) {
+      const srcBeat = source.sourceBeats?.[0] ?? source.sourceBeat;
+      label = srcBeat != null
+        ? `Replaced beat ${targetBeat + 1} with beat ${srcBeat + 1}`
+        : `Replaced beat ${targetBeat + 1} with copied beat`;
+    } else {
+      const srcLabel = source.label || `${snapshots.length} beats`;
+      const targetRange = count === 1 ? `beat ${targetBeat + 1}` : `beats ${targetBeat + 1}–${targetBeat + count}`;
+      label = `Replaced ${targetRange} with ${srcLabel}`;
+    }
+  }
   undoable(() => {
-    if (!pasteBeat(settings, targetBeat, sourceSnapshot)) return;
+    if (!pasteBeats(settings, targetBeat, snapshots)) return;
     timingChanged({ rhythm: true, restart: false });
   }, label);
   ui.pulseFeedback.textContent = `${label}.`;
@@ -886,18 +1194,22 @@ function addBeat() {
   ui.pulseFeedback.textContent = `${label}.`;
 }
 
-function insertCopiedBeatAt(atIndex, sourceSnapshot = beatClipboard) {
-  if (!sourceSnapshot || settings.beats >= limits.meter[1]) return;
+function insertCopiedBeatAt(atIndex, source = beatClipboard) {
+  const snapshots = clipboardSnapshots(source);
+  if (!snapshots?.length || settings.beats + snapshots.length > limits.meter[1]) return;
   if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > settings.beats) return;
-  const srcText = sourceSnapshot.sourceBeat != null ? `beat ${sourceSnapshot.sourceBeat + 1}` : 'copied beat';
+  const srcText = snapshots.length === 1
+    ? (source.sourceBeats?.[0] != null ? `beat ${source.sourceBeats[0] + 1}` : 'copied beat')
+    : (source.label || `${snapshots.length} beats`);
   const whereText = atIndex === 0 ? 'before beat 1'
-    : atIndex === settings.beats ? `as beat ${atIndex + 1}`
+    : atIndex === settings.beats ? (snapshots.length === 1 ? `as beat ${atIndex + 1}` : `after beat ${settings.beats}`)
     : `between beats ${atIndex} and ${atIndex + 1}`;
   const label = `Inserted ${srcText} ${whereText}`;
   undoable(() => {
-    if (!insertBeat(settings, atIndex, sourceSnapshot)) return;
-    if (beatClipboard && beatClipboard.sourceBeat != null && atIndex <= beatClipboard.sourceBeat) {
-      beatClipboard.sourceBeat += 1;
+    if (!insertBeats(settings, atIndex, snapshots)) return;
+    if (beatClipboard?.sourceBeats?.length) {
+      beatClipboard.sourceBeats = beatClipboard.sourceBeats.map((b) => (b >= atIndex ? b + snapshots.length : b));
+      beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
     }
     timingChanged({ meter: true, restart: true });
   }, label);
@@ -911,7 +1223,10 @@ function duplicateBeat(beat) {
   const label = `Duplicated beat ${beat + 1}`;
   undoable(() => {
     if (!insertBeat(settings, beat + 1, snap)) return;
-    if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat > beat) beatClipboard.sourceBeat += 1;
+    if (beatClipboard?.sourceBeats?.length) {
+      beatClipboard.sourceBeats = beatClipboard.sourceBeats.map((b) => (b > beat ? b + 1 : b));
+      beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+    }
     timingChanged({ meter: true, restart: true });
   }, label);
   scrollBeatIntoView(beat + 1);
@@ -923,11 +1238,16 @@ function moveBeatColumn(fromBeat, toBeat, { focusKey = '' } = {}) {
   const label = `Moved beat ${fromBeat + 1} to beat ${toBeat + 1}`;
   undoable(() => {
     if (!moveBeat(settings, fromBeat, toBeat)) return;
-    if (beatClipboard?.sourceBeat != null) {
-      const src = beatClipboard.sourceBeat;
-      if (src === fromBeat) beatClipboard.sourceBeat = toBeat;
-      else if (fromBeat < src && src <= toBeat) beatClipboard.sourceBeat = src - 1;
-      else if (toBeat <= src && src < fromBeat) beatClipboard.sourceBeat = src + 1;
+    selectedBeats.clear();
+    selectionAnchor = -1;
+    if (beatClipboard?.sourceBeats?.length) {
+      beatClipboard.sourceBeats = beatClipboard.sourceBeats.map((src) => {
+        if (src === fromBeat) return toBeat;
+        if (fromBeat < src && src <= toBeat) return src - 1;
+        if (toBeat <= src && src < fromBeat) return src + 1;
+        return src;
+      }).sort((a, b) => a - b);
+      beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
     }
     timingChanged({ rhythm: true, restart: false });
   }, label);
@@ -941,8 +1261,14 @@ function deleteBeatColumn(beat) {
   const label = `Deleted beat ${beat + 1}`;
   undoable(() => {
     if (!deleteBeat(settings, beat)) return;
-    if (beatClipboard?.sourceBeat === beat) beatClipboard.sourceBeat = null;
-    else if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat > beat) beatClipboard.sourceBeat -= 1;
+    selectedBeats.clear();
+    selectionAnchor = -1;
+    if (beatClipboard?.sourceBeats?.length) {
+      beatClipboard.sourceBeats = beatClipboard.sourceBeats
+        .filter((src) => src !== beat)
+        .map((src) => (src > beat ? src - 1 : src));
+      if (beatClipboard.sourceBeats.length) beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+    }
     timingChanged({ meter: true, restart: true });
   }, label);
   ui.pulseFeedback.textContent = `${label}.`;
@@ -961,7 +1287,7 @@ function updateBeatDragVisual() {
   const mode = beatDrag.altKey ? 'copy' : 'move';
   beatDrag.mode = mode;
   document.documentElement.dataset.dragMode = mode;
-  const scrollDelta = (ui.rulerScroll?.scrollLeft ?? 0) - beatDrag.startScrollLeft;
+  const scrollDelta = (ui.timelineScroll?.scrollLeft ?? 0) - beatDrag.startScrollLeft;
   beatDrag.head.style.translate = `${Math.round(beatDrag.lastX - beatDrag.startX + scrollDelta)}px 0`;
   clearBeatDragIndicators();
   const rect = ui.ruler.getBoundingClientRect();
@@ -1023,17 +1349,19 @@ function updateBeatDragVisual() {
 function beatDragAutoScroll(now) {
   if (!beatDrag?.active) return;
   beatDragRaf = requestAnimationFrame(beatDragAutoScroll);
-  const scroll = ui.rulerScroll;
+  const { scroll, stickyLeft } = timelineTrackMetrics();
   if (!scroll || scroll.scrollWidth <= scroll.clientWidth) return;
   const dt = beatDrag.lastTime ? Math.min(64, now - beatDrag.lastTime) : 16;
   beatDrag.lastTime = now;
   const rect = scroll.getBoundingClientRect();
-  if (rect.width <= 0) return;
+  const visibleLeft = rect.left + stickyLeft;
+  const visibleWidth = rect.width - stickyLeft;
+  if (visibleWidth <= 0) return;
   const colW = Math.max(48, ui.ruler.offsetWidth / Math.max(1, settings.beats));
-  const zone = Math.min(colW, rect.width / 3);
+  const zone = Math.min(colW, visibleWidth / 3);
   let velocity = 0;
-  if (beatDrag.lastX < rect.left + zone) {
-    const depth = Math.min(2, (rect.left + zone - beatDrag.lastX) / zone);
+  if (beatDrag.lastX < visibleLeft + zone) {
+    const depth = Math.min(2, (visibleLeft + zone - beatDrag.lastX) / zone);
     velocity = -depth * 420;
   } else if (beatDrag.lastX > rect.right - zone) {
     const depth = Math.min(2, (beatDrag.lastX - (rect.right - zone)) / zone);
@@ -1041,11 +1369,9 @@ function beatDragAutoScroll(now) {
   }
   if (!velocity) return;
   const before = scroll.scrollLeft;
+  expectedProgrammaticScroll = null;
   scroll.scrollLeft = before + velocity * dt / 1000;
-  if (scroll.scrollLeft !== before) {
-    for (const other of ui.scrolls) if (other !== scroll) other.scrollLeft = scroll.scrollLeft;
-    updateBeatDragVisual();
-  }
+  if (scroll.scrollLeft !== before) updateBeatDragVisual();
 }
 
 function onBeatDragMove(event) {
@@ -1108,6 +1434,8 @@ function endBeatDrag(cancelled = false) {
   drag.head.style.removeProperty('translate');
   clearBeatDragIndicators();
   if (!drag.active) return;
+  suppressBeatClick = true;
+  window.setTimeout(() => { suppressBeatClick = false; }, 0);
   if (cancelled) {
     ui.pulseFeedback.textContent = 'Beat drag cancelled.';
     return;
@@ -1150,7 +1478,7 @@ function bindBeatDrag(handle, head) {
       appendCopy: false,
       handle,
       head,
-      startScrollLeft: ui.rulerScroll?.scrollLeft ?? 0,
+      startScrollLeft: ui.timelineScroll?.scrollLeft ?? 0,
       lastTime: 0,
       pressTimer: 0,
     };
@@ -1158,6 +1486,8 @@ function bindBeatDrag(handle, head) {
       beatDrag.pressTimer = setTimeout(() => {
         if (!beatDrag || beatDrag.active) return;
         const beat = beatDrag.fromBeat;
+        suppressBeatClick = true;
+        window.setTimeout(() => { suppressBeatClick = false; }, 0);
         endBeatDrag(true);
         openBeatMenu(beat, handle);
       }, 450);
@@ -1168,6 +1498,10 @@ function bindBeatDrag(handle, head) {
     window.addEventListener('keydown', onBeatDragKey);
     window.addEventListener('keyup', onBeatDragKey);
     handle.addEventListener('lostpointercapture', onBeatDragUp);
+  });
+  handle.addEventListener('click', (event) => {
+    if (suppressBeatClick) { suppressBeatClick = false; return; }
+    toggleBeatSelection(Number(head.dataset.beat), event);
   });
   handle.addEventListener('keydown', (event) => {
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -1187,17 +1521,21 @@ function renderBeatMenu() {
   const beat = beatMenuTarget;
   const enabled = settings.beatEnabled?.[beat] !== false;
   const activeCount = normalizeBeatEnabled(settings.beatEnabled, settings.beats).filter(Boolean).length;
+  const selected = sortedSelectedBeats();
+  const copySelected = selected.length > 1 && selectedBeats.has(beat);
+  const clipCount = beatClipboard?.snapshots?.length ?? 0;
+  const clipLabel = beatClipboard?.label || (clipCount > 1 ? `${clipCount} beats` : 'copy');
   ui.beatMenuTitle.textContent = `Beat ${beat + 1}`;
-  ui.beatMenuCopy.textContent = `Copy beat ${beat + 1}`;
+  ui.beatMenuCopy.textContent = copySelected ? `Copy ${formatBeatRangeLabel(selected)}` : `Copy beat ${beat + 1}`;
   if (ui.beatMenuInsertCopy) {
-    ui.beatMenuInsertCopy.disabled = !beatClipboard || settings.beats >= limits.meter[1];
-    ui.beatMenuInsertCopy.textContent = beatClipboard?.sourceBeat != null
-      ? `Insert B${beatClipboard.sourceBeat + 1} after`
+    ui.beatMenuInsertCopy.disabled = !beatClipboard || settings.beats + clipCount > limits.meter[1];
+    ui.beatMenuInsertCopy.textContent = beatClipboard?.label
+      ? `Insert ${clipLabel} after`
       : 'Insert copy after';
   }
   ui.beatMenuPaste.disabled = !beatClipboard;
-  ui.beatMenuPaste.textContent = beatClipboard?.sourceBeat != null
-    ? `Replace w/ B${beatClipboard.sourceBeat + 1}`
+  ui.beatMenuPaste.textContent = beatClipboard?.label
+    ? `Replace w/ ${clipLabel}`
     : 'Replace with copy';
   ui.beatMenuDuplicate.disabled = settings.beats >= limits.meter[1];
   ui.beatMenuToggle.textContent = enabled ? 'Skip beat' : 'Include beat';
@@ -1248,12 +1586,16 @@ function closeBeatMenu(returnFocus = false) {
 }
 
 ui.addBeat?.addEventListener('click', addBeat);
+ui.selectionCopy?.addEventListener('click', copySelectedBeats);
+ui.selectionRepeat?.addEventListener('click', repeatSelectedBeats);
+ui.clearSelection?.addEventListener('click', () => clearBeatSelection(true));
 ui.clearClipboard?.addEventListener('click', () => clearBeatClipboard(true));
 ui.beatMenuClose?.addEventListener('click', () => closeBeatMenu(true));
 ui.beatMenuCopy?.addEventListener('click', () => {
   if (beatMenuTarget < 0) return;
   const beat = beatMenuTarget;
-  copyBeat(beat);
+  if (selectedBeats.size > 1 && selectedBeats.has(beat)) copySelectedBeats();
+  else copyBeat(beat);
   closeBeatMenu(true);
 });
 ui.beatMenuInsertCopy?.addEventListener('click', () => {
@@ -1325,8 +1667,9 @@ function ensureBeatHeaderDom() {
     drag.className = 'beat-drag';
     drag.dataset.beat = beat;
     drag.dataset.focusKey = `beat-drag-${beat}`;
-    drag.setAttribute('aria-label', `Beat ${beat + 1} — drag to reorder, Alt-drag to copy`);
-    drag.title = `Beat ${beat + 1} · Drag to reorder, Alt/Option-drag to copy, Alt+←/→ with keyboard`;
+    drag.setAttribute('aria-label', `Beat ${beat + 1} — click to select, drag to reorder, Alt-drag to copy`);
+    drag.setAttribute('aria-pressed', 'false');
+    drag.title = `Beat ${beat + 1} · Click to select (Shift-click range), drag to reorder, Alt/Option-drag to copy`;
     const grip = document.createElement('span');
     grip.className = 'beat-grip';
     grip.setAttribute('aria-hidden', 'true');
@@ -1345,7 +1688,7 @@ function ensureBeatHeaderDom() {
     copyIcon.className = 'beat-icon icon-copy';
     copyIcon.setAttribute('aria-hidden', 'true');
     copyBtn.append(copyIcon);
-    copyBtn.addEventListener('click', () => toggleCopyBeat(Number(head.dataset.beat)));
+    copyBtn.addEventListener('click', (event) => toggleCopyBeat(Number(head.dataset.beat), event));
 
     const moreBtn = document.createElement('button');
     moreBtn.type = 'button';
@@ -1376,14 +1719,82 @@ function ensureBeatHeaderDom() {
   }));
 }
 
+function renderRepeatBrackets() {
+  if (!ui.repeatBrackets) return;
+  settings.beatRepeats = normalizeBeatRepeats(settings.beatRepeats, settings.beats);
+  const repeats = settings.beatRepeats;
+  const hasRepeats = repeats.length > 0;
+  ui.rulerRow?.toggleAttribute('data-repeating', hasRepeats);
+  ui.repeatBrackets.hidden = !hasRepeats;
+  activeRepeatPassKey = '';
+  if (!hasRepeats) {
+    ui.repeatBrackets.replaceChildren();
+    return;
+  }
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
+  ui.repeatBrackets.replaceChildren(...repeats.map((rep, index) => {
+    const startPos = layout.visualStarts[rep.start];
+    const endPos = layout.visualStarts[rep.end] + layout.visualWidths[rep.end];
+    const rangeLabel = rep.start === rep.end ? `B${rep.start + 1}` : `B${rep.start + 1}–B${rep.end + 1}`;
+    const bracket = document.createElement('div');
+    bracket.className = 'repeat-bracket';
+    bracket.dataset.repeatIndex = index;
+    bracket.dataset.start = rep.start;
+    bracket.dataset.end = rep.end;
+    bracket.dataset.times = rep.times;
+    bracket.style.left = `${100 * startPos / layout.visualTotal}%`;
+    bracket.style.width = `${100 * (endPos - startPos) / layout.visualTotal}%`;
+
+    const pill = document.createElement('div');
+    pill.className = 'repeat-pill';
+    pill.title = `Repeat ${rangeLabel} ${rep.times} times before continuing`;
+
+    const decBtn = document.createElement('button');
+    decBtn.type = 'button';
+    decBtn.className = 'repeat-step';
+    decBtn.dataset.delta = '-1';
+    decBtn.textContent = '‹';
+    decBtn.setAttribute('aria-label', rep.times <= 2 ? `Remove ${rangeLabel} repeat` : `Decrease ${rangeLabel} repeats`);
+    decBtn.title = rep.times <= 2 ? `Remove ${rangeLabel} repeat` : `Repeat ${rep.times - 1} times`;
+    decBtn.addEventListener('click', () => stepRepeatBracket(index, -1));
+
+    const countEl = document.createElement('span');
+    countEl.className = 'repeat-count';
+    countEl.textContent = `×${rep.times}`;
+
+    const incBtn = document.createElement('button');
+    incBtn.type = 'button';
+    incBtn.className = 'repeat-step';
+    incBtn.dataset.delta = '1';
+    incBtn.textContent = '›';
+    incBtn.disabled = rep.times >= 16;
+    incBtn.setAttribute('aria-label', `Increase ${rangeLabel} repeats`);
+    incBtn.title = rep.times >= 16 ? 'Maximum 16 repeats' : `Repeat ${rep.times + 1} times`;
+    incBtn.addEventListener('click', () => stepRepeatBracket(index, 1));
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'repeat-remove';
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', `Remove ${rangeLabel} repeat`);
+    removeBtn.title = `Remove ${rangeLabel} repeat`;
+    removeBtn.addEventListener('click', () => removeRepeatBracket(index));
+
+    pill.append(decBtn, countEl, incBtn, removeBtn);
+    bracket.append(pill);
+    return bracket;
+  }));
+}
+
 function renderPasteSlots() {
   if (!ui.pasteSlots) return;
-  const active = Boolean(beatClipboard);
+  const active = Boolean(beatClipboard?.snapshots?.length);
   ui.rulerRow?.toggleAttribute('data-pasting', active);
   ui.pasteSlots.hidden = !active;
   if (!active) return;
   const count = settings.beats + 1;
-  const atMax = settings.beats >= limits.meter[1];
+  const needed = beatClipboard.snapshots.length;
+  const atMax = settings.beats + needed > limits.meter[1];
   if (ui.pasteSlots.children.length !== count) {
     ui.pasteSlots.replaceChildren(...Array.from({ length: count }, (_, slot) => {
       const btn = document.createElement('button');
@@ -1397,7 +1808,9 @@ function renderPasteSlots() {
     }));
   }
   const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
-  const src = beatClipboard?.sourceBeat != null ? `beat ${beatClipboard.sourceBeat + 1}` : 'copied beat';
+  const src = needed === 1
+    ? (beatClipboard.sourceBeats?.[0] != null ? `beat ${beatClipboard.sourceBeats[0] + 1}` : 'copied beat')
+    : (beatClipboard.label || `${needed} beats`);
   [...ui.pasteSlots.children].forEach((btn, slot) => {
     btn.dataset.insert = slot;
     const pos = slot < settings.beats ? layout.visualStarts[slot] : layout.visualTotal;
@@ -1406,7 +1819,9 @@ function renderPasteSlots() {
     const where = slot === 0 ? 'before beat 1'
       : slot === settings.beats ? `after beat ${settings.beats}`
       : `between beats ${slot} and ${slot + 1}`;
-    const desc = atMax ? `Maximum ${limits.meter[1]} beats` : `Insert ${src} ${where}`;
+    const desc = atMax
+      ? (needed > 1 ? `Needs ${needed} free beats (maximum ${limits.meter[1]} beats)` : `Maximum ${limits.meter[1]} beats`)
+      : `Insert ${src} ${where}`;
     btn.setAttribute('aria-label', desc);
     btn.title = desc;
   });
@@ -1418,29 +1833,52 @@ function renderBeatHeaders() {
   ensureBeatHeaderDom();
   const starts = groupStarts(settings.grouping);
   const activeCount = settings.beatEnabled.slice(0, settings.beats).filter(Boolean).length;
-  const hasClip = Boolean(beatClipboard);
+  const selected = sortedSelectedBeats();
+  const hasSelection = selected.length > 0;
+  const hasClip = Boolean(beatClipboard?.snapshots?.length);
+  const copiedSet = new Set(hasClip ? beatClipboard.sourceBeats : []);
   if (ui.addBeat) {
     ui.addBeat.disabled = settings.beats >= limits.meter[1];
     ui.addBeat.title = ui.addBeat.disabled ? `Maximum ${limits.meter[1]} beats` : 'Add beat to bar';
   }
+  if (ui.beatSelection) {
+    ui.beatSelection.hidden = !hasSelection;
+    if (ui.selectionLabel && hasSelection) {
+      const selLabel = formatBeatRangeLabel(selected);
+      ui.selectionLabel.textContent = selLabel;
+      ui.selectionLabel.title = `${selLabel} selected · Click Copy, Repeat, or press Ctrl/⌘+C`;
+    }
+    if (ui.selectionRepeat) {
+      const contiguous = isContiguousSelection(selected);
+      ui.selectionRepeat.disabled = !contiguous;
+      ui.selectionRepeat.title = contiguous
+        ? `Repeat ${formatBeatRangeLabel(selected)} (×2, ×3, …)`
+        : 'Select adjacent beats to repeat as a section';
+    }
+  }
   if (ui.beatClipboard) {
     ui.beatClipboard.hidden = !hasClip;
-    if (ui.clipboardLabel) {
-      ui.clipboardLabel.textContent = beatClipboard?.sourceBeat != null ? `B${beatClipboard.sourceBeat + 1} copied` : 'Copied';
-      ui.clipboardLabel.title = beatClipboard?.sourceBeat != null
-        ? `Beat ${beatClipboard.sourceBeat + 1} copied · Click a + slot above the ruler to insert it between beats`
-        : 'Copied beat · Click a + slot above the ruler to insert it between beats';
+    if (ui.clipboardLabel && hasClip) {
+      const clipLabel = beatClipboard.label;
+      ui.clipboardLabel.textContent = clipLabel ? `${clipLabel} copied` : 'Copied';
+      ui.clipboardLabel.title = clipLabel
+        ? `${clipLabel} copied · Click a + slot above the ruler to insert`
+        : 'Copied beats · Click a + slot above the ruler to insert';
     }
   }
   ui.ruler.toggleAttribute('data-has-clipboard', hasClip);
   [...ui.ruler.children].forEach((head, beat) => {
     const enabled = settings.beatEnabled[beat] !== false;
     const onlyActive = enabled && activeCount <= 1;
-    const isSource = hasClip && beatClipboard.sourceBeat === beat;
+    const isSelected = selectedBeats.has(beat);
+    const isSource = copiedSet.has(beat);
     head.dataset.beat = beat;
     head.toggleAttribute('data-group-start', starts.includes(beat));
     head.toggleAttribute('data-skipped', !enabled);
+    head.toggleAttribute('data-selected', isSelected);
     head.toggleAttribute('data-copied-source', isSource);
+    const dragBtn = head.querySelector('.beat-drag');
+    if (dragBtn) dragBtn.setAttribute('aria-pressed', String(isSelected));
     const checkWrap = head.querySelector('.beat-check-wrap');
     const toggle = head.querySelector('.beat-toggle');
     if (toggle) {
@@ -1455,12 +1893,19 @@ function renderBeatHeaders() {
     const copyBtn = head.querySelector('.beat-copy');
     if (copyBtn) {
       copyBtn.toggleAttribute('data-active', isSource);
-      copyBtn.setAttribute('aria-label', isSource ? `Beat ${beat + 1} copied — click to cancel` : `Copy beat ${beat + 1}`);
-      copyBtn.title = isSource ? `Beat ${beat + 1} copied · Click + above ruler to insert, or click again to cancel` : `Copy beat ${beat + 1}`;
+      copyBtn.setAttribute('aria-label', isSelected && selected.length > 1
+        ? `Copy selected beats (${formatBeatRangeLabel(selected)})`
+        : isSource ? `Beat ${beat + 1} copied — click to cancel` : `Copy beat ${beat + 1}`);
+      copyBtn.title = isSelected && selected.length > 1
+        ? `Copy ${formatBeatRangeLabel(selected)}`
+        : isSource
+          ? `Beat ${beat + 1} copied · Click + above ruler to insert, Shift-click another copy icon to add range, or click again to cancel`
+          : `Copy beat ${beat + 1} (or click beat numbers to select multiple)`;
     }
     const moreBtn = head.querySelector('.beat-more');
     if (moreBtn) moreBtn.setAttribute('aria-expanded', String(beatMenuTarget === beat));
   });
+  renderRepeatBrackets();
   renderPasteSlots();
   if (beatMenuTarget >= settings.beats) closeBeatMenu();
   else renderBeatMenu();
@@ -1972,9 +2417,10 @@ function renderTrim() {
     }
   }
   updateTrimPreview();
+  renderRepeatBrackets();
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
-    lane.activeEvents = makeLaneCyclePhases(profile, settings.beats, layout.ends, layout.enabled);
+    lane.activeEvents = makeLaneCyclePhases(profile, settings.beats, layout.ends, layout.enabled, settings.beatRepeats);
     lane.pulses.forEach((pulse, hit) => {
       const onset = lane.onsets[hit];
       const beatSkipped = profile.span !== 'bar' && !layout.enabled[onset.beat];
@@ -2385,7 +2831,7 @@ function renderPreset() {
   renderOptionsBadge();
   renderIdeaUi();
   let matchedId = '';
-  if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats)) {
+  if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats) && !hasBeatRepeats(settings.beatRepeats, settings.beats)) {
     const match = rhythmPresets.find((preset) => {
       if (preset.beats !== settings.beats || preset.unit !== settings.unit || preset.groups.join('+') !== settings.grouping.join('+')) return false;
       const expected = presetLanes(preset);
@@ -2525,8 +2971,14 @@ function loadStarterPreset(preset) {
     settings.grouping = [...preset.groups];
     settings.beatEnds = Array(32).fill(null);
     settings.beatEnabled = Array(32).fill(true);
+    settings.beatRepeats = [];
     settings.lanes = presetLanes(preset);
-    if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
+    if (beatClipboard?.sourceBeats?.length) {
+      beatClipboard.sourceBeats = beatClipboard.sourceBeats.filter((b) => b < settings.beats);
+      if (beatClipboard.sourceBeats.length) beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+    }
+    selectedBeats.clear();
+    selectionAnchor = -1;
     renderMeter();
     timingChanged({ meter, rhythm: true });
   }, `Loaded ${preset.label}`);
@@ -2575,8 +3027,14 @@ ui.beats.addEventListener('change', () => undoable(() => {
   settings.beats = Number(ui.beats.value);
   settings.grouping = [settings.beats];
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
+  settings.beatRepeats = normalizeBeatRepeats(settings.beatRepeats, settings.beats);
   if (!settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[0] = true;
-  if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
+  if (beatClipboard?.sourceBeats?.length) {
+    beatClipboard.sourceBeats = beatClipboard.sourceBeats.filter((b) => b < settings.beats);
+    if (beatClipboard.sourceBeats.length) beatClipboard.label = formatBeatRangeLabel(beatClipboard.sourceBeats);
+  }
+  selectedBeats.clear();
+  selectionAnchor = -1;
   timingChanged({ meter: true });
 }));
 ui.unit.addEventListener('change', () => undoable(() => { clearBeatEndsForMeter(); settings.unit = Number(ui.unit.value); timingChanged({ meter: true }); }));
@@ -3233,17 +3691,25 @@ ui.muteAll.addEventListener('click', () => {
   else settings.masterMuted = !settings.masterMuted;
   renderVolume(); save();
 });
-ui.scrolls.forEach((scroll) => scroll.addEventListener('scroll', () => {
+ui.timelineScroll?.addEventListener('scroll', () => {
   closeMarkerMenu();
   closeBeatMenu();
   closeSoundMenus();
   closeFloatingPopovers();
-  if (!programmaticScroll) manualScrollUntil = performance.now() + 2000;
-  for (const other of ui.scrolls) if (other !== scroll && other.scrollLeft !== scroll.scrollLeft) other.scrollLeft = scroll.scrollLeft;
-}));
+  if (expectedProgrammaticScroll !== null && Math.abs(ui.timelineScroll.scrollLeft - expectedProgrammaticScroll) <= 2) {
+    expectedProgrammaticScroll = null;
+    return;
+  }
+  expectedProgrammaticScroll = null;
+  manualScrollUntil = performance.now() + 2000;
+});
 ui.rhythmPanel.addEventListener('wheel', (event) => {
-  const scroll = ui.rulerScroll;
+  const scroll = ui.timelineScroll;
   if (!scroll || scroll.scrollWidth <= scroll.clientWidth) return;
+  if (Math.abs(event.deltaX) > 0) {
+    expectedProgrammaticScroll = null;
+    manualScrollUntil = performance.now() + 2000;
+  }
   if (event.ctrlKey || event.metaKey || !event.deltaY) return;
   const pageCanScrollY = document.documentElement.scrollHeight > window.innerHeight + 2;
   const wantsHorizontal = event.shiftKey || (!pageCanScrollY && Math.abs(event.deltaY) > Math.abs(event.deltaX));
@@ -3299,18 +3765,31 @@ document.addEventListener('keydown', (event) => {
       return;
     }
     const beatHead = event.target.closest?.('.beat-head');
-    if (beatHead && (key === 'c' || key === 'v')) {
-      const beat = Number(beatHead.dataset.beat);
-      if (key === 'c') {
+    if (key === 'a' && event.target.closest?.('.ruler-row')) {
+      event.preventDefault();
+      for (let i = 0; i < settings.beats; i++) selectedBeats.add(i);
+      selectionAnchor = 0;
+      renderBeatHeaders();
+      ui.pulseFeedback.textContent = `Selected all ${settings.beats} beats.`;
+      return;
+    }
+    if (key === 'c') {
+      if (selectedBeats.size > 0) {
         event.preventDefault();
-        copyBeat(beat);
+        copySelectedBeats();
         return;
       }
-      if (key === 'v' && beatClipboard) {
+      if (beatHead) {
         event.preventDefault();
-        pasteOntoBeat(beat);
+        copyBeat(Number(beatHead.dataset.beat));
         return;
       }
+    }
+    if (key === 'v' && beatClipboard) {
+      event.preventDefault();
+      if (beatHead) pasteOntoBeat(Number(beatHead.dataset.beat));
+      else insertCopiedBeatAt(settings.beats);
+      return;
     }
   }
   if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
@@ -3321,6 +3800,7 @@ document.addEventListener('keydown', (event) => {
     if (openLane) { closeSoundMenu(openLane, { restore: true, fromPointer: false }); event.preventDefault(); return; }
     const openFloat = floatingPopovers.find((entry) => isFloatingOpen(entry.popover));
     if (openFloat) { closeFloating(openFloat.popover, { restore: true }); event.preventDefault(); return; }
+    if (selectedBeats.size > 0) { clearBeatSelection(true); event.preventDefault(); return; }
     if (beatClipboard) { clearBeatClipboard(true); event.preventDefault(); return; }
   }
   if (event.target.closest('input:not([type="range"]):not([type="checkbox"]), select, textarea, [contenteditable], .sound-menu, .floating-popover')) return;

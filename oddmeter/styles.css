@@ -19,6 +19,11 @@
   --accent-ink: #140d0c;
   --trim: #ffb04f;
   --ok: #4ce3a8;
+  --repeat: #b18cff;
+  --playhead: #ffffff;
+  --playhead-glow: #ff6b5e;
+  --playhead-band: rgb(255 255 255 / 0.085);
+  --playhead-band-edge: rgb(255 255 255 / 0.22);
   --sound-click: #ff5d4f;
   --sound-woodblock: #c98a5b;
   --sound-clave: #4fdce3;
@@ -116,7 +121,7 @@ select option { background: #191c24; color: var(--text); }
   initial-value: 0px;
 }
 
-.shell { width: min(1360px, calc(100% - 48px)); margin-inline: auto; }
+.shell { width: calc(100% - 32px); margin-inline: auto; }
 .label, kbd, .ruler, #volume-value {
   font-family: var(--mono);
   font-weight: 500;
@@ -270,6 +275,12 @@ main.shell { padding-block: 24px 36px; }
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent);
+}
+@media (min-width: 681px) {
+  .tempo-panel .range {
+    max-width: 560px;
+    justify-self: start;
+  }
 }
 
 .play {
@@ -560,6 +571,7 @@ kbd {
 
 /* Beat grid */
 .rhythm-panel {
+  container-type: inline-size;
   --plot-inset-start: 22px;
   --plot-inset-end: 22px;
   --lane-side: 236px;
@@ -580,6 +592,9 @@ kbd {
   background: var(--well);
 }
 .ruler-side {
+  position: sticky;
+  left: 0;
+  z-index: 8;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -587,9 +602,11 @@ kbd {
   padding: 5px 10px 4px 14px;
   background: var(--panel);
   border-right: 1px solid var(--line);
+  box-shadow: 6px 0 14px -10px rgb(0 0 0 / 0.85);
 }
 .ruler-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   min-width: 0;
@@ -614,6 +631,85 @@ kbd {
 .add-beat:not(:disabled):hover {
   border-color: var(--accent-hover);
   background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+}
+.live-beat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-block-size: 26px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklab, var(--playhead-glow) 55%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--playhead-glow) 16%, var(--well));
+  color: var(--playhead);
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-shadow: 0 0 12px color-mix(in oklab, var(--playhead-glow) 22%, transparent);
+}
+.live-beat-dot {
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--playhead);
+  box-shadow: 0 0 8px var(--playhead-glow);
+}
+.live-beat-pass {
+  padding-inline-start: 5px;
+  border-left: 1px solid color-mix(in oklab, var(--repeat) 45%, transparent);
+  color: var(--repeat);
+  font-weight: 750;
+}
+.beat-selection {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid color-mix(in oklab, var(--sound-cowbell) 58%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--sound-cowbell) 14%, var(--well));
+  overflow: hidden;
+}
+.beat-selection .clipboard-label {
+  color: var(--sound-cowbell);
+  padding-inline: 6px;
+}
+.selection-copy,
+.selection-repeat {
+  min-block-size: 24px;
+  padding: 2px 6px;
+  border: 0;
+  border-left: 1px solid color-mix(in oklab, var(--sound-cowbell) 32%, transparent);
+  border-radius: 0;
+  background: color-mix(in oklab, var(--sound-cowbell) 18%, transparent);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: .64rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.selection-copy:not(:disabled):hover {
+  background: color-mix(in oklab, var(--sound-cowbell) 34%, transparent);
+}
+.selection-repeat {
+  background: color-mix(in oklab, var(--repeat) 20%, transparent);
+  color: var(--repeat);
+}
+.selection-repeat:not(:disabled):hover {
+  background: color-mix(in oklab, var(--repeat) 36%, transparent);
+  color: var(--text);
+}
+.beat-selection .clipboard-clear {
+  border-left-color: color-mix(in oklab, var(--sound-cowbell) 32%, transparent);
+  color: var(--sound-cowbell);
+}
+.beat-selection .clipboard-clear:not(:disabled):hover {
+  background: color-mix(in oklab, var(--sound-cowbell) 22%, transparent);
+  color: var(--text);
 }
 .beat-clipboard {
   display: inline-flex;
@@ -715,67 +811,55 @@ kbd {
   background: color-mix(in oklab, var(--trim) 22%, transparent);
   color: var(--text);
 }
-.timeline-scroll {
+/* One shared compositor-driven horizontal scroller keeps ruler and all 3 rows 100% locked together. */
+.timeline-viewport {
+  position: relative;
+  isolation: isolate;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-padding-inline: 24px;
   min-width: 0;
-  scrollbar-width: none;
-}
-.timeline-scroll::-webkit-scrollbar { display: none; }
-.timeline-scroll:focus-visible { outline-offset: -2px; }
-
-@supports (animation-timeline: scroll(self inline)) {
-  .timeline-scroll {
-    --fade-size: 22px;
-    --fade-dir: right;
-    --fade-start-pos: 0;
-    --fade-end-pos: 100%;
-    mask:
-      linear-gradient(black, black) no-clip subtract,
-      linear-gradient(to var(--fade-dir), black, transparent) var(--fade-start-pos) 0 / var(--fade-start) 100% no-repeat no-clip,
-      linear-gradient(to var(--fade-dir), transparent, black) var(--fade-end-pos) 0 / var(--fade-end) 100% no-repeat no-clip;
-    animation: reveal-fade-start linear both, hide-fade-end linear both;
-    animation-timeline: scroll(self inline);
-    animation-range: 0 var(--fade-size), calc(100% - var(--fade-size)) 100%;
-  }
-  .timeline-scroll:dir(rtl) {
-    --fade-dir: left;
-    --fade-start-pos: 100%;
-    --fade-end-pos: 0;
-  }
-}
-@keyframes reveal-fade-start {
-  to { --fade-start: var(--fade-size); }
-}
-@keyframes hide-fade-end {
-  from { --fade-end: var(--fade-size); }
-}
-
-/* All rows scroll together; one accessible DAW scrollbar under the grid is enough. */
-.lane-c .timeline-scroll {
   scrollbar-width: auto;
   scrollbar-color: var(--line-strong) var(--well);
 }
-.lane-c .timeline-scroll::-webkit-scrollbar { display: block; height: 10px; }
-.lane-c .timeline-scroll::-webkit-scrollbar-track { background: var(--well); border-top: 1px solid var(--line); }
-.lane-c .timeline-scroll::-webkit-scrollbar-thumb {
+.timeline-viewport:focus-visible { outline-offset: -2px; }
+.timeline-viewport::-webkit-scrollbar { height: 10px; }
+.timeline-viewport::-webkit-scrollbar-track { background: var(--well); border-top: 1px solid var(--line); }
+.timeline-viewport::-webkit-scrollbar-thumb {
   background: var(--line-control);
   border-radius: 999px;
   border: 2px solid var(--well);
 }
-.lane-c .timeline-scroll::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+.timeline-viewport::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+.timeline-grid {
+  min-width: 100%;
+  width: max(
+    100%,
+    calc(
+      var(--lane-side)
+      + max(var(--min-marker-width), var(--visual-beats, var(--beats)) * var(--beat-min-width))
+      + var(--plot-inset-start)
+      + var(--plot-inset-end)
+    )
+  );
+}
 
 .ruler-track, .track {
-  min-width: calc(max(var(--min-marker-width), var(--visual-beats, var(--beats)) * var(--beat-min-width)) + var(--plot-inset-start) + var(--plot-inset-end));
+  min-width: 0;
+  overflow-x: clip;
 }
 .ruler-stage {
+  --repeat-strip: 0px;
   --paste-strip: 0px;
   --ruler-height: 36px;
   --trim-strip: 18px;
   position: relative;
-  height: calc(var(--paste-strip) + var(--ruler-height) + var(--trim-strip));
+  height: calc(var(--repeat-strip) + var(--paste-strip) + var(--ruler-height) + var(--trim-strip));
   margin-inline: var(--plot-inset-start) var(--plot-inset-end);
+}
+.ruler-row[data-repeating] .ruler-stage {
+  --repeat-strip: 28px;
 }
 .ruler-row[data-pasting] .ruler-stage {
   --paste-strip: 28px;
@@ -783,9 +867,87 @@ kbd {
 .ruler-stage:not(:has(.trim-handle:not([hidden]))) {
   --trim-strip: 0px;
 }
-.paste-slots {
+.repeat-brackets {
   position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
+  height: var(--repeat-strip);
+  z-index: 3;
+}
+.repeat-bracket {
+  position: absolute;
+  top: 4px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 2px solid color-mix(in oklab, var(--repeat) 78%, transparent);
+  border-inline: 2px solid color-mix(in oklab, var(--repeat) 78%, transparent);
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--repeat) 14%, transparent), transparent);
+  transition: border-color 120ms ease-out, background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+.repeat-bracket[data-active-pass] {
+  border-color: var(--repeat);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--repeat) 26%, transparent), color-mix(in oklab, var(--repeat) 6%, transparent));
+  box-shadow: inset 0 2px 10px -4px color-mix(in oklab, var(--repeat) 55%, transparent);
+}
+.repeat-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 6px);
+  border: 1px solid color-mix(in oklab, var(--repeat) 58%, var(--line));
+  border-radius: 999px;
+  background: #1a1826;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
+.repeat-bracket[data-active-pass] .repeat-pill {
+  border-color: var(--repeat);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--repeat) 42%, transparent);
+}
+.repeat-step,
+.repeat-remove {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 19px;
+  min-block-size: 19px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.repeat-step:not(:disabled):hover,
+.repeat-remove:not(:disabled):hover {
+  background: color-mix(in oklab, var(--repeat) 24%, transparent);
+  color: var(--text);
+}
+.repeat-remove {
+  border-left: 1px solid color-mix(in oklab, var(--repeat) 28%, transparent);
+  color: color-mix(in oklab, var(--repeat) 78%, var(--muted));
+}
+.repeat-count {
+  padding: 0 5px;
+  color: var(--repeat);
+  font-family: var(--mono);
+  font-size: .66rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.repeat-bracket[data-active-pass] .repeat-count {
+  color: var(--text);
+}
+.paste-slots {
+  position: absolute;
+  top: var(--repeat-strip);
   left: 0;
   right: 0;
   height: var(--paste-strip);
@@ -844,7 +1006,7 @@ kbd {
 .ruler {
   --drop-marker-color: var(--accent);
   position: absolute;
-  top: var(--paste-strip);
+  top: calc(var(--repeat-strip) + var(--paste-strip));
   left: 0;
   right: 0;
   height: var(--ruler-height);
@@ -910,6 +1072,13 @@ kbd {
 .beat-head[data-skipped] .beat-num {
   opacity: .42;
   text-decoration: line-through;
+}
+.beat-head[data-selected] {
+  background: color-mix(in oklab, var(--sound-cowbell) 14%, var(--well));
+  box-shadow: inset 0 2px 0 var(--sound-cowbell);
+}
+.beat-head[data-selected] .beat-num {
+  color: var(--sound-cowbell);
 }
 .beat-head[data-copied-source] {
   background: color-mix(in oklab, var(--ok) 11%, var(--well));
@@ -1040,12 +1209,54 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   transition: background-color 80ms ease-out, color 80ms ease-out, opacity 120ms ease-out;
 }
 .beat-head[data-group-start] .beat-num { color: var(--text); font-weight: 750; }
+.beat-head[data-current] {
+  background: color-mix(in oklab, var(--playhead-glow) 18%, var(--surface));
+  box-shadow:
+    inset 0 2.5px 0 var(--playhead),
+    inset 0 -1px 0 color-mix(in oklab, var(--playhead-glow) 45%, transparent);
+}
 .beat-head[data-current] .beat-num {
   color: var(--accent-ink);
-  background: var(--accent);
+  background: var(--playhead);
   font-weight: 800;
-  box-shadow: 0 0 12px color-mix(in oklab, var(--accent) 52%, transparent);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--playhead-glow) 78%, transparent);
 }
+.ruler-playhead {
+  display: none;
+  position: absolute;
+  top: calc(var(--repeat-strip) + var(--paste-strip));
+  bottom: 0;
+  left: -100%;
+  width: 100%;
+  transform: translate3d(var(--progress, 0%), 0, 0);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 6;
+}
+.ruler-playhead::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -7px;
+  width: 14px;
+  height: 11px;
+  background: var(--playhead);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--playhead-glow) 85%, transparent));
+}
+.ruler-playhead::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1.5px;
+  width: 3px;
+  background: var(--playhead);
+  box-shadow:
+    0 0 6px rgb(255 255 255 / 0.85),
+    0 0 14px color-mix(in oklab, var(--playhead-glow) 68%, transparent);
+}
+.console:is([data-playing], [data-count-in]) .ruler-playhead { display: block; }
 .beat-head:has(.beat-drag:focus-visible) {
   background: rgb(255 255 255 / 0.045);
 }
@@ -1094,7 +1305,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 /* Per-beat trim rails and draggable beat-end handles */
 .trim-rails {
   position: absolute;
-  top: calc(var(--paste-strip) + var(--ruler-height));
+  top: calc(var(--repeat-strip) + var(--paste-strip) + var(--ruler-height));
   left: 0;
   right: 0;
   height: 3px;
@@ -1129,7 +1340,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 
 .trim-handles {
   position: absolute;
-  top: calc(var(--paste-strip) + var(--ruler-height));
+  top: calc(var(--repeat-strip) + var(--paste-strip) + var(--ruler-height));
   left: 0;
   right: 0;
   bottom: 0;
@@ -1326,7 +1537,9 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .subdiv-options[data-row-sound='off'] { --lane-color: var(--sound-off); }
 
 .lane-controls {
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 8;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1335,6 +1548,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   padding: 7px 10px 7px 16px;
   background: var(--panel);
   border-right: 1px solid var(--line);
+  box-shadow: 6px 0 14px -10px rgb(0 0 0 / 0.85);
 }
 .lane-sound {
   display: inline-flex;
@@ -1483,9 +1697,63 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   background: var(--line);
 }
 .guides, .pulse-buttons, .trim-tails { position: absolute; inset: 0; }
+.active-beat-band {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--active-beat-start, 0%);
+  width: var(--active-beat-width, 0%);
+  background: linear-gradient(
+    180deg,
+    var(--playhead-band) 0%,
+    color-mix(in oklab, var(--playhead-band) 65%, transparent) 55%,
+    var(--playhead-band) 100%
+  );
+  border-inline: 1px solid var(--playhead-band-edge);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--playhead-glow) 28%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+.console:is([data-playing], [data-count-in]) .active-beat-band { display: block; }
 .trim-tails { z-index: 1; pointer-events: none; }
-.pulse-buttons { z-index: 2; }
-.beat-counts { z-index: 2; }
+.playhead-clip {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .console:is([data-playing], [data-count-in]) .playhead-clip { display: block; }
+}
+.playhead-trail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -100%;
+  width: 100%;
+  transform: translate3d(var(--progress, 0%), 0, 0);
+  will-change: transform;
+}
+.playhead-trail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: clamp(36px, 8%, 88px);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--playhead-glow) 10%, transparent) 48%,
+    color-mix(in oklab, var(--playhead-glow) 24%, transparent) 82%,
+    rgb(255 255 255 / 0.30) 100%
+  );
+}
+.pulse-buttons { z-index: 3; }
+.beat-counts { z-index: 3; }
 .trim-tail {
   display: none;
   position: absolute;
@@ -1693,14 +1961,18 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 }
 .pulse:active::after { transform: scale(0.92); }
 .pulse[data-lit]::after {
-  outline: 2px solid var(--pulse-color);
+  outline: 2px solid #ffffff;
   outline-offset: 3px;
   transition: none;
 }
 .pulse[data-lit]:not([data-sound='off'])::after {
   background: var(--pulse-color);
-  box-shadow: 0 0 14px color-mix(in oklab, var(--pulse-color) 65%, transparent);
-  transform: scale(1.16);
+  box-shadow:
+    0 0 0 2px rgb(255 255 255 / 0.85),
+    0 0 18px color-mix(in oklab, var(--pulse-color) 85%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pulse[data-lit]:not([data-sound='off'])::after { transform: scale(1.22); }
 }
 .pulse[data-trimmed],
 .pulse[data-skipped] {
@@ -1716,22 +1988,55 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   outline-offset: 3px;
   box-shadow: 0 0 12px color-mix(in oklab, var(--trim) 55%, transparent);
 }
-.lane[data-muted] .track { opacity: .36; filter: saturate(.45); }
+.lane[data-muted] .plot::before,
+.lane[data-muted] .guides,
+.lane[data-muted] .trim-tails,
+.lane[data-muted] .pulse-buttons,
+.lane[data-muted] .beat-counts {
+  opacity: .36;
+  filter: saturate(.45);
+}
+
+.console[data-count-in] {
+  --playhead: #ffd08a;
+  --playhead-glow: #ffb04f;
+  --playhead-band: rgb(255 176 79 / 0.11);
+  --playhead-band-edge: rgb(255 176 79 / 0.34);
+}
+.console[data-in-repeat] {
+  --playhead: #ffffff;
+  --playhead-glow: var(--repeat);
+  --playhead-band: color-mix(in oklab, var(--repeat) 12%, transparent);
+  --playhead-band-edge: color-mix(in oklab, var(--repeat) 38%, transparent);
+}
 
 .playhead {
   display: none;
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--progress, 0%);
-  width: 2px;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
-  box-shadow: 0 0 10px color-mix(in oklab, var(--accent) 60%, transparent);
+  left: -100%;
+  width: 100%;
+  transform: translate3d(var(--progress, 0%), 0, 0);
+  will-change: transform;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
-.console[data-playing] .playhead { display: block; }
+.playhead::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1.5px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--playhead);
+  box-shadow:
+    0 0 6px rgb(255 255 255 / 0.92),
+    0 0 14px color-mix(in oklab, var(--playhead-glow) 74%, transparent),
+    0 0 28px color-mix(in oklab, var(--playhead-glow) 36%, transparent);
+}
+.console:is([data-playing], [data-count-in]) .playhead { display: block; }
 
 /* Marker context menu */
 .marker-menu {
@@ -2517,7 +2822,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   color: var(--muted);
   white-space: nowrap;
 }
-.ideas-table thead th:nth-child(2) { width: 28%; }
+.ideas-table thead th:nth-child(2) { width: clamp(100px, 24%, 260px); }
 .ideas-table thead th.ideas-col-actions { width: 108px; text-align: right; }
 .ideas-table tbody tr {
   transition: background-color 120ms ease-out;
@@ -2855,9 +3160,21 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   /* Asymmetric inset preserves Beat 1 clearance while fitting starter 3/4 on 375px. */
   .rhythm-panel { --plot-inset-start: 14px; --plot-inset-end: 1px; --beat-min-width: 76px; }
   .rhythm-panel[data-extended] { --beat-min-width: 124px; }
+  .timeline-grid {
+    width: max(
+      100%,
+      calc(
+        max(var(--min-marker-width), var(--visual-beats, var(--beats)) * var(--beat-min-width))
+        + var(--plot-inset-start)
+        + var(--plot-inset-end)
+      )
+    );
+  }
   .ruler-stage { --ruler-height: 34px; --trim-strip: 16px; }
   .ruler-row { display: block; }
   .ruler-side {
+    width: 100cqi;
+    max-width: 100%;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -2867,16 +3184,20 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
     padding: 5px 14px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    box-shadow: none;
   }
   .trim-grip { height: 14px; }
   .lane { display: block; min-block-size: 0; }
   .lane-controls {
+    width: 100cqi;
+    max-width: 100%;
     flex-wrap: nowrap;
     gap: 5px;
     min-block-size: 38px;
     padding: 4px 14px 4px 16px;
     border-right: 0;
     border-bottom: 1px solid rgb(255 255 255 / 0.04);
+    box-shadow: none;
   }
   .lane-controls::before { inset: 8px auto 8px 0; }
   .lane-a .lane-sound { flex: 0 1 116px; min-width: 84px; min-block-size: 30px; }
@@ -2944,10 +3265,6 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .trim-handle[data-flip]::before {
     inset: -6px -14px -6px -2px;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .console[data-playing] .playhead { display: none; }
 }
 
 /* Embedded homepage mode */
@@ -3066,8 +3383,13 @@ html.oddmeter-embed .volume-control {
   .mark i { background: HighlightText; }
   .play { background: ButtonFace; color: ButtonText; border: 2px solid ButtonText; }
   .play[data-running] { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .beat-head[data-current] { outline: 2px solid Highlight; outline-offset: -2px; }
   .beat-head[data-current] .beat-num { background: Highlight; color: HighlightText; }
-  .beat-head[data-copied-source], .beat-head[data-copy-target] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .active-beat-band { border-inline: 2px solid Highlight; background: transparent; }
+  .live-beat { border-color: Highlight; color: CanvasText; background: Canvas; }
+  .live-beat-dot { background: Highlight; }
+  .live-beat-pass { border-left-color: Highlight; color: Highlight; }
+  .beat-head[data-selected], .beat-head[data-copied-source], .beat-head[data-copy-target] { outline: 2px solid Highlight; outline-offset: -2px; }
   .paste-slot { border-color: ButtonText; background: ButtonFace; color: ButtonText; }
   .paste-slot:not(:disabled):hover, .paste-slot:not(:disabled):focus-visible { border-color: Highlight; background: Highlight; color: HighlightText; }
   .paste-slot::after { background: Highlight; }
@@ -3086,7 +3408,9 @@ html.oddmeter-embed .volume-control {
   .pulse[data-accented]::after, .pulse[data-lit]::after { background: Highlight; border-color: Highlight; }
   .pulse[data-trim-target]::after { outline-color: Highlight; }
   .pulse[data-sound='off']::before { background: CanvasText; }
-  .playhead { background: Highlight; }
+  .playhead::after,
+  .ruler-playhead::before,
+  .ruler-playhead::after { background: Highlight; }
   .switch { border-color: ButtonText; }
   .switch::before { background: ButtonText; }
   #count-in:checked + .switch { border-color: Highlight; }

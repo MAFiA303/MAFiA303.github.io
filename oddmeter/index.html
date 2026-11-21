@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=extend1">
-  <script type="module" src="./app.js?v=extend1"></script>
+  <link rel="stylesheet" href="./styles.css?v=playhead2">
+  <script type="module" src="./app.js?v=playhead2"></script>
 </head>
 <body>
   <header class="site-header">
@@ -55,43 +55,58 @@
       </section>
 
       <section class="rhythm-panel" aria-label="Beat grid">
-        <div class="ruler-row">
-          <div class="ruler-side">
-            <div class="ruler-actions">
-              <button type="button" id="add-beat" class="ruler-action add-beat" aria-label="Add beat" title="Add beat to bar">+ Beat</button>
-              <div id="beat-clipboard" class="beat-clipboard" hidden>
-                <span id="clipboard-label" class="clipboard-label">Copied</span>
-                <button type="button" id="clear-clipboard" class="clipboard-clear" aria-label="Done copying beat" title="Done copying (Esc)">×</button>
+        <div class="timeline-viewport" data-timeline-scroll role="region" aria-label="Beat grid timeline" tabindex="0">
+          <div class="timeline-grid">
+            <div class="ruler-row">
+              <div class="ruler-side">
+                <div class="ruler-actions">
+                  <button type="button" id="add-beat" class="ruler-action add-beat" aria-label="Add beat" title="Add beat to bar">+ Beat</button>
+                  <div id="live-beat" class="live-beat" aria-hidden="true" hidden>
+                    <span class="live-beat-dot"></span>
+                    <span id="live-beat-num" class="live-beat-num"></span>
+                    <span id="live-beat-pass" class="live-beat-pass" hidden></span>
+                  </div>
+                  <div id="beat-selection" class="beat-selection" hidden>
+                    <span id="selection-label" class="clipboard-label"></span>
+                    <button type="button" id="selection-copy" class="selection-copy" aria-label="Copy selected beats" title="Copy selected beats (Ctrl/⌘+C)">Copy</button>
+                    <button type="button" id="selection-repeat" class="selection-repeat" aria-label="Repeat selected section" title="Repeat selected beats (×2, ×3, …)">Repeat</button>
+                    <button type="button" id="clear-selection" class="clipboard-clear" aria-label="Clear beat selection" title="Clear selection (Esc)">×</button>
+                  </div>
+                  <div id="beat-clipboard" class="beat-clipboard" hidden>
+                    <span id="clipboard-label" class="clipboard-label">Copied</span>
+                    <button type="button" id="clear-clipboard" class="clipboard-clear" aria-label="Done copying beat" title="Done copying (Esc)">×</button>
+                  </div>
+                </div>
+                <div id="trim-badge" class="trim-badge" hidden>
+                  <span id="trim-label" class="trim-label"></span>
+                  <button type="button" id="trim-reset" class="trim-reset" aria-label="Restore full bar" title="Restore full bar">×</button>
+                </div>
+              </div>
+              <div class="ruler-track">
+                <div class="ruler-stage">
+                  <div class="repeat-brackets" id="repeat-brackets" role="group" aria-label="Repeat sections" hidden></div>
+                  <div class="paste-slots" id="paste-slots" role="group" aria-label="Insert copied beat" hidden></div>
+                  <div class="ruler" id="ruler" role="list" aria-label="Beats"></div>
+                  <div class="trim-rails" id="trim-rails" aria-hidden="true"></div>
+                  <div class="trim-handles" id="trim-handles"></div>
+                  <div class="ruler-playhead" aria-hidden="true"></div>
+                </div>
               </div>
             </div>
-            <div id="trim-badge" class="trim-badge" hidden>
-              <span id="trim-label" class="trim-label"></span>
-              <button type="button" id="trim-reset" class="trim-reset" aria-label="Restore full bar" title="Restore full bar">×</button>
-            </div>
-          </div>
-          <div class="timeline-scroll ruler-scroll" data-timeline-scroll>
-            <div class="ruler-track">
-              <div class="ruler-stage">
-                <div class="paste-slots" id="paste-slots" role="group" aria-label="Insert copied beat" hidden></div>
-                <div class="ruler" id="ruler" role="list" aria-label="Beats"></div>
-                <div class="trim-rails" id="trim-rails" aria-hidden="true"></div>
-                <div class="trim-handles" id="trim-handles"></div>
-              </div>
-            </div>
+            <section class="lane lane-a" data-lane="0" aria-label="Beat">
+              <div class="lane-controls"><h2 class="lane-name">Beat</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute beat" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><button type="button" id="lane-sound-0" class="lane-sound" aria-label="Beat row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-0" command="toggle-popover"><span class="lane-sound-label">Click</span></button><div id="lane-sound-menu-0" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-0"><div class="sound-menu-group" role="group" aria-label="Beat row sound"></div></div></div></div>
+              <div class="track"><div class="plot"><div class="active-beat-band" aria-hidden="true"></div><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="playhead-clip" aria-hidden="true"><div class="playhead-trail"></div></div><div class="pulse-buttons"></div><div class="beat-counts" hidden></div><div class="playhead" aria-hidden="true"></div></div></div>
+            </section>
+            <section class="lane lane-b" data-lane="1" aria-label="Subdivision 1">
+              <div class="lane-controls"><h2 class="lane-name">Subdiv 1</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 1" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 1 count">‹</button><select class="lane-count" aria-label="Subdivision 1 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 1 count">›</button></div><button type="button" id="lane-sound-1" class="lane-sound" aria-label="Subdivision 1 row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-1" command="toggle-popover"><span class="lane-sound-label">Hi-hat</span></button><div id="lane-sound-menu-1" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-1"><div class="sound-menu-group" role="group" aria-label="Subdivision 1 row sound"></div></div></div></div>
+              <div class="track"><div class="plot"><div class="active-beat-band" aria-hidden="true"></div><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="playhead-clip" aria-hidden="true"><div class="playhead-trail"></div></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div>
+            </section>
+            <section class="lane lane-c" data-lane="2" aria-label="Subdivision 2">
+              <div class="lane-controls"><h2 class="lane-name">Subdiv 2</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 2" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 2 count">‹</button><select class="lane-count" aria-label="Subdivision 2 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 2 count">›</button></div><button type="button" id="lane-sound-2" class="lane-sound" aria-label="Subdivision 2 row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-2" command="toggle-popover"><span class="lane-sound-label">Cowbell</span></button><div id="lane-sound-menu-2" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-2"><div class="sound-menu-group" role="group" aria-label="Subdivision 2 row sound"></div></div></div></div>
+              <div class="track"><div class="plot"><div class="active-beat-band" aria-hidden="true"></div><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="playhead-clip" aria-hidden="true"><div class="playhead-trail"></div></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div>
+            </section>
           </div>
         </div>
-        <section class="lane lane-a" data-lane="0" aria-label="Beat">
-          <div class="lane-controls"><h2 class="lane-name">Beat</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute beat" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><button type="button" id="lane-sound-0" class="lane-sound" aria-label="Beat row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-0" command="toggle-popover"><span class="lane-sound-label">Click</span></button><div id="lane-sound-menu-0" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-0"><div class="sound-menu-group" role="group" aria-label="Beat row sound"></div></div></div></div>
-          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Beat timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts" hidden></div><div class="playhead" aria-hidden="true"></div></div></div></div>
-        </section>
-        <section class="lane lane-b" data-lane="1" aria-label="Subdivision 1">
-          <div class="lane-controls"><h2 class="lane-name">Subdiv 1</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 1" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 1 count">‹</button><select class="lane-count" aria-label="Subdivision 1 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 1 count">›</button></div><button type="button" id="lane-sound-1" class="lane-sound" aria-label="Subdivision 1 row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-1" command="toggle-popover"><span class="lane-sound-label">Hi-hat</span></button><div id="lane-sound-menu-1" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-1"><div class="sound-menu-group" role="group" aria-label="Subdivision 1 row sound"></div></div></div></div>
-          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 1 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div></div>
-        </section>
-        <section class="lane lane-c" data-lane="2" aria-label="Subdivision 2">
-          <div class="lane-controls"><h2 class="lane-name">Subdiv 2</h2><button type="button" class="lane-enabled icon-button" aria-label="Mute subdivision 2" aria-pressed="false"><span class="speaker" aria-hidden="true"></span></button><div class="lane-stepper"><button type="button" class="step lane-step" data-delta="-1" aria-label="Previous Subdivision 2 count">‹</button><select class="lane-count" aria-label="Subdivision 2 count"><option value="0">Off</option></select><button type="button" class="step lane-step" data-delta="1" aria-label="Next Subdivision 2 count">›</button></div><button type="button" id="lane-sound-2" class="lane-sound" aria-label="Subdivision 2 row sound" aria-haspopup="menu" aria-expanded="false" commandfor="lane-sound-menu-2" command="toggle-popover"><span class="lane-sound-label">Cowbell</span></button><div id="lane-sound-menu-2" class="sound-menu" popover="auto"><div focusgroup="menu nomemory" aria-labelledby="lane-sound-2"><div class="sound-menu-group" role="group" aria-label="Subdivision 2 row sound"></div></div></div></div>
-          <div class="timeline-scroll" data-timeline-scroll role="region" aria-label="Subdiv 2 timeline" tabindex="0"><div class="track"><div class="plot"><div class="guides" aria-hidden="true"></div><div class="trim-tails" aria-hidden="true"></div><div class="pulse-buttons"></div><div class="beat-counts"></div><div class="playhead" aria-hidden="true"></div></div></div></div>
-        </section>
         <span id="pulse-hint" hidden>Click a marker to cycle through all sounds and rest (Beat also includes main accent). Right-click or long-press to jump to any sound or accent.</span>
         <output id="pulse-feedback" class="visually-hidden" role="status"></output>
       </section>
