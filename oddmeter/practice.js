@@ -1,4 +1,4 @@
-import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds } from './rhythm.js?v=beats1';
+import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds } from './rhythm.js?v=extend1';
 import { soundOptions } from './sounds.js?v=audio1';
 
 // Tempo references are measured in quarter notes, independently of the meter.
@@ -93,12 +93,12 @@ export function readMarkerMemory(value) {
   }));
   const beat = read(source.beat, (key) => {
     const parts = key.split(':');
-    return parts.length === 2 && validIndex(parts[0], 32) && validIndex(parts[1], 16);
+    return parts.length === 2 && validIndex(parts[0], 32) && validIndex(parts[1], 32);
   });
   const bar = read(source.bar, (key) => validIndex(key, 16));
   const unmapped = {
-    beat: read(source.unmapped?.beat, (key) => validIndex(key, 512)),
-    bar: read(source.unmapped?.bar, (key) => validIndex(key, 512)),
+    beat: read(source.unmapped?.beat, (key) => validIndex(key, 1024)),
+    bar: read(source.unmapped?.bar, (key) => validIndex(key, 1024)),
   };
   const seen = Object.fromEntries(['beat', 'bar'].map((span) => [span,
     source.seen?.[span] === true || Object.keys(span === 'beat' ? beat : bar).length > 0 || Object.keys(unmapped[span]).length > 0,
@@ -113,17 +113,17 @@ function flatMarkerMap(lane) {
   const flat = new Map();
   const indices = new Set([...lane.accents, ...lane.rests, ...Object.keys(lane.pulseSounds).map(Number)]);
   for (const index of indices) {
-    if (!Number.isInteger(index) || index < 0 || index >= 512) continue;
+    if (!Number.isInteger(index) || index < 0 || index >= 1024) continue;
     const state = readMarkerState({ accented: lane.accents.includes(index), rest: lane.rests.includes(index), sound: lane.pulseSounds[index] });
     if (state) flat.set(index, state);
   }
   return flat;
 }
 
-function flushLaneMarkers(lane) {
+function flushLaneMarkers(lane, beatEnds = null) {
   const memory = readMarkerMemory(lane.markerMemory);
   const previousSpan = spanOf(lane);
-  const before = makeLanePulses({ ...lane, enabled: true }, 32);
+  const before = makeLanePulses({ ...lane, enabled: true }, 32, beatEnds);
   const flat = flatMarkerMap(lane);
   const available = new Set(before.map(({ index }) => index));
   for (const pulse of before) {
@@ -137,9 +137,9 @@ function flushLaneMarkers(lane) {
   return { memory, flat, previousSpan };
 }
 
-function rebuildLaneMarkers(lane, memory, flat = null) {
+function rebuildLaneMarkers(lane, memory, flat = null, beatEnds = null) {
   const span = spanOf(lane);
-  const after = makeLanePulses({ ...lane, enabled: true }, 32);
+  const after = makeLanePulses({ ...lane, enabled: true }, 32, beatEnds);
   const byIndex = new Map(after.map((pulse) => [pulse.index, pulse]));
   if (flat && !memory.seen[span]) {
     for (const [index, state] of flat) {
@@ -171,27 +171,27 @@ function rebuildLaneMarkers(lane, memory, flat = null) {
 
 // Mutates a validated lane. The callback edits count, span, beatCounts, or
 // offbeatsOnly; visible marker edits must remain in the lane's flat arrays.
-export function editRhythmLane(lane, change) {
-  const { memory, flat } = flushLaneMarkers(lane);
+export function editRhythmLane(lane, change, beatEnds = null, nextBeatEnds = beatEnds) {
+  const { memory, flat } = flushLaneMarkers(lane, beatEnds);
   change(lane);
-  return rebuildLaneMarkers(lane, memory, flat);
+  return rebuildLaneMarkers(lane, memory, flat, nextBeatEnds);
 }
 
 function cloneMarkerRecord(markers) {
   const copy = {};
   for (const [part, state] of Object.entries(object(markers))) {
-    if (!validIndex(part, 16)) continue;
+    if (!validIndex(part, 32)) continue;
     const cleaned = readMarkerState(state);
     if (cleaned) copy[part] = cleaned;
   }
   return copy;
 }
 
-function editLaneBeatColumns(lane, laneIndex, nextBeats, transform) {
-  const { memory } = flushLaneMarkers(lane);
+function editLaneBeatColumns(lane, laneIndex, nextBeats, transform, prevBeatEnds = null, nextBeatEnds = prevBeatEnds) {
+  const { memory } = flushLaneMarkers(lane, prevBeatEnds);
   const columns = Array.from({ length: 32 }, (_, beat) => {
     const markers = {};
-    for (let part = 0; part < 16; part++) {
+    for (let part = 0; part < 32; part++) {
       const state = memory.beat[`${beat}:${part}`];
       if (state) markers[part] = { ...state };
     }
@@ -226,20 +226,21 @@ function editLaneBeatColumns(lane, laneIndex, nextBeats, transform) {
   }
   memory.beat = nextBeatMem;
   if (Object.keys(nextBeatMem).length > 0) memory.seen.beat = true;
-  if (spanOf(lane) === 'beat') rebuildLaneMarkers(lane, memory);
+  if (spanOf(lane) === 'beat') rebuildLaneMarkers(lane, memory, null, nextBeatEnds);
   else lane.markerMemory = memory;
 }
 
 export function snapshotBeat(settings, beat) {
   if (!Number.isInteger(beat) || beat < 0 || beat >= 32) return null;
+  const ends = normalizeBeatEnds(settings.beatEnds, 32);
   return {
     sourceBeat: beat,
     enabled: settings.beatEnabled?.[beat] !== false,
-    beatEnd: normalizeBeatEnd(settings.beatEnds?.[beat]),
+    beatEnd: normalizeBeatEnd(ends[beat]),
     lanes: settings.lanes.map((lane, index) => {
-      const { memory } = flushLaneMarkers(lane);
+      const { memory } = flushLaneMarkers(lane, ends);
       const markers = {};
-      for (let part = 0; part < 16; part++) {
+      for (let part = 0; part < 32; part++) {
         const state = memory.beat[`${beat}:${part}`];
         if (state) markers[part] = { ...state };
       }
@@ -254,7 +255,8 @@ export function snapshotBeat(settings, beat) {
 export function pasteBeat(settings, targetBeat, snapshot, { includeEnabled = false } = {}) {
   if (!Number.isInteger(targetBeat) || targetBeat < 0 || targetBeat >= settings.beats) return false;
   if (!snapshot || !Array.isArray(snapshot.lanes) || snapshot.lanes.length !== settings.lanes.length) return false;
-  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnds = [...prevEnds];
   settings.beatEnds[targetBeat] = normalizeBeatEnd(snapshot.beatEnd);
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   if (includeEnabled) {
@@ -270,7 +272,7 @@ export function pasteBeat(settings, targetBeat, snapshot, { includeEnabled = fal
         explicit: index === 0 ? null : count,
         markers: cloneMarkerRecord(source?.markers),
       };
-    });
+    }, prevEnds, settings.beatEnds);
   });
   return true;
 }
@@ -283,14 +285,15 @@ function moveInRange(list, from, to) {
 export function moveBeat(settings, fromBeat, toBeat) {
   if (!Number.isInteger(fromBeat) || !Number.isInteger(toBeat)) return false;
   if (fromBeat < 0 || fromBeat >= settings.beats || toBeat < 0 || toBeat >= settings.beats || fromBeat === toBeat) return false;
-  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnds = [...prevEnds];
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   moveInRange(settings.beatEnds, fromBeat, toBeat);
   moveInRange(settings.beatEnabled, fromBeat, toBeat);
   settings.lanes.forEach((lane, index) => {
     editLaneBeatColumns(lane, index, settings.beats, (columns) => {
       moveInRange(columns, fromBeat, toBeat);
-    });
+    }, prevEnds, settings.beatEnds);
   });
   return true;
 }
@@ -301,7 +304,8 @@ export function insertBeat(settings, atIndex, snapshot = null) {
   const nextBeats = settings.beats + 1;
   settings.beats = nextBeats;
   settings.grouping = [nextBeats];
-  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnds = [...prevEnds];
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   settings.beatEnds.splice(atIndex, 0, snapshot ? normalizeBeatEnd(snapshot.beatEnd) : null);
   settings.beatEnds.length = 32;
@@ -317,7 +321,7 @@ export function insertBeat(settings, atIndex, snapshot = null) {
         markers: source ? cloneMarkerRecord(source.markers) : {},
       });
       columns.length = 32;
-    });
+    }, prevEnds, settings.beatEnds);
   });
   return true;
 }
@@ -329,7 +333,8 @@ export function deleteBeat(settings, beat) {
   const nextBeats = prevBeats - 1;
   settings.beats = nextBeats;
   settings.grouping = [nextBeats];
-  settings.beatEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  settings.beatEnds = [...prevEnds];
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   settings.beatEnds.splice(beat, 1);
   settings.beatEnds.splice(nextBeats, 0, null);
@@ -343,7 +348,7 @@ export function deleteBeat(settings, beat) {
       columns.splice(beat, 1);
       columns.splice(nextBeats, 0, { count: lane.count, explicit: null, markers: {} });
       columns.length = 32;
-    });
+    }, prevEnds, settings.beatEnds);
   });
   return true;
 }

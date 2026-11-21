@@ -63,13 +63,13 @@ function divBigFrac([aN, aD], [bN, bD]) {
   return [num / d, den / d];
 }
 
-// Per-beat trim is stored as a reduced proper fraction [numerator, denominator]
-// of one beat (0 < n/d < 1), or null when the full beat plays.
+// Per-beat length override is stored as a reduced fraction [numerator, denominator]
+// of one beat (0 < n/d <= 2, n != d), or null when the full beat plays.
 export function normalizeBeatEnd(value) {
   if (!Array.isArray(value) || value.length !== 2) return null;
   const [numerator, denominator] = value;
   if (!Number.isInteger(numerator) || !Number.isInteger(denominator)) return null;
-  if (numerator <= 0 || denominator <= 1 || numerator >= denominator || denominator > 512) return null;
+  if (numerator <= 0 || denominator < 1 || numerator === denominator || numerator > denominator * 2 || denominator > 512) return null;
   const divisor = gcd(numerator, denominator);
   return [numerator / divisor, denominator / divisor];
 }
@@ -99,32 +99,49 @@ export function beatLayout(beats, beatEnds = null, beatEnabled = null) {
   const enabled = Array.from({ length: beats }, (_, beat) => beatEnabled?.[beat] !== false);
   if (beats > 0 && !enabled.some(Boolean)) enabled[0] = true;
   const skipped = enabled.some((on) => !on);
-  const trimmed = ends.some((end, beat) => enabled[beat] && end !== null);
-  const shortened = skipped || trimmed;
+  const trimmed = ends.some((end, beat) => enabled[beat] && end !== null && end[0] < end[1]);
+  const extended = ends.some((end, beat) => enabled[beat] && end !== null && end[0] > end[1]);
+  const visualExtended = ends.some((end) => end !== null && end[0] > end[1]);
+  const altered = trimmed || extended;
+  const shortened = skipped || altered;
   const starts = [];
   const lengths = [];
   const startsFloat = [];
   const lengthsFloat = [];
+  const visualStarts = [];
+  const visualWidths = [];
   let cursor = [0n, 1n];
+  let visualCursor = 0;
   for (let beat = 0; beat < beats; beat++) {
     const end = ends[beat];
     const len = !enabled[beat] ? [0n, 1n] : end ? [BigInt(end[0]), BigInt(end[1])] : [1n, 1n];
+    const lenFloat = !enabled[beat] ? 0 : end ? end[0] / end[1] : 1;
+    const visWidth = end && end[0] > end[1] ? end[0] / end[1] : 1;
     starts.push(cursor);
     lengths.push(len);
     startsFloat.push(Number(cursor[0]) / Number(cursor[1]));
-    lengthsFloat.push(!enabled[beat] ? 0 : end ? end[0] / end[1] : 1);
+    lengthsFloat.push(lenFloat);
+    visualStarts.push(visualCursor);
+    visualWidths.push(visWidth);
     cursor = addBigFrac(cursor, len);
+    visualCursor += visWidth;
   }
   return {
     ends,
     enabled,
     skipped,
     trimmed,
+    extended,
+    visualExtended,
+    altered,
     shortened,
     starts,
     lengths,
     startsFloat,
     lengthsFloat,
+    visualStarts,
+    visualWidths,
+    visualTotal: visualCursor,
     total: cursor,
     totalFloat: Number(cursor[0]) / Number(cursor[1]),
   };
@@ -176,8 +193,9 @@ export function makeSubdivisionCycle(divisions) {
 }
 
 // Each lane can divide the whole bar, or repeat a count within each meter beat.
-// Marker indices stay chronological across the lane, including mixed tuplets.
-export function makeLanePulses(lane, beats) {
+// Marker indices stay chronological across the lane, including mixed tuplets
+// and beats extended past 1/1.
+export function makeLanePulses(lane, beats, beatEnds = null) {
   if (lane.enabled === false) return [];
   if (lane.span === 'bar') {
     return Array.from({ length: lane.count }, (_, index) => ({
@@ -187,14 +205,22 @@ export function makeLanePulses(lane, beats) {
       part: index,
     }));
   }
+  const layout = beatEnds ? beatLayout(beats, beatEnds) : null;
   let index = 0;
   return Array.from({ length: beats }, (_, beat) => {
     const count = lane.beatCounts?.[beat] ?? lane.count;
+    const end = layout?.ends[beat] ?? null;
+    const partCount = count > 1 && end && end[0] > end[1]
+      ? Math.floor((end[0] * count - 1) / end[1]) + 1
+      : count;
     const start = lane.offbeatsOnly ? 1 : 0;
-    return Array.from({ length: count - start }, (_, offset) => {
+    return Array.from({ length: Math.max(0, partCount - start) }, (_, offset) => {
       const part = offset + start;
+      const phase = layout?.visualExtended
+        ? (layout.visualStarts[beat] + part / count) / layout.visualTotal
+        : (beat * count + part) / (beats * count);
       return {
-        phase: (beat * count + part) / (beats * count),
+        phase,
         index: index++,
         beat,
         part,
@@ -220,13 +246,14 @@ export function isPulseActiveInBeat(pulse, lane, beatEnds, beatEnabled = null) {
   return pulse.part * end[1] < end[0] * count;
 }
 
-export function makeBeatSnapPoints(lanes, beats, beat) {
+export function makeBeatSnapPoints(lanes, beats, beat, { maxBeats = 2 } = {}) {
   const seen = new Map();
   lanes.forEach((lane, index) => {
     if (index === 0 || lane.enabled === false || lane.span === 'bar') return;
     const count = lane.beatCounts?.[beat] ?? lane.count;
     if (count <= 1) return;
-    for (let part = 1; part < count; part++) {
+    const maxPart = count * maxBeats;
+    for (let part = 1; part <= maxPart; part++) {
       const divisor = gcd(part, count);
       const num = part / divisor;
       const den = count / divisor;
@@ -241,7 +268,7 @@ export function makeBeatSnapPoints(lanes, beats, beat) {
 export function makeLaneCyclePhases(lane, beats, beatEnds = null, beatEnabled = null) {
   const layout = beatLayout(beats, beatEnds, beatEnabled);
   const active = [];
-  for (const pulse of makeLanePulses({ ...lane, enabled: true }, beats)) {
+  for (const pulse of makeLanePulses({ ...lane, enabled: true }, beats, layout.ends)) {
     if (lane.span === 'bar') {
       active.push({ hit: pulse.index, phase: pulse.phase });
       continue;
@@ -263,7 +290,7 @@ export function makeRhythmCycle(lanes, beats, beatEnds = null, beatEnabled = nul
   const layout = beatLayout(beats, beatEnds, beatEnabled);
   const events = new Map();
   lanes.forEach((lane, laneIndex) => {
-    for (const pulse of makeLanePulses(lane, beats)) {
+    for (const pulse of makeLanePulses(lane, beats, layout.ends)) {
       let key;
       let phase;
       if (lane.span === 'bar') {

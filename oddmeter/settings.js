@@ -1,5 +1,5 @@
-import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=beats1';
-import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=beats1';
+import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, presets } from './rhythm.js?v=extend1';
+import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=extend1';
 import { defaultSounds, soundOptions } from './sounds.js?v=audio1';
 
 export const storageKey = 'oddmeter-settings-v1';
@@ -22,7 +22,7 @@ const starterSettings = {
   ],
 };
 const soundIds = new Set(soundOptions.map(([id]) => id));
-const markerCapacity = 32 * 16;
+const markerCapacity = 32 * 32;
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
 function readMeter(value) {

@@ -1,4 +1,4 @@
-import { beatLayout, eventFrame, hasBeatSkip, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnabled, normalizeBeatEnds } from './rhythm.js?v=beats1';
+import { beatLayout, eventFrame, hasBeatSkip, hasBeatTrim, makeCycle, makeRhythmCycle, makeSubdivisionCycle, measureSeconds, normalizeBeatEnabled, normalizeBeatEnds } from './rhythm.js?v=extend1';
 import { makeSoundBank } from './sounds.js?v=audio1';
 
 const regularGain = 0.45;

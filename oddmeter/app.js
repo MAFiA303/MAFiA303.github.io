@@ -1,8 +1,8 @@
-import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=beats1';
+import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, pulseBeatFraction, subdivisionName } from './rhythm.js?v=extend1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
-import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=beats1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=ideas1';
-import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas7';
+import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, moveBeat, insertBeat, deleteBeat } from './practice.js?v=extend1';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=extend1';
+import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=extend1';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -383,7 +383,7 @@ async function prepareAudio(retries = 2) {
 }
 
 async function connectAudio(audio) {
-  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=beats2', import.meta.url));
+  await audio.audioWorklet.addModule(new URL('./click-processor.js?v=extend1', import.meta.url));
   if (context !== audio || audio.state === 'closed') return;
   const node = new AudioWorkletNode(audio, 'oddmeter-click', {
     numberOfInputs: 0,
@@ -561,7 +561,8 @@ function paint(now) {
   if (clock.carry && frame < clock.carry.end) {
     const span = Math.max(1, clock.carry.end - clock.carry.start);
     const localRatio = Math.max(0, Math.min(1, (frame - clock.carry.start) / span));
-    const visualPhase = (clock.carry.beat + localRatio * clock.carry.len) / settings.beats;
+    const carryLayout = beatLayout(settings.beats, clock.beatEnds, clock.beatEnabled);
+    const visualPhase = (carryLayout.visualStarts[clock.carry.beat] + localRatio * clock.carry.len) / carryLayout.visualTotal;
     status('Playing', true);
     ui.position.textContent = `${clock.carry.beat + 1}/${settings.beats}`;
     setCurrentBeat(clock.carry.beat);
@@ -595,7 +596,7 @@ function paint(now) {
       }
     }
     const localOffset = Math.max(0, Math.min(layout.lengthsFloat[beatIndex], activeBeatTime - layout.startsFloat[beatIndex]));
-    visualPhase = (beatIndex + localOffset) / settings.beats;
+    visualPhase = (layout.visualStarts[beatIndex] + localOffset) / layout.visualTotal;
   }
   status('Playing', true);
   ui.position.textContent = `${beatIndex + 1}/${settings.beats}`;
@@ -965,11 +966,12 @@ function updateBeatDragVisual() {
   clearBeatDragIndicators();
   const rect = ui.ruler.getBoundingClientRect();
   if (rect.width <= 0) return;
-  const colW = rect.width / settings.beats;
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
+  const unitW = rect.width / layout.visualTotal;
   if (mode === 'move') {
     let insertBefore = settings.beats;
     for (let i = 0; i < settings.beats; i++) {
-      if (beatDrag.lastX < rect.left + (i + 0.5) * colW) {
+      if (beatDrag.lastX < rect.left + (layout.visualStarts[i] + layout.visualWidths[i] * 0.5) * unitW) {
         insertBefore = i;
         break;
       }
@@ -982,8 +984,9 @@ function updateBeatDragVisual() {
       return;
     }
     beatDrag.toIndex = insertBefore > beatDrag.fromBeat ? insertBefore - 1 : insertBefore;
+    const dropBoundary = insertBefore < settings.beats ? layout.visualStarts[insertBefore] : layout.visualTotal;
     ui.ruler.dataset.drop = 'move';
-    ui.ruler.style.setProperty('--drop-x', `${rect.left + insertBefore * colW}px`);
+    ui.ruler.style.setProperty('--drop-x', `${rect.left + dropBoundary * unitW}px`);
     ui.ruler.style.setProperty('--drop-y', `${rect.top}px`);
     ui.ruler.style.setProperty('--drop-h', `${rect.height}px`);
   } else {
@@ -998,7 +1001,15 @@ function updateBeatDragVisual() {
       return;
     }
     beatDrag.appendCopy = false;
-    const target = Math.max(0, Math.min(settings.beats - 1, Math.floor((beatDrag.lastX - rect.left) / colW)));
+    const visualPos = (beatDrag.lastX - rect.left) / unitW;
+    let target = settings.beats - 1;
+    for (let i = 0; i < settings.beats; i++) {
+      if (visualPos < layout.visualStarts[i] + layout.visualWidths[i]) {
+        target = i;
+        break;
+      }
+    }
+    target = Math.max(0, Math.min(settings.beats - 1, target));
     if (target === beatDrag.fromBeat) {
       beatDrag.copyTarget = -1;
       return;
@@ -1385,10 +1396,12 @@ function renderPasteSlots() {
       return btn;
     }));
   }
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
   const src = beatClipboard?.sourceBeat != null ? `beat ${beatClipboard.sourceBeat + 1}` : 'copied beat';
   [...ui.pasteSlots.children].forEach((btn, slot) => {
     btn.dataset.insert = slot;
-    btn.style.left = `${100 * slot / settings.beats}%`;
+    const pos = slot < settings.beats ? layout.visualStarts[slot] : layout.visualTotal;
+    btn.style.left = `${100 * pos / layout.visualTotal}%`;
     btn.disabled = atMax;
     const where = slot === 0 ? 'before beat 1'
       : slot === settings.beats ? `after beat ${settings.beats}`
@@ -1453,6 +1466,23 @@ function renderBeatHeaders() {
   else renderBeatMenu();
 }
 
+function renderGuides() {
+  const { beats, grouping } = settings;
+  const layout = beatLayout(beats, settings.beatEnds, settings.beatEnabled);
+  const starts = groupStarts(grouping);
+  for (const lane of lanes) {
+    lane.guides.replaceChildren();
+    for (let beat = 0; beat <= beats; beat++) {
+      const guide = document.createElement('i');
+      guide.className = 'guide';
+      const pos = beat < beats ? layout.visualStarts[beat] : layout.visualTotal;
+      guide.style.left = `${100 * pos / layout.visualTotal}%`;
+      guide.toggleAttribute('data-group-start', starts.includes(beat));
+      lane.guides.append(guide);
+    }
+  }
+}
+
 function renderMeter() {
   const { beats, unit, grouping } = settings;
   ui.beats.value = beats;
@@ -1468,18 +1498,10 @@ function renderMeter() {
   ui.groupingChoice.hidden = beats < 5;
   ui.groupingChoice.toggleAttribute('data-active', grouping.length > 1);
   renderBeatHeaders();
-  const starts = groupStarts(grouping);
   for (const lane of lanes) {
     if (lane.span) lane.span.options[0].text = `per ${unitNames[unit]}`;
-    lane.guides.replaceChildren();
-    for (let beat = 0; beat <= beats; beat++) {
-      const guide = document.createElement('i');
-      guide.className = 'guide';
-      guide.style.left = `${100 * beat / beats}%`;
-      guide.toggleAttribute('data-group-start', starts.includes(beat));
-      lane.guides.append(guide);
-    }
   }
+  renderGuides();
 }
 
 function visibleCounts(profile) {
@@ -1550,10 +1572,11 @@ function renderRhythms() {
   closeBeatMenu();
   closeSoundMenus();
   clearCycleFromDefault();
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
   let minGap = 1;
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
-    lane.onsets = makeLanePulses({ ...profile, enabled: true }, settings.beats);
+    lane.onsets = makeLanePulses({ ...profile, enabled: true }, settings.beats, layout.ends);
     lane.beatFractions = lane.onsets.map((onset) => pulseBeatFraction(onset, profile));
     if (lane.count) {
       const custom = laneCustom(profile);
@@ -1595,6 +1618,8 @@ function renderRhythms() {
       button.dataset.index = onset.index;
       button.dataset.beat = onset.beat;
       button.dataset.part = onset.part;
+      const beatCount = profile.beatCounts?.[onset.beat] ?? profile.count;
+      button.toggleAttribute('data-extended-pulse', index > 0 && profile.span === 'beat' && onset.part >= beatCount);
       button.dataset.focusKey = `lane-${index}-pulse-${onset.index}`;
       button.setAttribute('aria-describedby', 'pulse-hint');
       bindMarker(button, index, onset.index);
@@ -1606,10 +1631,16 @@ function renderRhythms() {
   });
   const beatWidth = settings.beats > 4 ? 260 : 76;
   const minMarkerWidth = Math.ceil(Math.max(240, 24 / minGap));
+  const beatColumns = layout.visualExtended
+    ? layout.visualWidths.map((w) => `minmax(0, ${w}fr)`).join(' ')
+    : `repeat(${settings.beats}, minmax(0, 1fr))`;
   ui.rhythmPanel.toggleAttribute('data-extended', settings.beats > 4);
   ui.rhythmPanel.style.setProperty('--beats', settings.beats);
+  ui.rhythmPanel.style.setProperty('--visual-beats', String(layout.visualTotal));
+  ui.rhythmPanel.style.setProperty('--beat-columns', beatColumns);
   ui.rhythmPanel.style.setProperty('--min-marker-width', `${minMarkerWidth}px`);
-  ui.rhythmPanel.style.setProperty('--timeline-grid-width', `${Math.ceil(Math.max(minMarkerWidth, settings.beats * beatWidth))}px`);
+  ui.rhythmPanel.style.setProperty('--timeline-grid-width', `${Math.ceil(Math.max(minMarkerWidth, layout.visualTotal * beatWidth))}px`);
+  renderGuides();
   renderBeatHeaders();
   renderTrim();
   renderMix();
@@ -1620,6 +1651,7 @@ let beatSnaps = [];
 let trimDragBeat = -1;
 let trimPreviewBeat = -1;
 let trimDragBefore = '';
+let trimDragGeom = null;
 
 function sameBeatEnd(a, b) {
   const first = normalizeBeatEnd(a);
@@ -1640,15 +1672,36 @@ function updateTrimPreview() {
 }
 
 function formatBeatTrimLabel(beat, end) {
-  return end ? `Beat ${beat + 1} ends at ${formatBeatTrim(end)}` : `Beat ${beat + 1} restored`;
+  if (!end) return `Beat ${beat + 1} restored`;
+  return end[0] > end[1]
+    ? `Beat ${beat + 1} extended to ${formatBeatTrim(end)}`
+    : `Beat ${beat + 1} ends at ${formatBeatTrim(end)}`;
+}
+
+function remapLanesForBeatEnds(prevEnds, nextEnds) {
+  settings.lanes.forEach((lane, index) => {
+    if (index === 0 || lane.span === 'bar') return;
+    editRhythmLane(lane, () => {}, prevEnds, nextEnds);
+  });
 }
 
 function applyBeatEnd(beat, next, { saveState = true } = {}) {
+  const prev = normalizeBeatEnd(settings.beatEnds[beat]);
   const normalized = normalizeBeatEnd(next);
-  if (sameBeatEnd(settings.beatEnds[beat], normalized)) return false;
-  settings.beatEnds[beat] = normalized;
-  renderTrim();
-  renderMix();
+  if (sameBeatEnd(prev, normalized)) return false;
+  const needsPulseRebuild = Boolean((prev && prev[0] > prev[1]) || (normalized && normalized[0] > normalized[1]));
+  if (needsPulseRebuild) {
+    const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+    const nextEnds = [...prevEnds];
+    nextEnds[beat] = normalized;
+    remapLanesForBeatEnds(prevEnds, nextEnds);
+    settings.beatEnds[beat] = normalized;
+    renderRhythms();
+  } else {
+    settings.beatEnds[beat] = normalized;
+    renderTrim();
+    renderMix();
+  }
   renderPreset();
   if (saveState) save();
   if (playing) sendTiming(false, false);
@@ -1657,11 +1710,19 @@ function applyBeatEnd(beat, next, { saveState = true } = {}) {
 
 function clearAllBeatEnds() {
   if (!hasBeatTrim(settings.beatEnds, settings.beats) && !hasBeatSkip(settings.beatEnabled, settings.beats)) return false;
-  settings.beatEnds = Array(32).fill(null);
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const hadExtended = prevEnds.slice(0, settings.beats).some((end) => end && end[0] > end[1]);
+  const clearedEnds = Array(32).fill(null);
+  if (hadExtended) remapLanesForBeatEnds(prevEnds, clearedEnds);
+  settings.beatEnds = clearedEnds;
   settings.beatEnabled = Array(32).fill(true);
-  renderBeatHeaders();
-  renderTrim();
-  renderMix();
+  if (hadExtended) {
+    renderRhythms();
+  } else {
+    renderBeatHeaders();
+    renderTrim();
+    renderMix();
+  }
   renderPreset();
   save();
   if (playing) sendTiming(false, false);
@@ -1669,12 +1730,21 @@ function clearAllBeatEnds() {
 }
 
 function updateDragFromClientX(beat, clientX) {
-  const rect = ui.ruler.getBoundingClientRect();
   const points = beatSnaps[beat];
-  if (rect.width <= 0 || !points?.length) return;
-  const beatWidth = rect.width / settings.beats;
-  const beatLeft = rect.left + beat * beatWidth;
-  const localRaw = Math.max(0, Math.min(1, (clientX - beatLeft) / beatWidth));
+  if (!points?.length) return;
+  let beatLeft;
+  let unitWidth;
+  if (trimDragGeom && trimDragGeom.unitWidth > 0) {
+    ({ beatLeft, unitWidth } = trimDragGeom);
+  } else {
+    const rect = ui.ruler.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
+    unitWidth = rect.width / layout.visualTotal;
+    beatLeft = rect.left + layout.visualStarts[beat] * unitWidth;
+  }
+  const maxRatio = points[points.length - 1].ratio;
+  const localRaw = Math.max(0, Math.min(maxRatio, (clientX - beatLeft) / unitWidth));
   let best = points[points.length - 1];
   let bestDistance = Infinity;
   for (const point of points) {
@@ -1696,6 +1766,7 @@ function finishTrimDrag() {
   if (trimDragBeat < 0) return;
   const beat = trimDragBeat;
   trimDragBeat = -1;
+  trimDragGeom = null;
   window.removeEventListener('pointermove', onTrimPointerMove);
   window.removeEventListener('pointerup', finishTrimDrag);
   window.removeEventListener('pointercancel', finishTrimDrag);
@@ -1738,6 +1809,10 @@ function bindBeatTrimHandle(handle, beat) {
     closeMarkerMenu();
     trimDragBefore = JSON.stringify(settings);
     trimDragBeat = beat;
+    const rect = ui.ruler.getBoundingClientRect();
+    const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
+    const unitWidth = rect.width > 0 ? rect.width / layout.visualTotal : 0;
+    trimDragGeom = unitWidth > 0 ? { beatLeft: rect.left + layout.visualStarts[beat] * unitWidth, unitWidth } : null;
     handle.classList.add('dragging');
     ui.rhythmPanel.dataset.trimming = '';
     handle.setPointerCapture?.(event.pointerId);
@@ -1764,8 +1839,10 @@ function bindBeatTrimHandle(handle, beat) {
       target = points.find((point) => compareFractions([point.num, point.den], current) > 0);
     } else if (event.key === 'Home') {
       target = points[0];
-    } else if (event.key === 'End' || event.key === 'Backspace' || event.key === 'Delete') {
-      target = points[points.length - 1];
+    } else if (event.key === 'Backspace' || event.key === 'Delete') {
+      target = { num: 1, den: 1 };
+    } else if (event.key === 'End') {
+      target = compareFractions(current, [1, 1]) < 0 ? { num: 1, den: 1 } : points[points.length - 1];
     } else {
       return;
     }
@@ -1794,7 +1871,7 @@ function ensureBeatTrimDom() {
       handle.className = 'trim-handle';
       handle.dataset.beat = beat;
       handle.dataset.focusKey = `trim-handle-${beat}`;
-      handle.title = `Drag left to shorten beat ${beat + 1} (←/→ keys, double-click to reset)`;
+      handle.title = `Drag left to shorten or right to extend beat ${beat + 1} (←/→ keys, double-click to reset)`;
       const grip = document.createElement('span');
       grip.className = 'trim-grip';
       grip.setAttribute('aria-hidden', 'true');
@@ -1826,14 +1903,16 @@ function renderTrim() {
   const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
   beatSnaps = Array.from({ length: settings.beats }, (_, beat) => makeBeatSnapPoints(settings.lanes, settings.beats, beat));
   ui.rhythmPanel.toggleAttribute('data-trimmed', layout.trimmed);
+  ui.rhythmPanel.toggleAttribute('data-beat-extended', layout.extended);
   ui.rhythmPanel.toggleAttribute('data-skipped', layout.skipped);
   ui.rulerRow?.toggleAttribute('data-trimmed', layout.shortened);
   if (ui.trimBadge && ui.trimLabel) {
     ui.trimBadge.hidden = !layout.shortened;
     const total = formatTotalBeats(settings.beatEnds, settings.beats, { beatEnabled: settings.beatEnabled });
     const activeCount = layout.enabled.filter(Boolean).length;
-    ui.trimLabel.textContent = layout.trimmed ? total : layout.skipped ? `${activeCount}/${settings.beats} beats` : '';
-    ui.trimBadge.toggleAttribute('data-skipped-only', layout.skipped && !layout.trimmed);
+    ui.trimLabel.textContent = layout.altered ? total : layout.skipped ? `${activeCount}/${settings.beats} beats` : '';
+    ui.trimBadge.toggleAttribute('data-skipped-only', layout.skipped && !layout.altered);
+    ui.trimBadge.toggleAttribute('data-extended-only', layout.extended && !layout.trimmed && !layout.skipped);
     const parts = [];
     layout.enabled.forEach((on, beat) => {
       if (!on) parts.push(`Beat ${beat + 1}: skipped`);
@@ -1841,20 +1920,27 @@ function renderTrim() {
     });
     ui.trimBadge.title = layout.shortened ? `${parts.join(', ')} · Bar total: ${total}` : '';
   }
+  const totalVis = layout.visualTotal;
   for (let beat = 0; beat < settings.beats; beat++) {
     const skipped = !layout.enabled[beat];
     const end = skipped ? null : layout.ends[beat];
+    const isTrimmed = Boolean(end && end[0] < end[1]);
+    const isExtended = Boolean(end && end[0] > end[1]);
     const ratio = skipped ? 0 : layout.lengthsFloat[beat];
-    const beatStartPct = 100 * beat / settings.beats;
-    const beatWidthPct = 100 / settings.beats;
-    const activeWidthPct = 100 * ratio / settings.beats;
-    const cutPct = 100 * (beat + ratio) / settings.beats;
-    const tailWidthPct = 100 * (1 - ratio) / settings.beats;
+    const beatStartPct = 100 * layout.visualStarts[beat] / totalVis;
+    const beatWidthPct = 100 * layout.visualWidths[beat] / totalVis;
+    const activeWidthPct = 100 * ratio / totalVis;
+    const cutPct = 100 * (layout.visualStarts[beat] + ratio) / totalVis;
+    const normalEndPct = 100 * (layout.visualStarts[beat] + 1) / totalVis;
+    const tailWidthPct = isTrimmed ? 100 * (1 - ratio) / totalVis
+      : isExtended ? 100 * (ratio - 1) / totalVis
+      : 0;
     const rail = ui.trimRails?.children[beat];
     if (rail) {
       rail.style.left = `${beatStartPct}%`;
       rail.style.width = `${skipped ? 0 : activeWidthPct}%`;
-      rail.toggleAttribute('data-trimmed', Boolean(end));
+      rail.toggleAttribute('data-trimmed', isTrimmed);
+      rail.toggleAttribute('data-extended', isExtended);
       rail.toggleAttribute('data-skipped', skipped);
     }
     const handle = ui.trimHandles?.children[beat];
@@ -1863,21 +1949,25 @@ function renderTrim() {
       handle.hidden = !canTrim;
       handle.disabled = !canTrim;
       handle.style.left = `${cutPct}%`;
-      handle.toggleAttribute('data-trimmed', Boolean(end));
+      handle.toggleAttribute('data-trimmed', isTrimmed);
+      handle.toggleAttribute('data-extended', isExtended);
       handle.toggleAttribute('data-flip', cutPct < 10);
-      handle.setAttribute('aria-label', end
-        ? `Beat ${beat + 1} end handle, trimmed to ${formatBeatTrim(end)}. Drag or use arrow keys to adjust, End to restore.`
-        : `Beat ${beat + 1} end handle. Drag left or use arrow keys to shorten beat ${beat + 1}.`);
+      handle.setAttribute('aria-label', isExtended
+        ? `Beat ${beat + 1} end handle, extended to ${formatBeatTrim(end)}. Drag or use arrow keys to adjust, Backspace to restore.`
+        : isTrimmed
+          ? `Beat ${beat + 1} end handle, trimmed to ${formatBeatTrim(end)}. Drag or use arrow keys to adjust, End to restore.`
+          : `Beat ${beat + 1} end handle. Drag left to shorten or right to extend beat ${beat + 1}.`);
       const tip = handle.querySelector('.trim-tip');
       if (tip) tip.textContent = end ? formatBeatTrim(end) : 'Full';
     }
     for (const lane of lanes) {
       const tail = lane.trimTails?.children[beat];
       if (tail) {
-        tail.style.left = `${skipped ? beatStartPct : cutPct}%`;
+        tail.style.left = `${skipped ? beatStartPct : isExtended ? normalEndPct : cutPct}%`;
         tail.style.width = `${skipped ? beatWidthPct : tailWidthPct}%`;
         tail.toggleAttribute('data-skipped', skipped);
-        tail.toggleAttribute('data-trimmed', !skipped && Boolean(end));
+        tail.toggleAttribute('data-trimmed', isTrimmed);
+        tail.toggleAttribute('data-extended', isExtended);
       }
     }
   }
@@ -1897,15 +1987,17 @@ function renderTrim() {
     });
     if (index > 0 && lane.beatCounts) {
       [...lane.beatCounts.children].forEach((stepper, beat) => {
+        const end = layout.ends[beat];
         stepper.toggleAttribute('data-beat-skipped', !layout.enabled[beat]);
-        stepper.toggleAttribute('data-beat-trimmed', layout.enabled[beat] && Boolean(layout.ends[beat]));
+        stepper.toggleAttribute('data-beat-trimmed', layout.enabled[beat] && Boolean(end && end[0] < end[1]));
+        stepper.toggleAttribute('data-beat-extended', layout.enabled[beat] && Boolean(end && end[0] > end[1]));
       });
     }
   });
 }
 
 function editLaneTiming(index, change) {
-  editRhythmLane(settings.lanes[index], change);
+  editRhythmLane(settings.lanes[index], change, settings.beatEnds);
   timingChanged({ rhythm: true });
 }
 
@@ -2135,9 +2227,9 @@ function renderMarkerMenu() {
     ui.markerTrim.textContent = valid
       ? active ? `Restore beat ${onset.beat + 1}` : `End beat ${onset.beat + 1} here`
       : 'End beat here';
-    ui.markerTrim.title = !valid ? 'Choose a subdivision tick to shorten its beat'
+    ui.markerTrim.title = !valid ? 'Choose a subdivision tick to adjust its beat length'
       : active ? `Restore beat ${onset.beat + 1} to full length`
-      : `End beat ${onset.beat + 1} at ${formatBeatTrim(frac)}`;
+      : `End beat ${onset.beat + 1} at ${formatBeatTrim(frac) || 'full length'}`;
   }
 }
 function positionMarkerMenu() {
@@ -2472,16 +2564,22 @@ ui.preset?.addEventListener('change', () => {
   const preset = rhythmPresets.find((value) => value.id === ui.preset.value);
   if (preset) loadStarterPreset(preset);
 });
+function clearBeatEndsForMeter() {
+  const prevEnds = normalizeBeatEnds(settings.beatEnds, 32);
+  const clearedEnds = Array(32).fill(null);
+  if (prevEnds.some((end) => end && end[0] > end[1])) remapLanesForBeatEnds(prevEnds, clearedEnds);
+  settings.beatEnds = clearedEnds;
+}
 ui.beats.addEventListener('change', () => undoable(() => {
+  clearBeatEndsForMeter();
   settings.beats = Number(ui.beats.value);
   settings.grouping = [settings.beats];
-  settings.beatEnds = Array(32).fill(null);
   settings.beatEnabled = normalizeBeatEnabled(settings.beatEnabled, 32);
   if (!settings.beatEnabled.slice(0, settings.beats).some(Boolean)) settings.beatEnabled[0] = true;
   if (beatClipboard?.sourceBeat != null && beatClipboard.sourceBeat >= settings.beats) beatClipboard.sourceBeat = null;
   timingChanged({ meter: true });
 }));
-ui.unit.addEventListener('change', () => undoable(() => { settings.unit = Number(ui.unit.value); settings.beatEnds = Array(32).fill(null); timingChanged({ meter: true }); }));
+ui.unit.addEventListener('change', () => undoable(() => { clearBeatEndsForMeter(); settings.unit = Number(ui.unit.value); timingChanged({ meter: true }); }));
 ui.groupingChoice.addEventListener('change', () => {
   if (ui.groupingChoice.value === 'custom') {
     ui.groupingChoice.value = settings.grouping.join('+');

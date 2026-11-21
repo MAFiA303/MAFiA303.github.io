@@ -678,6 +678,16 @@ kbd {
 .trim-badge[data-skipped-only]::before { display: none; }
 .trim-badge[data-skipped-only] .trim-reset { color: var(--muted); }
 .trim-badge[data-skipped-only] .trim-reset:not(:disabled):hover { background: rgb(255 255 255 / 0.1); color: var(--text); }
+.trim-badge[data-extended-only] {
+  border-color: color-mix(in oklab, var(--ok) 58%, var(--line));
+  background: color-mix(in oklab, var(--ok) 12%, var(--well));
+  color: var(--ok);
+}
+.trim-badge[data-extended-only] .trim-reset { color: var(--ok); }
+.trim-badge[data-extended-only] .trim-reset:not(:disabled):hover {
+  background: color-mix(in oklab, var(--ok) 22%, transparent);
+  color: var(--text);
+}
 .trim-badge::before {
   content: '';
   inline-size: 7px;
@@ -757,7 +767,7 @@ kbd {
 .lane-c .timeline-scroll::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 .ruler-track, .track {
-  min-width: calc(max(var(--min-marker-width), var(--beats) * var(--beat-min-width)) + var(--plot-inset-start) + var(--plot-inset-end));
+  min-width: calc(max(var(--min-marker-width), var(--visual-beats, var(--beats)) * var(--beat-min-width)) + var(--plot-inset-start) + var(--plot-inset-end));
 }
 .ruler-stage {
   --paste-strip: 0px;
@@ -839,7 +849,7 @@ kbd {
   right: 0;
   height: var(--ruler-height);
   display: grid;
-  grid-template-columns: repeat(var(--beats, 4), minmax(0, 1fr));
+  grid-template-columns: var(--beat-columns, repeat(var(--beats, 4), minmax(0, 1fr)));
   font-size: .72rem;
   font-variant-numeric: tabular-nums;
 }
@@ -1112,6 +1122,10 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   background: var(--trim);
   box-shadow: 0 0 8px color-mix(in oklab, var(--trim) 42%, transparent);
 }
+.trim-rail-seg[data-extended] {
+  background: var(--ok);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--ok) 45%, transparent);
+}
 
 .trim-handles {
   position: absolute;
@@ -1206,6 +1220,29 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   color: var(--trim);
 }
 
+.trim-handle[data-extended] .trim-grip,
+.trim-handle[data-extended]:not(:disabled):hover .trim-grip,
+.trim-handle[data-extended]:focus-visible .trim-grip,
+.trim-handle[data-extended].dragging .trim-grip {
+  border-color: color-mix(in oklab, var(--ok) 72%, var(--line-strong));
+  border-right-color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 18%, var(--surface));
+  box-shadow: 0 0 10px color-mix(in oklab, var(--ok) 36%, transparent);
+}
+.trim-handle[data-flip][data-extended] .trim-grip,
+.trim-handle[data-flip][data-extended]:not(:disabled):hover .trim-grip,
+.trim-handle[data-flip][data-extended]:focus-visible .trim-grip,
+.trim-handle[data-flip][data-extended].dragging .trim-grip {
+  border-right-color: color-mix(in oklab, var(--ok) 72%, var(--line-strong));
+  border-left-color: var(--ok);
+}
+.trim-handle[data-extended] .trim-grip::before,
+.trim-handle[data-extended]:not(:disabled):hover .trim-grip::before,
+.trim-handle[data-extended]:focus-visible .trim-grip::before,
+.trim-handle[data-extended].dragging .trim-grip::before {
+  color: var(--ok);
+}
+
 .trim-tip {
   position: absolute;
   top: 50%;
@@ -1227,13 +1264,18 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.55);
   transition: opacity 100ms ease-out;
 }
+.trim-handle[data-extended] .trim-tip {
+  border-color: color-mix(in oklab, var(--ok) 68%, var(--line));
+  color: var(--ok);
+}
 .trim-handle[data-flip] .trim-tip {
   right: auto;
   left: calc(100% + 4px);
 }
 .trim-handle.dragging .trim-tip,
 .trim-handle:focus-visible .trim-tip,
-.trim-handle[data-trimmed]:hover .trim-tip {
+.trim-handle[data-trimmed]:hover .trim-tip,
+.trim-handle[data-extended]:hover .trim-tip {
   opacity: 1;
 }
 
@@ -1460,6 +1502,18 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   box-shadow: inset 8px 0 14px -8px color-mix(in oklab, var(--trim) 42%, transparent);
 }
 .trim-tail[data-trimmed] { display: block; }
+.trim-tail[data-extended] {
+  display: block;
+  margin-left: -1px;
+  border-left: 1.5px dashed color-mix(in oklab, var(--ok) 62%, transparent);
+  border-right: 2px solid color-mix(in oklab, var(--ok) 82%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ok) 11%, transparent),
+    color-mix(in oklab, var(--ok) 18%, transparent)
+  );
+  box-shadow: inset 8px 0 14px -8px color-mix(in oklab, var(--ok) 32%, transparent);
+}
 .trim-tail[data-skipped] {
   display: block;
   margin-left: 0;
@@ -1472,7 +1526,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   );
   box-shadow: none;
 }
-.trim-tail[data-preview]:not([data-trimmed], [data-skipped]) {
+.trim-tail[data-preview]:not([data-trimmed], [data-extended], [data-skipped]) {
   display: block;
   margin-left: -2px;
   border-left-color: color-mix(in oklab, var(--trim) 72%, transparent);
@@ -1494,7 +1548,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   left: 0;
   right: 0;
   display: grid;
-  grid-template-columns: repeat(var(--beats), minmax(0, 1fr));
+  grid-template-columns: var(--beat-columns, repeat(var(--beats), minmax(0, 1fr)));
 }
 .beat-stepper {
   justify-self: center;
@@ -1543,6 +1597,9 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .beat-stepper[data-beat-skipped] { opacity: .42; }
 .beat-stepper[data-beat-trimmed] {
   border-color: color-mix(in oklab, var(--trim) 58%, var(--line));
+}
+.beat-stepper[data-beat-extended] {
+  border-color: color-mix(in oklab, var(--ok) 58%, var(--line));
 }
 @media (hover: none) {
   .beat-stepper[data-off] { opacity: .82; }
