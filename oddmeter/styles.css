@@ -48,6 +48,7 @@
   --more-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='3.5' r='1.35' fill='black'/%3E%3Ccircle cx='8' cy='8' r='1.35' fill='black'/%3E%3Ccircle cx='8' cy='12.5' r='1.35' fill='black'/%3E%3C/svg%3E");
   --ideas-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.2 2.8h9.6a1 1 0 0 1 1 1v10.2l-5.8-3.4-5.8 3.4V3.8a1 1 0 0 1 1-1Z' stroke='black' stroke-width='1.55' stroke-linejoin='round'/%3E%3C/svg%3E");
   --options-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M2.5 5h11M2.5 11h11' stroke='black' stroke-width='1.55' stroke-linecap='round'/%3E%3Ccircle cx='5.5' cy='5' r='1.8' fill='black'/%3E%3Ccircle cx='10.5' cy='11' r='1.8' fill='black'/%3E%3C/svg%3E");
+  --drummer-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cellipse cx='8' cy='6.8' rx='5.8' ry='2.3' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M2.2 6.8v4.6c0 1.3 2.6 2.3 5.8 2.3s5.8-1 5.8-2.3V6.8M5.2 9v4.2M10.8 9v4.2M3.2 2.4l4.5 3.6M12.8 2.4 8.3 6' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   --grip-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12' fill='none'%3E%3Ccircle cx='2' cy='2' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='2' r='1.1' fill='black'/%3E%3Ccircle cx='2' cy='6' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='6' r='1.1' fill='black'/%3E%3Ccircle cx='2' cy='10' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='10' r='1.1' fill='black'/%3E%3C/svg%3E");
 }
 
@@ -179,6 +180,7 @@ select option { background: #191c24; color: var(--text); }
   line-height: 1.1;
   background: var(--panel);
 }
+.drummer-button::before,
 .undo-button::before,
 .reset-button::before,
 .save-button::before {
@@ -188,6 +190,18 @@ select option { background: #191c24; color: var(--text); }
   flex-shrink: 0;
   background-color: var(--muted);
   forced-color-adjust: none;
+}
+.drummer-button::before {
+  -webkit-mask: var(--drummer-mask) no-repeat center / contain;
+  mask: var(--drummer-mask) no-repeat center / contain;
+}
+.drummer-button[aria-pressed='true'] {
+  border-color: color-mix(in oklab, var(--accent) 72%, var(--line-strong));
+  background: color-mix(in oklab, var(--accent) 16%, var(--panel));
+  color: var(--text);
+}
+.drummer-button[aria-pressed='true']::before {
+  background-color: var(--accent);
 }
 .undo-button::before {
   -webkit-mask: var(--undo-mask) no-repeat center / contain;
@@ -211,9 +225,11 @@ select option { background: #191c24; color: var(--text); }
   -webkit-mask: var(--check-mask) no-repeat center / contain;
   mask: var(--check-mask) no-repeat center / contain;
 }
+.drummer-button:not(:disabled):hover::before,
 .undo-button:not(:disabled):hover::before,
 .reset-button:not(:disabled):hover::before,
 .save-button:not(:disabled):hover::before { background-color: var(--text); }
+.drummer-button[aria-pressed='true']:not(:disabled):hover::before { background-color: var(--accent-hover); }
 .share-button {
   min-inline-size: 86px;
   border-color: #d4a31e;
@@ -3149,10 +3165,57 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   font-size: .86rem;
 }
 
+/* Pixel drummer stage above rhythm grid */
+.drummer-stage {
+  position: relative;
+  height: 186px;
+  background: #0b0e17;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.drummer-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.drummer-badge {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  pointer-events: none;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  background: rgb(11 14 23 / 0.78);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.drummer-badge[data-state='playing'] {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--text);
+}
+.drummer-badge[data-state='count-in'] {
+  border-color: color-mix(in oklab, var(--trim) 65%, transparent);
+  color: var(--trim);
+}
+.drummer-badge[data-state='repeat'] {
+  border-color: color-mix(in oklab, var(--repeat) 65%, transparent);
+  color: var(--repeat);
+}
+
 /* Responsive layout */
 @media (max-width: 960px) {
   .shell { width: calc(100% - 40px); }
   .tempo-panel { padding-inline: 14px; }
+  .drummer-stage { height: 156px; }
   .rhythm-panel { --lane-side: 216px; --beat-min-width: 150px; }
   .rhythm-panel[data-extended] { --beat-min-width: 210px; }
 }
@@ -3166,6 +3229,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .header-actions { gap: 6px; }
   .header-button { padding: 5px 9px; gap: 5px; font-size: .72rem; }
   .share-button { min-inline-size: 0; }
+  .drummer-stage { height: 138px; }
   .tempo-panel {
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas: 'dial tap . meter' 'range range range group';
@@ -3265,8 +3329,9 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .mark { width: 24px; height: 24px; padding: 4px; }
   .header-actions { gap: 4px; flex-wrap: wrap; }
   .header-button { padding: 5px 7px; gap: 4px; font-size: .7rem; }
-  .undo-button::before, .reset-button::before, .save-button::before, .share-button::before { inline-size: 12px; block-size: 12px; }
+  .drummer-button::before, .undo-button::before, .reset-button::before, .save-button::before, .share-button::before { inline-size: 12px; block-size: 12px; }
   .share-button { min-inline-size: 0; }
+  .drummer-stage { height: 122px; }
   .tempo-panel { padding-inline: 10px; gap: 6px 5px; }
   .tempo-dial { gap: 3px; }
   .tempo-step { min-inline-size: 28px; }
@@ -3364,6 +3429,7 @@ html.oddmeter-embed .console {
   box-shadow: none;
 }
 html.oddmeter-embed .rhythm-panel { --beat-min-width: 170px; }
+html.oddmeter-embed .drummer-stage { height: 136px; }
 html.oddmeter-embed .rhythm-panel[data-extended] { --beat-min-width: 220px; }
 html.oddmeter-embed .ideas-panel,
 html.oddmeter-embed .save-button,

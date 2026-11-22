@@ -3,10 +3,15 @@ import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats } from './practice.js?v=delete1';
 import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
 import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=delete1';
+import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer3';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
   console: document.querySelector('.console'),
+  drummerToggle: byId('drummer-toggle'),
+  drummerStage: byId('drummer-stage'),
+  drummerCanvas: byId('drummer-canvas'),
+  drummerBadge: byId('drummer-badge'),
   rhythmPanel: document.querySelector('.rhythm-panel'),
   rulerRow: document.querySelector('.ruler-row'),
   timelineScroll: document.querySelector('[data-timeline-scroll]'),
@@ -345,6 +350,7 @@ function timingSettings() {
 }
 function sendTiming(countIn = false, restart = false) {
   if (countIn || restart) { clock = null; clearPlayhead(); }
+  resetDrummerTracking();
   processor.port.postMessage({ type: 'timing', id: ++timingId, settings: timingSettings(), countIn, restart, mix: mixSettings() });
 }
 
@@ -432,6 +438,57 @@ async function previewSound(lane, sound, accented) {
     showMessage('The sound preview could not start. Press Start to try again.');
   }
 }
+async function previewKitSound(sound, accented) {
+  const id = ++previewId;
+  const canPreview = () => !playing && !starting && sound !== 'off' && effectiveVolume() > 0;
+  if (!canPreview()) return;
+  try {
+    await prepareAudio();
+    if (id === previewId && canPreview()) processor.port.postMessage({ type: 'preview', lane: 0, sound, accented });
+  } catch (error) {
+    if (id !== previewId || !canPreview()) return;
+    console.error(error);
+    showMessage('The sound preview could not start. Press Start to try again.');
+  }
+}
+
+const drummerStage = createDrummerStage({
+  canvas: ui.drummerCanvas,
+  statusBadge: ui.drummerBadge,
+  onTapPiece: (sound, accented) => { void previewKitSound(sound, accented); },
+});
+let drummerLastEventKeys = ['', '', ''];
+let drummerLastCountBeat = 0;
+function resetDrummerTracking() {
+  drummerLastEventKeys = ['', '', ''];
+  drummerLastCountBeat = 0;
+}
+function laneSilentForDrummer(lane, index) {
+  const profile = settings.lanes[index];
+  if (laneMuted(profile) || lane.onsets.length === 0) return true;
+  return lane.onsets.every((_, hit) => markerSound(index, hit) === 'off');
+}
+function syncDrummerConfig() {
+  const layout = beatLayout(settings.beats, settings.beatEnds, settings.beatEnabled);
+  drummerStage.updateConfig({
+    beats: settings.beats,
+    laneMuted: lanes.map(laneSilentForDrummer),
+    laneSounds: settings.sounds,
+    beatEnabled: settings.beatEnabled,
+    layout,
+  });
+}
+function setDrummerOpen(open, { persist = true } = {}) {
+  const next = Boolean(open);
+  if (ui.drummerStage) ui.drummerStage.hidden = !next;
+  if (ui.drummerToggle) ui.drummerToggle.setAttribute('aria-pressed', String(next));
+  syncDrummerConfig();
+  drummerStage.setEnabled(next);
+  if (persist) {
+    try { localStorage.setItem(drummerStorageKey, next ? '1' : '0'); } catch { /* Storage is optional. */ }
+  }
+}
+ui.drummerToggle?.addEventListener('click', () => setDrummerOpen(!drummerStage.isEnabled));
 
 // Keep the screen on while playing so the beat stays visible. A request that
 // resolves after Stop or a newer request releases itself.
@@ -453,6 +510,7 @@ function releaseWake() {
 }
 document.addEventListener('visibilitychange', () => {
   if (playing && document.visibilityState === 'visible') void keepAwake();
+  drummerStage.handleVisibilityChange();
 });
 
 async function start() {
@@ -473,6 +531,7 @@ async function start() {
     // Only the request still owned by the transport may begin playback.
     if (id !== startId) return;
     playing = true;
+    drummerStage.setPlaying(true);
     manualScrollUntil = 0;
     setTimelineScroll(0, true);
     delete ui.play.dataset.starting;
@@ -501,6 +560,8 @@ function stop() {
   previewId++;
   playing = false;
   clock = null;
+  resetDrummerTracking();
+  drummerStage.setPlaying(false);
   processor?.port.postMessage({ type: 'stop' });
   cancelAnimationFrame(animationFrame);
   clearPlayhead();
@@ -646,6 +707,7 @@ function clearPlayhead() {
   setActiveRepeatPass(-1, 0, 0);
   updateActiveBeatBand(-1, null);
   setLiveBeat();
+  resetDrummerTracking();
   for (const lane of lanes) light(lane, null);
 }
 function paint(now) {
@@ -670,6 +732,7 @@ function paint(now) {
     ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
     keepPlayheadVisible(visualPhase, clock.carry.beat);
     for (const lane of lanes) light(lane, null);
+    drummerStage.syncFrame(now, { visualPhase, beat: clock.carry.beat, beats: settings.beats, countIn: false, countBeat: 0, inRepeat: false, repeatPass: 0, repeatTimes: 0, layout: carryLayout });
     return;
   }
   if (frame < clock.origin) {
@@ -692,9 +755,15 @@ function paint(now) {
       ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
       keepPlayheadVisible(visualPhase, beat - 1);
       for (const lane of lanes) light(lane, null);
+      if (beat !== drummerLastCountBeat) {
+        drummerLastCountBeat = beat;
+        drummerStage.triggerCountIn(beat, settings.beats);
+      }
+      drummerStage.syncFrame(now, { visualPhase, beat: beat - 1, beats: settings.beats, countIn: true, countBeat: beat, inRepeat: false, repeatPass: 0, repeatTimes: 0, layout: countLayout });
     }
     return;
   }
+  drummerLastCountBeat = 0;
   const cyclePhase = ((frame - clock.origin) % clock.duration) / clock.duration;
   let beatIndex;
   let visualPhase;
@@ -748,6 +817,7 @@ function paint(now) {
   ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
   keepPlayheadVisible(visualPhase, beatIndex);
   const hitFlashSeconds = Math.min(0.14, (clock.duration / context.sampleRate) * 0.5);
+  const cycleNum = Math.floor((frame - clock.origin) / clock.duration);
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
     const events = lane.activeEvents;
@@ -760,8 +830,19 @@ function paint(now) {
     if (eventIndex < 0) { light(lane, null); return; }
     const hit = events[eventIndex].hit;
     const elapsed = (cyclePhase - events[eventIndex].phase + Number(wrapped)) * clock.duration / context.sampleRate;
-    light(lane, elapsed < hitFlashSeconds && !laneMuted(profile) && markerSound(index, hit) !== 'off' ? lane.pulses[hit] : null);
+    const sound = markerSound(index, hit);
+    const audible = !laneMuted(profile) && sound !== 'off';
+    const lit = elapsed < hitFlashSeconds && audible;
+    light(lane, lit ? lane.pulses[hit] : null);
+    if (lit) {
+      const eventKey = `${clock.id ?? 0}:${cycleNum - Number(wrapped)}:${eventIndex}`;
+      if (drummerLastEventKeys[index] !== eventKey) {
+        drummerLastEventKeys[index] = eventKey;
+        drummerStage.triggerHit({ lane: index, sound, accented: profile.accents.includes(hit), beat: beatIndex });
+      }
+    }
   });
+  drummerStage.syncFrame(now, { visualPhase, beat: beatIndex, beats: settings.beats, countIn: false, countBeat: 0, inRepeat: repeatPass > 0, repeatPass, repeatTimes, layout: activeLayout });
 }
 
 // Undo covers every rhythm, sound and meter edit. Tempo and volume stay as
@@ -2541,6 +2622,9 @@ function announceMarker(lane, pulse) {
   const accented = settings.lanes[lane].accents.includes(pulse);
   ui.pulseFeedback.textContent = `${pulseName(lane, pulse)} · ${sound === 'off' ? 'Rest' : soundNames.get(sound)}${accented && sound !== 'off' ? ' · Accent' : ''}`;
   void previewSound(lane, sound, accented);
+  if (!playing && drummerStage.isEnabled && sound !== 'off' && !laneMuted(settings.lanes[lane])) {
+    drummerStage.triggerHit({ lane, sound, accented, beat: lane === 0 ? pulse : -1 });
+  }
 }
 let cycleFromDefault = null;
 function clearCycleFromDefault() { cycleFromDefault = null; }
@@ -2841,6 +2925,7 @@ function renderMix() {
     });
   });
   renderMarkerMenu();
+  syncDrummerConfig();
 }
 function presetLanes(preset) {
   return preset.lanes.map((lane) => {
@@ -3714,7 +3799,7 @@ async function loadInitialSharedIdea() {
 
 ui.tap.addEventListener('click', tapTempo);
 ui.play.addEventListener('click', togglePlayback);
-window.addEventListener('pagehide', () => { stop(); ideaStore.dispose(); });
+window.addEventListener('pagehide', () => { stop(); drummerStage.destroy(); ideaStore.dispose(); });
 ui.countIn.addEventListener('change', () => undoable(() => { settings.countIn = ui.countIn.checked; save(); }));
 ui.volume.addEventListener('input', () => { settings.outputVolume = ui.volume.valueAsNumber; settings.masterMuted = false; renderVolume(); save(); });
 ui.muteAll.addEventListener('click', () => {
@@ -3865,6 +3950,9 @@ renderRhythms();
 renderPreset();
 renderUndo();
 renderVolume();
+let savedDrummerOpen = true;
+try { savedDrummerOpen = localStorage.getItem(drummerStorageKey) !== '0'; } catch { /* Storage is optional. */ }
+setDrummerOpen(savedDrummerOpen, { persist: false });
 if (hasEmbedParam) {
   if (ui.embedMore) {
     ui.embedMore.hidden = false;

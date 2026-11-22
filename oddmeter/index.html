@@ -13,8 +13,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=delete1">
-  <script type="module" src="./app.js?v=delete1"></script>
+  <link rel="stylesheet" href="./styles.css?v=drummer3">
+  <script type="module" src="./app.js?v=drummer3"></script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +23,7 @@
       <div class="header-actions">
         <div class="visually-hidden" id="status" role="status"><span id="status-text">Ready</span> <span id="position" aria-hidden="true"></span></div>
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
+        <button type="button" id="drummer-toggle" class="header-button drummer-button" aria-pressed="true" aria-controls="drummer-stage" title="Show or hide pixel drummer stage">Drummer</button>
         <button type="button" id="header-undo" class="header-button undo-button" aria-label="Undo" title="Undo (Ctrl/⌘+Z)" disabled>Undo</button>
         <button type="button" id="reset" class="header-button reset-button" aria-label="Reset to 4/4, 60 BPM" title="Reset to 4/4, 60 BPM, 100% volume">Reset</button>
         <button type="button" id="header-save" class="header-button save-button" aria-label="Save idea" title="Save current rhythm to Ideas">Save</button>
@@ -52,6 +53,11 @@
         <button type="button" class="tap-button" id="tap" aria-label="Tap tempo" aria-keyshortcuts="T" title="Tap tempo (T)">Tap</button>
         <div class="meter" role="group" aria-label="Time signature"><select id="meter-beats" aria-label="Time signature numerator"></select><span aria-hidden="true">/</span><select id="meter-unit" aria-label="Time signature denominator"></select></div>
         <select id="grouping-choice" class="grouping-choice" aria-label="Beat grouping" title="Beat grouping" hidden></select>
+      </section>
+
+      <section id="drummer-stage" class="drummer-stage" aria-label="Pixel drummer stage">
+        <canvas id="drummer-canvas" class="drummer-canvas" aria-label="Interactive pixel drummer playing the metronome kit"></canvas>
+        <span id="drummer-badge" class="drummer-badge" aria-hidden="true">Tap kit</span>
       </section>
 
       <section class="rhythm-panel" aria-label="Beat grid">
