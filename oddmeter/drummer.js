@@ -22,7 +22,33 @@ export const DRUM_VOICE_MAP = {
 
 const VH = 112;
 const MIN_VW = 256;
-const MAX_VW = 1440;
+
+export function computeStageViewport(cssW, cssH, dpr = 1) {
+  const safeW = Math.max(1, Math.floor(cssW));
+  const safeH = Math.max(1, Math.floor(cssH));
+  const safeDpr = Math.min(Math.max(1, dpr || 1), 2);
+  // Strict 1:1 uniform square pixel scale derived from stage height so the
+  // drummer and kit NEVER stretch horizontally or vertically at any screen width
+  // (including 3440px / 5120px ultrawide monitors).
+  const scale = safeH / VH;
+  const vw = Math.max(MIN_VW, Math.ceil(safeW / scale));
+  const drawW = vw * scale;
+  const drawH = safeH;
+  return {
+    cssW: safeW,
+    cssH: safeH,
+    dpr: safeDpr,
+    canvasW: Math.floor(safeW * safeDpr),
+    canvasH: Math.floor(safeH * safeDpr),
+    vw,
+    vh: VH,
+    scale,
+    drawW,
+    drawH,
+    ox: Math.floor((safeW - drawW) / 2),
+    oy: Math.floor((safeH - drawH) / 2),
+  };
+}
 
 function drawLine(ctx, x0, y0, x1, y1, color, size = 1) {
   x0 = Math.round(x0);
@@ -170,7 +196,10 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
   let lastTime = 0;
   let tick = 0;
   let vw = 360;
-  let blit = { ox: 0, oy: 0, scale: 2, vw: 360 };
+  let blit = computeStageViewport(360, 168, 1);
+  let lastCssW = 0;
+  let lastCssH = 0;
+  let lastDpr = 0;
   let resizeObserver = null;
 
   // Musical state synced from Oddmeter
@@ -223,33 +252,32 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     return Boolean(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   }
 
+  function measureCssSize() {
+    const rect = canvas?.getBoundingClientRect?.();
+    const cssW = Math.max(1, Math.floor(rect?.width || canvas?.clientWidth || 360));
+    const cssH = Math.max(1, Math.floor(rect?.height || canvas?.clientHeight || 168));
+    const dpr = Math.min(Math.max(1, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1), 2);
+    return { cssW, cssH, dpr };
+  }
+
   function resize() {
     if (!ensureCanvas() || !canvas) return;
-    const rect = canvas.getBoundingClientRect?.();
-    const cssW = Math.max(240, Math.floor(rect?.width || canvas.clientWidth || 360));
-    const cssH = Math.max(100, Math.floor(rect?.height || canvas.clientHeight || 168));
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const { cssW, cssH, dpr } = measureCssSize();
+    const vp = computeStageViewport(cssW, cssH, dpr);
+    lastCssW = vp.cssW;
+    lastCssH = vp.cssH;
+    lastDpr = vp.dpr;
+    vw = vp.vw;
+    blit = vp;
 
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
-
-    // Choose virtual width to match container aspect ratio cleanly (edge-to-edge studio!)
-    const scale = cssH / VH;
-    const desiredVw = Math.ceil(cssW / Math.max(0.85, scale));
-    vw = Math.max(MIN_VW, Math.min(MAX_VW, desiredVw));
-    if (buf.width !== vw || buf.height !== VH) {
-      buf.width = vw;
-      buf.height = VH;
+    if (canvas.width !== vp.canvasW || canvas.height !== vp.canvasH) {
+      canvas.width = vp.canvasW;
+      canvas.height = vp.canvasH;
     }
-    const drawW = cssW;
-    const drawH = cssH;
-    blit = {
-      ox: 0,
-      oy: 0,
-      scale: drawW / vw,
-      scaleY: drawH / VH,
-      vw,
-    };
+    if (buf.width !== vp.vw || buf.height !== vp.vh) {
+      buf.width = vp.vw;
+      buf.height = vp.vh;
+    }
   }
 
   function spawnParticles(dx, y, color, count = 7) {
@@ -430,7 +458,16 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
 
   function render() {
     if (!enabled || !ensureCanvas()) return;
-    if (canvas.width === 0 || canvas.height === 0) resize();
+    const measured = measureCssSize();
+    if (
+      canvas.width === 0 ||
+      canvas.height === 0 ||
+      measured.cssW !== lastCssW ||
+      measured.cssH !== lastCssH ||
+      measured.dpr !== lastDpr
+    ) {
+      resize();
+    }
 
     const cx = Math.floor(vw / 2);
     const allMuted = music.laneMuted.every(Boolean);
@@ -586,6 +623,11 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       drawPlant(cx + 340);
       drawAcousticPanel(cx - 410, 18);
       drawAcousticPanel(cx + 386, 18);
+      // Tile subtle acoustic panels cleanly across super-ultrawide studios (3440px / 5120px+)
+      for (let dist = 510; dist < cx - 32; dist += 136) {
+        drawAcousticPanel(cx - dist - 24, 18);
+        drawAcousticPanel(cx + dist, 18);
+      }
     }
 
     // 3. Center Back-Wall Studio LED Equalizer & Metronome Bar (cleanly above drummer head!)
@@ -1149,23 +1191,20 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       }
     }
 
-    // 13. Blit Crisp Virtual Pixel Buffer to High-DPI Canvas
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cssW = canvas.width / dpr;
-    const cssH = canvas.height / dpr;
+    // 13. Blit Crisp Virtual Pixel Buffer to High-DPI Canvas (strict 1:1 square pixels!)
+    const { cssW, cssH, dpr, scale, drawW, drawH, ox, oy } = blit;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0b0e17';
     ctx.fillRect(0, 0, cssW, cssH);
 
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(buf, 0, 0, vw, VH, 0, 0, cssW, cssH);
+    ctx.drawImage(buf, 0, 0, vw, VH, ox, oy, drawW, drawH);
 
     // Crisp high-DPI floating accent / count-in callout cleanly above head
     if (callout.timer > 0) {
-      const sy = blit.scaleY || blit.scale;
-      const tx = cx * blit.scale;
-      const ty = (22 - (reduce ? 0 : (0.36 - callout.timer) * 14)) * sy;
+      const tx = ox + cx * scale;
+      const ty = oy + (22 - (reduce ? 0 : (0.36 - callout.timer) * 14)) * scale;
       ctx.globalAlpha = Math.min(1, callout.timer * 3.6);
       ctx.font = '800 13px ui-monospace, Menlo, Consolas, monospace';
       ctx.textAlign = 'center';
@@ -1180,13 +1219,14 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
 
   function stopIdleLoop() {
     if (idleRaf) {
-      cancelAnimationFrame(idleRaf);
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(idleRaf);
       idleRaf = 0;
     }
   }
 
   function startIdleLoop() {
     if (!enabled || playing || idleRaf || !ensureCanvas()) return;
+    if (typeof requestAnimationFrame !== 'function') return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     const loop = (now) => {
       idleRaf = 0;
@@ -1260,9 +1300,8 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     const rect = canvas.getBoundingClientRect?.();
     let best = null;
     if (rect && rect.width > 0 && blit.scale > 0) {
-      const sy = blit.scaleY || blit.scale;
-      const vx = (event.clientX - rect.left) / blit.scale;
-      const vy = (event.clientY - rect.top) / sy;
+      const vx = (event.clientX - rect.left - blit.ox) / blit.scale;
+      const vy = (event.clientY - rect.top - blit.oy) / blit.scale;
       const cx = Math.floor(blit.vw / 2);
       let bestDist = 24;
       for (const piece of Object.values(KIT)) {
