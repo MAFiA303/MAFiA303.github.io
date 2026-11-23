@@ -16,6 +16,23 @@ export const authorStorageKey = 'oddmeter-author-v2';
 export const titleStorageKey = 'oddmeter-title-v1';
 export const ideaLimits = { title: 60, authorName: 40, setup: 16384, list: 200 };
 
+const featuredIdeaRanks = new Map([
+  'wFWJxvENEB', // Reggae: one drop
+  '826HMXBX6f', // Funk: 16ths with ghost notes
+  'ZFFgQEbeVZ', // Jazz: bossa nova
+  'hU6oXFmHPo', // Jazz: swing ride
+  'dmMmCYUy6j', // Blues shuffle in 4
+  'GCLeALapxf', // Son clave 3-2
+  'XY6HfK4DKm', // Drum & bass: two-step
+  'oLjX4KBGhG', // Metal: gallop
+].map((id, index) => [id, index]));
+
+export function orderIdeasForDisplay(ideas) {
+  const rank = ({ id, source }) =>
+    (source === 'cloud' ? featuredIdeaRanks.get(id) : undefined) ?? featuredIdeaRanks.size;
+  return [...ideas].sort((a, b) => rank(a) - rank(b));
+}
+
 export function isDefaultIdeaTitle(title) {
   return typeof title === 'string' && /^Idea\s+\d+$/i.test(title.trim());
 }

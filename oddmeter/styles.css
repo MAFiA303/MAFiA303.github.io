@@ -294,7 +294,7 @@ select option { background: #191c24; color: var(--text); }
 }
 
 /* Main console */
-main.shell { padding-block: 24px 36px; }
+main.shell { padding-block: 12px 16px; }
 .console {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -2756,7 +2756,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 
 /* Compact saved Ideas table below the metronome */
 .ideas-panel {
-  margin-top: 16px;
+  margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel);
@@ -2767,7 +2767,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 12px;
-  padding: 10px 16px;
+  padding: 7px 16px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent);
 }
@@ -2860,15 +2860,19 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   border-bottom: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
 }
 
-/* The list flows with the page instead of scrolling on its own. A nested
-   scroller traps trackpad gestures (macOS latches a swipe to the inner box and
-   will not hand it to the page at its end), so the last rows could stay below
-   the fold or under the phone Start dock. Only sideways overflow scrolls here. */
 .ideas-table-wrap {
   overflow-x: auto;
   max-inline-size: 100%;
   container-type: inline-size;
 }
+.ideas-table-wrap[data-scrollable] {
+  max-block-size: var(--ideas-scroll-height);
+  overscroll-behavior-y: contain;
+  scroll-padding-block-start: 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) var(--well);
+}
+.ideas-table-wrap:focus-visible { outline-offset: -2px; }
 .ideas-table {
   width: 100%;
   border-collapse: separate;
@@ -3236,6 +3240,14 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 }
 
 /* Responsive layout */
+@media (max-height: 920px) and (min-width: 681px) {
+  html:not(.oddmeter-embed) .drummer-stage {
+    max-block-size: clamp(76px, calc(60dvh - 370px), 186px);
+  }
+  html:not(.oddmeter-embed) .tempo-panel { padding-block: 8px; }
+  html:not(.oddmeter-embed) .console-footer { padding-block: 8px; }
+}
+
 @media (max-width: 960px) {
   .shell { width: calc(100% - 40px); }
   .tempo-panel { padding-inline: 14px; }

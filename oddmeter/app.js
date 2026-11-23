@@ -2,7 +2,7 @@ import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, form
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats } from './practice.js?v=delete1';
 import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
-import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=delete1';
+import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, orderIdeasForDisplay, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas-order1';
 import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer4';
 
 const byId = (id) => document.getElementById(id);
@@ -3515,6 +3515,30 @@ const ideaStore = createIdeaStore({ storage: window.localStorage, cloud: cloudAd
 let confirmDeleteId = '';
 let ideaUiInitialized = false;
 
+if (!hasEmbedParam && ui.ideasPanel && typeof ResizeObserver === 'function') {
+  const list = ui.ideasPanel.querySelector('.ideas-table-wrap');
+  const toolbar = ui.ideasPanel.querySelector('.ideas-toolbar');
+  const main = ui.ideasPanel.parentElement;
+  const header = list.querySelector('thead');
+  const fitIdeasList = () => {
+    const top = list.getBoundingClientRect().top + window.scrollY;
+    const bottom = parseFloat(getComputedStyle(main).paddingBlockEnd) + 1;
+    const room = Math.floor(document.documentElement.clientHeight - top - bottom);
+    // Only nest scrolling when the entire list viewport fits. Short screens
+    // scroll the page, so a latched swipe can still reach the last row.
+    const row = ui.ideasTbody.lastElementChild;
+    const canScroll = Boolean(row && list.scrollHeight > room &&
+      room >= header.getBoundingClientRect().height + row.getBoundingClientRect().height);
+    list.toggleAttribute('data-scrollable', canScroll);
+    if (canScroll) list.style.setProperty('--ideas-scroll-height', `${room}px`);
+  };
+  const observer = new ResizeObserver(fitIdeasList);
+  for (const element of [document.querySelector('.site-header'), ui.console, toolbar, ui.ideasError, list.firstElementChild]) {
+    observer.observe(element);
+  }
+  window.addEventListener('resize', fitIdeasList);
+}
+
 function canModifyIdea(idea) {
   if (!idea) return false;
   if (idea.source === 'local') return true;
@@ -3613,7 +3637,7 @@ function renderIdeaUi() {
   }
   if (!ui.ideasTbody) return;
 
-  const rows = ideas.map((idea) => {
+  const rows = orderIdeasForDisplay(ideas).map((idea) => {
     const tr = document.createElement('tr');
     tr.dataset.ideaId = idea.id;
     const isCurrent = activeIdea?.id === idea.id;
