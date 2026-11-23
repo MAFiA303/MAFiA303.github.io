@@ -2860,12 +2860,13 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   border-bottom: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
 }
 
-/* No overscroll containment: once the list reaches its end, the page keeps
-   scrolling, so the last rows can clear the fold and the phone Start dock. */
+/* The list flows with the page instead of scrolling on its own. A nested
+   scroller traps trackpad gestures (macOS latches a swipe to the inner box and
+   will not hand it to the page at its end), so the last rows could stay below
+   the fold or under the phone Start dock. Only sideways overflow scrolls here. */
 .ideas-table-wrap {
-  overflow: auto;
+  overflow-x: auto;
   max-inline-size: 100%;
-  max-block-size: min(340px, 46svh);
   container-type: inline-size;
 }
 .ideas-table {
