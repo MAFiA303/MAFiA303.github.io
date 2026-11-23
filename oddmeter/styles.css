@@ -2860,11 +2860,12 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   border-bottom: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
 }
 
+/* No overscroll containment: once the list reaches its end, the page keeps
+   scrolling, so the last rows can clear the fold and the phone Start dock. */
 .ideas-table-wrap {
   overflow: auto;
   max-inline-size: 100%;
   max-block-size: min(340px, 46svh);
-  overscroll-behavior: contain;
   container-type: inline-size;
 }
 .ideas-table {
