@@ -38,7 +38,8 @@ const ui = {
   play: byId('play'), playLabel: byId('play-label'), countIn: byId('count-in'),
   muteAll: byId('mute-all'), volume: byId('volume'), volumeValue: byId('volume-value'), message: byId('message'),
   reset: byId('reset'), headerSave: byId('header-save'), share: byId('share'), keepSetup: byId('keep-setup'), shareFeedback: byId('share-feedback'),
-  shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'),
+  ideaNow: byId('idea-now'), ideaNowTitle: byId('idea-now-title'), ideaNowAuthor: byId('idea-now-author'),
+  shareDialog: byId('share-dialog'), shareLink: byId('share-link'), shareCopy: byId('share-copy'), shareNative: byId('share-native'),
   saveDialog: byId('save-dialog'), saveDialogClose: byId('save-dialog-close'), saveCancel: byId('save-cancel'),
   saveGuestRow: byId('save-guest-row'), saveSigninRow: byId('save-signin-row'), saveSignin: byId('save-signin'),
   saveAccountRow: byId('save-account-row'), saveAccountName: byId('save-account-name'), saveSignout: byId('save-signout'),
@@ -74,6 +75,7 @@ try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch { /* Storage
 const initialIdeaParam = readIdeaParam(window.location.search);
 let pendingIdeaLoad = Boolean(initialIdeaParam);
 let activeIdea = null;
+const defaultDocumentTitle = document.title;
 const setupHash = window.location.hash.startsWith(setupLinkPrefix);
 const shared = readSetupLink(window.location.hash);
 const settings = shared ?? readSettings(saved);
@@ -97,8 +99,31 @@ function shareBaseUrl() {
   try { return window.parent.location.href; } catch { return window.location.href; }
 }
 
+// Volume and master mute belong to the listener, not the idea: changing them
+// keeps the idea's credit, its short ?p= link and Share reuse. Compare with the
+// idea's own volume substituted, so only rhythm, sound and tempo edits count.
+const ideaVolumes = new Map();
+function ideaVolume(setup) {
+  if (!ideaVolumes.has(setup)) {
+    if (ideaVolumes.size > 500) ideaVolumes.clear();
+    const saved = decodeSetupSnapshot(setup);
+    ideaVolumes.set(setup, saved ? { outputVolume: saved.outputVolume, masterMuted: saved.masterMuted } : null);
+  }
+  return ideaVolumes.get(setup);
+}
+function matchesIdeaSetup(idea, snap = encodeSetupSnapshot(settings)) {
+  if (!idea?.setup) return false;
+  if (snap === idea.setup) return true;
+  const volume = ideaVolume(idea.setup);
+  return Boolean(volume) && encodeSetupSnapshot({ ...settings, ...volume }) === idea.setup;
+}
 function isActiveIdeaDirty() {
-  return Boolean(activeIdea && encodeSetupSnapshot(settings) !== activeIdea.setup);
+  return Boolean(activeIdea && !matchesIdeaSetup(activeIdea));
+}
+// For the same reason, opening an idea (link or Ideas row) keeps the listener's
+// volume and mute instead of the level the author happened to save with.
+function withListenerVolume(snapshot) {
+  return { ...snapshot, outputVolume: settings.outputVolume, masterMuted: settings.masterMuted };
 }
 
 function syncEmbedState() {
@@ -229,14 +254,56 @@ async function copyTextSafe(text) {
     return false;
   }
 }
-function openShareFallback(link) {
+// Phones get the system share sheet (Messages, WhatsApp, …); fine pointers keep
+// the instant clipboard copy. A cancelled sheet is final; any other failure
+// (for example a save that outlasted the tap's user activation) falls back to
+// copy, then to the dialog, whose own Share button carries a fresh tap.
+function prefersNativeShare() {
+  return typeof window.navigator?.share === 'function' && Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+}
+function shareDataFor(link, idea) {
+  const { title, author } = idea ? ideaCredit(idea) : {};
+  const meter = `${settings.beats}/${settings.unit} · ${settings.bpm} BPM`;
+  return {
+    title: title ? `${title} · Oddmeter` : 'Oddmeter rhythm',
+    text: title ? `${title}${author ? ` by ${author}` : ''} (${meter}) on Oddmeter` : `A ${meter} rhythm on Oddmeter`,
+    url: link,
+  };
+}
+async function shareNatively(data) {
+  if (!prefersNativeShare()) return false;
+  try {
+    await window.navigator.share(data);
+    return true;
+  } catch (error) {
+    return error?.name === 'AbortError';
+  }
+}
+let shareDialogData = null;
+async function deliverLink(link, copiedMessage, idea = null) {
+  const data = shareDataFor(link, idea);
+  if (await shareNatively(data)) return;
+  if (await copyTextSafe(link)) flashShareCopied(copiedMessage);
+  else openShareFallback(link, data);
+}
+function openShareFallback(link, data = null) {
   if (!ui.shareDialog) return;
+  shareDialogData = data ?? { url: link };
+  if (ui.shareNative) ui.shareNative.hidden = !prefersNativeShare();
   if (ui.shareLink) ui.shareLink.value = link;
   ui.shareDialog.removeAttribute('data-closing');
   if (!ui.shareDialog.open) ui.shareDialog.showModal();
   ui.shareLink?.focus();
   ui.shareLink?.select();
 }
+ui.shareNative?.addEventListener('click', async () => {
+  const data = shareDialogData ?? { url: ui.shareLink?.value };
+  if (!data.url) return;
+  try {
+    await window.navigator.share(data);
+    void closeTopLayer(ui.shareDialog);
+  } catch { /* Cancelled or refused: the link stays selectable. */ }
+});
 ui.shareCopy?.addEventListener('click', async () => {
   ui.shareLink?.focus();
   ui.shareLink?.select();
@@ -251,9 +318,9 @@ ui.share?.addEventListener('click', async () => {
   }
   if (!isEmbed && ideaStore.state.cloudAvailable) {
     const snap = encodeSetupSnapshot(settings);
-    let target = activeIdea?.source === 'cloud' && activeIdea.setup === snap
+    let target = activeIdea?.source === 'cloud' && matchesIdeaSetup(activeIdea, snap)
       ? activeIdea
-      : ideaStore.state.ideas.find((item) => item.source === 'cloud' && item.setup === snap) ?? null;
+      : ideaStore.state.ideas.find((item) => item.source === 'cloud' && matchesIdeaSetup(item, snap)) ?? null;
     if (!target) {
       ui.share.disabled = true;
       try {
@@ -274,20 +341,12 @@ ui.share?.addEventListener('click', async () => {
       updateSetupUrl();
       renderIdeaUi();
       const shortUrl = makeIdeaLink(shareBaseUrl(), target.id);
-      if (shortUrl && await copyTextSafe(shortUrl)) {
-        flashShareCopied('Short link copied.');
-      } else if (shortUrl) {
-        openShareFallback(shortUrl);
-      }
+      if (shortUrl) await deliverLink(shortUrl, 'Short link copied.', target);
       return;
     }
   }
   const link = makeSetupLink(shareBaseUrl(), settings);
-  if (await copyTextSafe(link)) {
-    flashShareCopied('Setup link copied.');
-  } else {
-    openShareFallback(link);
-  }
+  await deliverLink(link, 'Setup link copied.');
 });
 ui.keepSetup.hidden = saveLocally || pendingIdeaLoad;
 ui.keepSetup.addEventListener('click', () => {
@@ -3477,7 +3536,7 @@ function loadSavedIdea(idea) {
   activeIdea = idea;
   saveLocally = true;
   ui.keepSetup.hidden = true;
-  applySettingsSnapshot(decoded, { toast: `Loaded ${idea.title}`, recordUndo: true });
+  applySettingsSnapshot(withListenerVolume(decoded), { toast: `Loaded ${idea.title}`, recordUndo: true });
   updateSetupUrl();
 }
 
@@ -3503,7 +3562,31 @@ function showSaveError(message = '') {
   ui.saveError.hidden = message === '';
 }
 
+function ideaCredit(idea) {
+  const title = String(idea?.title ?? '').trim();
+  const author = String(idea?.authorName ?? '').trim();
+  return { title, author: author && author !== 'Local' ? author : '' };
+}
+// Name the loaded idea (and its author) while the grid still matches it, so a
+// link recipient sees what they were sent. Edits drop the credit, as they drop
+// the short ?p= link. Titles come from a public database: text only.
+function renderIdeaNow() {
+  const { title, author } = activeIdea && !pendingIdeaLoad && !isActiveIdeaDirty() ? ideaCredit(activeIdea) : {};
+  const show = Boolean(title) && !hasEmbedParam;
+  if (ui.ideaNow) {
+    ui.ideaNow.hidden = !show;
+    ui.ideaNowTitle.textContent = show ? title : '';
+    ui.ideaNowAuthor.textContent = show && author ? ` by ${author}` : '';
+    if (show) ui.ideaNow.title = `${title}${author ? ` by ${author}` : ''}`;
+    else ui.ideaNow.removeAttribute('title');
+  }
+  if (!hasEmbedParam) {
+    document.title = show ? `${title}${author ? ` by ${author}` : ''} · Oddmeter` : defaultDocumentTitle;
+  }
+}
+
 function renderIdeaUi() {
+  renderIdeaNow();
   if (!ideaUiInitialized || !ui.ideasPanel) return;
   const { account, loading, cloudAvailable, cloudError, ideas, nextTitle } = ideaStore.state;
   const canUpdate = Boolean(activeIdea && canModifyIdea(activeIdea) && isActiveIdeaDirty());
@@ -3786,7 +3869,7 @@ async function loadInitialSharedIdea() {
     activeIdea = remote;
     saveLocally = isOwner;
     ui.keepSetup.hidden = isOwner;
-    applySettingsSnapshot(decoded, { recordUndo: false });
+    applySettingsSnapshot(withListenerVolume(decoded), { recordUndo: false });
     renderIdeaUi();
   } catch {
     pendingIdeaLoad = false;

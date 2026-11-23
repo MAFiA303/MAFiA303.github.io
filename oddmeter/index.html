@@ -6,6 +6,18 @@
   <meta name="theme-color" content="#0d0e11">
   <meta name="description" content="A practice metronome for beat subdivisions, polyrhythms, and odd meters.">
   <title>Oddmeter — Practice Metronome</title>
+  <!-- Link previews. Crawlers do not run JS, so these stay generic for every
+       ?p= link; no og:url/canonical, which would collapse shared links. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Oddmeter">
+  <meta property="og:title" content="Oddmeter — odd meters &amp; polyrhythms you can see">
+  <meta property="og:description" content="Stack beats and subdivisions, watch the pixel drummer play them, and share any groove as a link.">
+  <meta property="og:image" content="https://mafium.com/oddmeter/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Oddmeter: a pixel drummer above a three-row beat and subdivision grid.">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <script>
@@ -13,13 +25,16 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=drummer4">
-  <script type="module" src="./app.js?v=drummer4"></script>
+  <link rel="stylesheet" href="./styles.css?v=share1">
+  <script type="module" src="./app.js?v=share1"></script>
 </head>
 <body>
   <header class="site-header">
     <div class="shell header-inner">
-      <h1 class="wordmark"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>ODDMETER<span class="visually-hidden"> practice metronome</span></h1>
+      <div class="brand">
+        <h1 class="wordmark"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>ODDMETER<span class="visually-hidden"> practice metronome</span></h1>
+        <p id="idea-now" class="idea-now" hidden><span id="idea-now-title" class="idea-now-title"></span><span id="idea-now-author" class="idea-now-author"></span></p>
+      </div>
       <div class="header-actions">
         <div class="visually-hidden" id="status" role="status"><span id="status-text">Ready</span> <span id="position" aria-hidden="true"></span></div>
         <button type="button" id="keep-setup" class="header-button keep-button" title="Save this linked setup as your own" hidden>Keep this setup</button>
@@ -256,6 +271,7 @@
       <label id="share-title" class="share-dialog-title" for="share-link">Copy link</label>
       <input type="url" id="share-link" readonly>
       <div class="share-dialog-actions">
+        <button type="button" id="share-native" class="share-copy-btn" hidden>Share…</button>
         <button type="button" id="share-copy" class="share-copy-btn">Select link</button>
         <button type="submit" class="share-done-btn">Done</button>
       </div>
