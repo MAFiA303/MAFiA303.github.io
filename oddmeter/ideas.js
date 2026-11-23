@@ -18,10 +18,13 @@ export const ideaLimits = { title: 60, authorName: 40, setup: 16384, list: 200 }
 
 const featuredIdeaRanks = new Map([
   'wFWJxvENEB', // Reggae: one drop
+  '0x-v4zhgp3', // House: four on the floor
+  'bwVVmL0Cax', // Pop-rock: straight eighths
   '826HMXBX6f', // Funk: 16ths with ghost notes
   'ZFFgQEbeVZ', // Jazz: bossa nova
   'hU6oXFmHPo', // Jazz: swing ride
   'dmMmCYUy6j', // Blues shuffle in 4
+  'p8bFmIZl87', // Half-time shuffle with ghost notes
   'GCLeALapxf', // Son clave 3-2
   'XY6HfK4DKm', // Drum & bass: two-step
   'oLjX4KBGhG', // Metal: gallop
