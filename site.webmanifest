@@ -4,8 +4,8 @@
   "description": "Saad MAFiA — Music, Science, Games, and Photography.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d0011",
-  "theme_color": "#0d0011",
+  "background_color": "#0b0a0d",
+  "theme_color": "#0b0a0d",
   "icons": [
     {
       "src": "./images/brand/icon-192.png",

@@ -3,28 +3,28 @@
   --sans: Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
   font-family: var(--sans);
-  --background: #0d0011;
-  --panel: #16081e;
-  --surface: #200d2c;
-  --surface-hover: #2d143d;
-  --well: #100416;
-  --line: #2e1740;
-  --line-control: #583570;
-  --line-strong: #784c96;
-  --line-custom: #a97ac7;
-  --text: #f9eff8;
-  --muted: #b69cc2;
-  --accent: #ff2a85;
-  --accent-hover: #ff5ca3;
+  --background: #0c0c0f;
+  --panel: #141418;
+  --surface: #1c1c22;
+  --surface-hover: #25252e;
+  --well: #0f0f13;
+  --line: #272730;
+  --line-control: #4e4e5e;
+  --line-strong: #6b6b7d;
+  --line-custom: #9898aa;
+  --text: #f3f1f4;
+  --muted: #9f9daa;
+  --accent: #e02967;
+  --accent-hover: #ef427d;
   --accent-ink: #ffffff;
   --trim: #ffb04f;
   --ok: #4ce3a8;
   --repeat: #b18cff;
   --playhead: #ffffff;
-  --playhead-glow: #ff2a85;
+  --playhead-glow: #e02967;
   --playhead-band: rgb(255 255 255 / 0.085);
   --playhead-band-edge: rgb(255 255 255 / 0.22);
-  --sound-click: #ff2a85;
+  --sound-click: #e02967;
   --sound-woodblock: #c98a5b;
   --sound-clave: #4fdce3;
   --sound-rimshot: #ff84be;
@@ -64,10 +64,7 @@ body {
   margin: 0;
   min-width: 288px;
   min-block-size: 100svh;
-  background:
-    radial-gradient(960px 440px at 30% -120px, color-mix(in oklab, var(--accent) 12%, transparent), transparent 72%),
-    radial-gradient(840px 420px at 78% -100px, rgb(139 52 255 / 0.12), transparent 72%),
-    var(--background);
+  background: var(--background);
   color: var(--text);
   line-height: 1.45;
   accent-color: var(--accent);
@@ -143,8 +140,18 @@ select option { background: #191c24; color: var(--text); }
 .header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 /* The brand row takes the free space; the idea name never pushes the actions
    to wrap (contain: inline-size) and ellipsizes instead. */
-.brand { display: flex; flex: 1 1 0; align-items: center; gap: 14px; }
+.brand { display: flex; flex: 1 1 0; align-items: center; gap: 11px; }
 .brand .wordmark { flex: none; }
+.mark-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: opacity 140ms ease-out;
+}
+.mark-link:hover { opacity: 0.85; }
 .idea-now {
   flex: 1 1 0;
   contain: inline-size;
@@ -190,7 +197,6 @@ select option { background: #191c24; color: var(--text); }
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  box-shadow: 0 2px 12px rgb(255 30 128 / 0.34);
 }
 
 .header-button {
@@ -337,20 +343,20 @@ main.shell { padding-block: 12px 16px; }
   padding: 8px 18px;
   border-radius: var(--radius-md);
   color: var(--accent-ink);
-  background: linear-gradient(118deg, #ff2280, #8f34ff);
-  border-color: color-mix(in oklab, #ff2280 62%, #8f34ff);
+  background: var(--accent);
+  border-color: var(--accent);
   font-family: var(--mono);
   font-weight: 750;
   font-size: .85rem;
   line-height: 1.1;
   letter-spacing: .06em;
   text-transform: uppercase;
-  box-shadow: 0 4px 18px rgb(255 34 128 / 0.32), 0 2px 14px rgb(143 52 255 / 0.26), inset 0 1px 0 rgb(255 255 255 / 0.28);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
 }
 .play:not(:disabled):hover {
-  background: linear-gradient(118deg, #ff4294, #a352ff);
+  background: var(--accent-hover);
   border-color: var(--accent-hover);
-  box-shadow: 0 6px 22px rgb(255 34 128 / 0.42), 0 4px 18px rgb(143 52 255 / 0.34), inset 0 1px 0 rgb(255 255 255 / 0.34);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
 }
 .play[data-running] {
   background: color-mix(in oklab, var(--accent) 18%, var(--surface));
@@ -3469,9 +3475,8 @@ html.oddmeter-embed .wordmark {
   gap: 8px;
 }
 html.oddmeter-embed .mark {
-  width: 22px;
-  height: 22px;
-  padding: 4px;
+  width: 24px;
+  height: 24px;
 }
 html.oddmeter-embed main.shell {
   width: 100%;
