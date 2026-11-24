@@ -3201,7 +3201,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 /* Pixel drummer stage above rhythm grid */
 .drummer-stage {
   position: relative;
-  height: 186px;
+  height: 200px;
   background: #0b0e17;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
@@ -3245,9 +3245,11 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 }
 
 /* Responsive layout */
-@media (max-height: 920px) and (min-width: 681px) {
+/* Keep Ideas peeking above the fold on shorter laptop screens without crushing
+   the drummer stage on landscape phones (height < 580px). */
+@media (min-height: 580px) and (max-height: 920px) and (min-width: 681px) {
   html:not(.oddmeter-embed) .drummer-stage {
-    max-block-size: clamp(76px, calc(60dvh - 370px), 186px);
+    max-block-size: clamp(136px, calc(60dvh - 370px), 200px);
   }
   html:not(.oddmeter-embed) .tempo-panel { padding-block: 8px; }
   html:not(.oddmeter-embed) .console-footer { padding-block: 8px; }
@@ -3256,9 +3258,12 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
 @media (max-width: 960px) {
   .shell { width: calc(100% - 40px); }
   .tempo-panel { padding-inline: 14px; }
-  .drummer-stage { height: 156px; }
+  .drummer-stage { height: 168px; }
   .rhythm-panel { --lane-side: 216px; --beat-min-width: 150px; }
   .rhythm-panel[data-extended] { --beat-min-width: 210px; }
+}
+@media (max-height: 500px) and (max-width: 1024px) {
+  .drummer-stage { height: 154px; }
 }
 
 @media (max-width: 680px) {
@@ -3272,7 +3277,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .header-actions { gap: 6px; }
   .header-button { padding: 5px 9px; gap: 5px; font-size: .72rem; }
   .share-button { min-inline-size: 0; }
-  .drummer-stage { height: 138px; }
+  .drummer-stage { height: 170px; }
   .tempo-panel {
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas: 'dial tap . meter' 'range range range group';
@@ -3374,7 +3379,7 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .header-button { padding: 5px 7px; gap: 4px; font-size: .7rem; }
   .drummer-button::before, .undo-button::before, .reset-button::before, .save-button::before, .share-button::before { inline-size: 12px; block-size: 12px; }
   .share-button { min-inline-size: 0; }
-  .drummer-stage { height: 122px; }
+  .drummer-stage { height: 152px; }
   .tempo-panel { padding-inline: 10px; gap: 6px 5px; }
   .tempo-dial { gap: 3px; }
   .tempo-step { min-inline-size: 28px; }
@@ -3473,7 +3478,7 @@ html.oddmeter-embed .console {
   box-shadow: none;
 }
 html.oddmeter-embed .rhythm-panel { --beat-min-width: 170px; }
-html.oddmeter-embed .drummer-stage { height: 136px; }
+html.oddmeter-embed .drummer-stage { height: 150px; }
 html.oddmeter-embed .rhythm-panel[data-extended] { --beat-min-width: 220px; }
 html.oddmeter-embed .ideas-panel,
 html.oddmeter-embed .save-button,
