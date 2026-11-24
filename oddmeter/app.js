@@ -758,6 +758,12 @@ function keepPlayheadVisible(visualPhase, beatIndex = -1) {
   }
 }
 
+function clearLaneCyclePlayhead(lane) {
+  if (!lane.element.hasAttribute('data-cycle-playhead')) return;
+  lane.element.removeAttribute('data-cycle-playhead');
+  lane.element.style.removeProperty('--progress');
+}
+
 function clearPlayhead() {
   delete ui.console.dataset.playing;
   delete ui.console.dataset.countIn;
@@ -767,7 +773,10 @@ function clearPlayhead() {
   updateActiveBeatBand(-1, null);
   setLiveBeat();
   resetDrummerTracking();
-  for (const lane of lanes) light(lane, null);
+  for (const lane of lanes) {
+    clearLaneCyclePlayhead(lane);
+    light(lane, null);
+  }
 }
 function paint(now) {
   if (!playing) return;
@@ -790,7 +799,10 @@ function paint(now) {
     setLiveBeat({ beat: clock.carry.beat, total: settings.beats });
     ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
     keepPlayheadVisible(visualPhase, clock.carry.beat);
-    for (const lane of lanes) light(lane, null);
+    for (const lane of lanes) {
+      clearLaneCyclePlayhead(lane);
+      light(lane, null);
+    }
     drummerStage.syncFrame(now, { visualPhase, beat: clock.carry.beat, beats: settings.beats, countIn: false, countBeat: 0, inRepeat: false, repeatPass: 0, repeatTimes: 0, layout: carryLayout });
     return;
   }
@@ -813,7 +825,10 @@ function paint(now) {
       setLiveBeat({ beat: beat - 1, total: settings.beats, countIn: true });
       ui.console.style.setProperty('--progress', `${visualPhase * 100}%`);
       keepPlayheadVisible(visualPhase, beat - 1);
-      for (const lane of lanes) light(lane, null);
+      for (const lane of lanes) {
+        clearLaneCyclePlayhead(lane);
+        light(lane, null);
+      }
       if (beat !== drummerLastCountBeat) {
         drummerLastCountBeat = beat;
         drummerStage.triggerCountIn(beat, settings.beats);
@@ -877,8 +892,15 @@ function paint(now) {
   keepPlayheadVisible(visualPhase, beatIndex);
   const hitFlashSeconds = Math.min(0.14, (clock.duration / context.sampleRate) * 0.5);
   const cycleNum = Math.floor((frame - clock.origin) / clock.duration);
+  const cycleSplit = Boolean(clock.beatRepeats?.length || activeLayout.trimmed || activeLayout.skipped);
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
+    if (index > 0 && profile.enabled && profile.span === 'bar' && cycleSplit) {
+      lane.element.setAttribute('data-cycle-playhead', '');
+      lane.element.style.setProperty('--progress', `${cyclePhase * 100}%`);
+    } else {
+      clearLaneCyclePlayhead(lane);
+    }
     const events = lane.activeEvents;
     let eventIndex = -1;
     for (let i = events.length - 1; i >= 0; i--) {

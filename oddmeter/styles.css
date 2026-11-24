@@ -2079,6 +2079,11 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   --playhead-band: color-mix(in oklab, var(--repeat) 12%, transparent);
   --playhead-band-edge: color-mix(in oklab, var(--repeat) 38%, transparent);
 }
+.lane[data-cycle-playhead] {
+  --playhead: #ffffff;
+  --playhead-glow: var(--lane-color, #ff6b57);
+}
+.console[data-playing] .lane[data-cycle-playhead] .active-beat-band { display: none; }
 
 .playhead {
   display: none;
