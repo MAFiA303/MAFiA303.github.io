@@ -11,25 +11,25 @@
 }
 
 :root {
-  /* Nocturne Atelier (dark) & Sunlit Gallery (light) palette derived from photography */
-  --paper-light: #f6f2ea;
-  --paper-dark: #0e0d0c;
-  --sheet-light: #fffdf9;
-  --sheet-dark: #161412;
-  --well-light: #eee7db;
-  --well-dark: #100f0e;
-  --ink-light: #1c1814;
-  --ink-dark: #f2ebe1;
-  --muted-light: #695f55;
-  --muted-dark: #a69c90;
-  --rule-light: #e2d9cb;
-  --rule-dark: #2a2622;
-  --rule-strong-light: #c5b8a4;
-  --rule-strong-dark: #433c36;
-  --vermilion-light: #b85d1c;
-  --vermilion-dark: #e5974e;
-  --cobalt-light: #1e6c88;
-  --cobalt-dark: #68b8d6;
+  /* Obsidian Crimson-Violet (dark) & Rose-Quartz Gallery (light) derived from Mafium skull-octopus */
+  --paper-light: #faf4f9;
+  --paper-dark: #0d0011;
+  --sheet-light: #ffffff;
+  --sheet-dark: #16081e;
+  --well-light: #f2e7f4;
+  --well-dark: #100416;
+  --ink-light: #190822;
+  --ink-dark: #f9eff8;
+  --muted-light: #694f78;
+  --muted-dark: #b9a1c4;
+  --rule-light: #e6d4ec;
+  --rule-dark: #2c153b;
+  --rule-strong-light: #ccaed8;
+  --rule-strong-dark: #4b2466;
+  --vermilion-light: #c8005e;
+  --vermilion-dark: #ff2a85;
+  --cobalt-light: #6d1ee6;
+  --cobalt-dark: #9a52ff;
 
   --paper: var(--paper-light);
   --sheet: var(--sheet-light);
@@ -41,6 +41,7 @@
   --vermilion: var(--vermilion-light);
   --cobalt: var(--cobalt-light);
 
+  --brand-display: 'Syne', 'Lexend', -apple-system, BlinkMacSystemFont, sans-serif;
   --display: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --sans: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
@@ -50,6 +51,7 @@
   --radius-pill: 999px;
 
   color-scheme: light dark;
+  scrollbar-color: var(--rule-strong) var(--paper);
   view-transition-name: none;
 
   &:has(> head > meta[name="color-scheme"][content="dark"]) {
@@ -123,15 +125,15 @@ body {
   min-block-size: 100svh;
   background-color: var(--paper);
   background-image:
-    radial-gradient(65% 45% at 86% 6%, color-mix(in oklab, var(--cobalt) 9%, transparent), transparent 72%),
-    radial-gradient(55% 40% at 12% 28%, color-mix(in oklab, var(--vermilion) 6%, transparent), transparent 74%);
+    radial-gradient(64% 46% at 14% 6%, color-mix(in oklab, var(--vermilion) 15%, transparent), transparent 72%),
+    radial-gradient(60% 44% at 88% 12%, color-mix(in oklab, var(--cobalt) 16%, transparent), transparent 72%);
   background-attachment: fixed;
   color: var(--ink);
   font: 400 1rem/1.6 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: var(--vermilion); color: #120e0b; }
+::selection { background: var(--vermilion); color: #ffffff; }
 
 .visually-hidden:where(:not(:focus-within, :active)) {
   position: absolute !important;
@@ -224,17 +226,17 @@ a { color: inherit; }
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   text-decoration: none;
-  font: 600 1.02rem/1 var(--display);
+  font: 800 1.04rem/1 var(--brand-display);
   letter-spacing: -.02em;
   white-space: nowrap;
 }
 .wordmark-mark {
-  inline-size: 26px;
-  block-size: 26px;
+  inline-size: 32px;
+  block-size: 32px;
   flex-shrink: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background-image: url("./images/brand/mafium-icon.png");
   background-image: image-set(
     url("./images/brand/mafium-icon.avif") type("image/avif") 1x,
@@ -247,6 +249,7 @@ a { color: inherit; }
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  box-shadow: 0 2px 12px color-mix(in oklab, var(--vermilion) 28%, transparent);
 }
 
 .masthead-nav {
@@ -330,7 +333,7 @@ section[tabindex="-1"]:focus { outline: none; }
 /* Atmospheric Editorial Hero */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.28fr) minmax(240px, .72fr);
+  grid-template-columns: minmax(0, 1.24fr) minmax(240px, .76fr);
   align-items: center;
   gap: clamp(28px, 5vw, 64px);
   padding-bottom: clamp(32px, 5vw, 56px);
@@ -338,6 +341,56 @@ section[tabindex="-1"]:focus { outline: none; }
 .hero-copy {
   display: grid;
   gap: 16px;
+  justify-items: start;
+}
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 4px;
+}
+.hero-emblem-wrap {
+  position: relative;
+  inline-size: clamp(108px, 12vw, 152px);
+  block-size: clamp(108px, 12vw, 152px);
+  border-radius: clamp(24px, 2.8vw, 34px);
+  padding: 2px;
+  background: linear-gradient(135deg, var(--vermilion), var(--cobalt));
+  box-shadow:
+    0 22px 54px -16px color-mix(in oklab, var(--vermilion) 52%, transparent),
+    0 14px 44px -14px color-mix(in oklab, var(--cobalt) 48%, transparent);
+  flex-shrink: 0;
+}
+.hero-emblem-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 32% 35%, color-mix(in oklab, var(--vermilion) 32%, transparent), transparent 60%),
+              radial-gradient(circle at 72% 68%, color-mix(in oklab, var(--cobalt) 34%, transparent), transparent 62%);
+  filter: blur(22px);
+  z-index: -1;
+  pointer-events: none;
+}
+.hero-emblem {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(clamp(24px, 2.8vw, 34px) - 2px);
+  object-fit: cover;
+  background: #0d0011;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in oklab, var(--vermilion) 38%, var(--rule-strong));
+  background: color-mix(in oklab, var(--vermilion) 10%, var(--sheet));
+  color: var(--vermilion);
+  font: 600 .78rem/1 var(--sans);
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .hero-places {
   margin: 0;
@@ -347,8 +400,10 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .hero-title {
   margin: 0;
-  font: 600 clamp(2.8rem, 1.9rem + 4.2vw, 4.75rem)/1.02 var(--display);
+  font: 800 clamp(2.65rem, 1.75rem + 4vw, 4.65rem)/.96 var(--brand-display);
   letter-spacing: -.035em;
+  color: var(--ink);
+  text-wrap: balance;
 }
 .hero-roles {
   margin: 0;
@@ -398,10 +453,10 @@ section[tabindex="-1"]:focus { outline: none; }
   overflow: hidden;
   aspect-ratio: 4 / 5;
   background: var(--well);
-  border: 1px solid color-mix(in oklab, var(--rule-strong) 55%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cobalt) 32%, var(--rule-strong));
   box-shadow:
-    0 24px 56px -22px rgb(0 0 0 / 0.65),
-    0 0 0 1px color-mix(in oklab, var(--cobalt) 12%, transparent);
+    0 26px 60px -22px rgb(0 0 0 / 0.72),
+    0 0 0 1px color-mix(in oklab, var(--vermilion) 18%, transparent);
 }
 .hero-portrait img {
   display: block;
@@ -615,8 +670,8 @@ section[tabindex="-1"]:focus { outline: none; }
   transition: background-color 160ms ease-out, color 160ms ease-out, transform 160ms ease-out;
 }
 .cta-pill:hover {
-  background: var(--vermilion);
-  color: #140f0a;
+  background: linear-gradient(110deg, var(--vermilion), var(--cobalt));
+  color: #ffffff;
 }
 .cta-pill .arrow { transition: transform 160ms ease-out; }
 .cta-pill:hover .arrow { transform: translateX(3px); }
@@ -696,7 +751,7 @@ section[tabindex="-1"]:focus { outline: none; }
 .soft-chip-accent[aria-pressed="true"] {
   border-color: var(--vermilion);
   background: var(--vermilion);
-  color: #140f0a;
+  color: #ffffff;
 }
 .specimen-hint {
   font: 500 .76rem/1 var(--sans);

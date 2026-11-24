@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
   <defs>
     <radialGradient id="bg" cx="50%" cy="46%" r="62%">
-      <stop offset="0%" stop-color="#111a44"/>
-      <stop offset="100%" stop-color="#050816"/>
+      <stop offset="0%" stop-color="#22052c"/>
+      <stop offset="100%" stop-color="#0d0011"/>
     </radialGradient>
-    <linearGradient id="prism" x1="18%" y1="15%" x2="84%" y2="85%">
-      <stop offset="0%" stop-color="#6ef3ff"/>
-      <stop offset="50%" stop-color="#6b8dff"/>
-      <stop offset="100%" stop-color="#d284ff"/>
+    <linearGradient id="prism" x1="16%" y1="18%" x2="86%" y2="82%">
+      <stop offset="0%" stop-color="#ff247f"/>
+      <stop offset="52%" stop-color="#c91898"/>
+      <stop offset="100%" stop-color="#7c1cff"/>
     </linearGradient>
     <linearGradient id="rim" x1="12%" y1="12%" x2="88%" y2="88%">
-      <stop offset="0%" stop-color="#7ceeff" stop-opacity="0.45"/>
-      <stop offset="100%" stop-color="#c980ff" stop-opacity="0.4"/>
+      <stop offset="0%" stop-color="#ff3b8e" stop-opacity="0.52"/>
+      <stop offset="100%" stop-color="#8b3dff" stop-opacity="0.48"/>
     </linearGradient>
   </defs>
   <rect x="2" y="2" width="96" height="96" rx="22" fill="url(#bg)" stroke="url(#rim)" stroke-width="2"/>

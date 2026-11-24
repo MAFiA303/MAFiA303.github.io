@@ -189,7 +189,7 @@ select option { background: #191c24; color: var(--text); }
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  box-shadow: 0 2px 12px rgb(92 178 255 / 0.28);
+  box-shadow: 0 2px 12px rgb(255 30 128 / 0.34);
 }
 
 .header-button {
