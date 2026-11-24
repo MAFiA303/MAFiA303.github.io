@@ -41,8 +41,8 @@
   --vermilion: var(--vermilion-light);
   --cobalt: var(--cobalt-light);
 
-  --display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
-  --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --display: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --sans: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
   --radius-xl: 24px;
   --radius-lg: 18px;
@@ -224,18 +224,29 @@ a { color: inherit; }
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   text-decoration: none;
-  font: 500 1.05rem/1 var(--display);
-  font-variation-settings: "opsz" 24, "SOFT" 60;
-  letter-spacing: -.01em;
+  font: 600 1.02rem/1 var(--display);
+  letter-spacing: -.02em;
   white-space: nowrap;
 }
 .wordmark-mark {
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: 50%;
-  background: var(--vermilion);
+  inline-size: 26px;
+  block-size: 26px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background-image: url("./images/brand/mafium-icon.png");
+  background-image: image-set(
+    url("./images/brand/mafium-icon.avif") type("image/avif") 1x,
+    url("./images/brand/mafium-icon-2x.avif") type("image/avif") 2x,
+    url("./images/brand/mafium-icon.webp") type("image/webp") 1x,
+    url("./images/brand/mafium-icon-2x.webp") type("image/webp") 2x,
+    url("./images/brand/mafium-icon.png") type("image/png") 1x,
+    url("./images/brand/mafium-icon-2x.png") type("image/png") 2x
+  );
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 .masthead-nav {
@@ -336,9 +347,8 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .hero-title {
   margin: 0;
-  font: 400 clamp(3rem, 2rem + 4.4vw, 5.1rem)/.98 var(--display);
-  font-variation-settings: "opsz" 120, "SOFT" 65;
-  letter-spacing: -.03em;
+  font: 600 clamp(2.8rem, 1.9rem + 4.2vw, 4.75rem)/1.02 var(--display);
+  letter-spacing: -.035em;
 }
 .hero-roles {
   margin: 0;
@@ -348,9 +358,7 @@ section[tabindex="-1"]:focus { outline: none; }
 .hero-quote {
   margin: 4px 0 0;
   max-width: 44ch;
-  font: 400 clamp(1.1rem, 1rem + .45vw, 1.32rem)/1.5 var(--display);
-  font-style: italic;
-  font-variation-settings: "opsz" 32, "SOFT" 70;
+  font: 300 clamp(1.06rem, .98rem + .4vw, 1.26rem)/1.55 var(--display);
   color: var(--ink);
 }
 .hero-links {
@@ -512,9 +520,8 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .band-head h2 {
   margin: 0;
-  font: 400 clamp(1.7rem, 1.35rem + 1.3vw, 2.3rem)/1.1 var(--display);
-  font-variation-settings: "opsz" 48, "SOFT" 65;
-  letter-spacing: -.02em;
+  font: 600 clamp(1.6rem, 1.3rem + 1.2vw, 2.15rem)/1.12 var(--display);
+  letter-spacing: -.025em;
 }
 .band-links {
   display: flex;
@@ -580,9 +587,8 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .entry-title {
   margin: 0;
-  font: 400 clamp(1.7rem, 1.35rem + 1.2vw, 2.3rem)/1.12 var(--display);
-  font-variation-settings: "opsz" 48, "SOFT" 60;
-  letter-spacing: -.02em;
+  font: 600 clamp(1.6rem, 1.3rem + 1.1vw, 2.15rem)/1.14 var(--display);
+  letter-spacing: -.025em;
   text-wrap: balance;
 }
 .entry-title a { text-decoration: none; }
@@ -768,8 +774,8 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .media-title-group h3 {
   margin: 0;
-  font: 400 clamp(1.35rem, 1.15rem + .65vw, 1.65rem)/1.15 var(--display);
-  font-variation-settings: "opsz" 36, "SOFT" 60;
+  font: 600 clamp(1.3rem, 1.12rem + .6vw, 1.58rem)/1.18 var(--display);
+  letter-spacing: -.02em;
 }
 .media-note {
   font: 500 .82rem/1 var(--sans);
@@ -978,9 +984,8 @@ section[tabindex="-1"]:focus { outline: none; }
 }
 .closing-quote {
   margin: 0;
-  font: 400 clamp(1.5rem, 1.2rem + 1.1vw, 2.05rem)/1.22 var(--display);
-  font-style: italic;
-  font-variation-settings: "opsz" 48, "SOFT" 70;
+  font: 400 clamp(1.42rem, 1.16rem + 1vw, 1.92rem)/1.28 var(--display);
+  letter-spacing: -.02em;
 }
 .story-grid {
   display: grid;
@@ -1046,6 +1051,20 @@ section[tabindex="-1"]:focus { outline: none; }
   align-items: center;
   justify-content: space-between;
   gap: 12px 20px;
+}
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.footer-mark {
+  inline-size: 16px;
+  block-size: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url("./images/brand/mafium-mark.svg") center / contain no-repeat;
+  mask: url("./images/brand/mafium-mark.svg") center / contain no-repeat;
+  opacity: 0.85;
 }
 .footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
 .footer-links a { text-decoration: none; }
@@ -1209,6 +1228,6 @@ section[tabindex="-1"]:focus { outline: none; }
   .masthead-nav a:is(:target-current, .target-current),
   .cta-pill,
   .filter-btn[aria-pressed="true"] { background: Highlight; color: HighlightText; border-color: Highlight; }
-  .wordmark-mark,
   .scroll-progress { background: Highlight; }
+  .footer-mark { background-color: CanvasText; }
 }

@@ -1,0 +1,23 @@
+{
+  "name": "Saad MAFiA — mafium",
+  "short_name": "mafium",
+  "description": "Saad MAFiA — Music, Science, Games, and Photography.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0d0c",
+  "theme_color": "#0e0d0c",
+  "icons": [
+    {
+      "src": "./images/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./images/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -175,18 +175,22 @@ select option { background: #191c24; color: var(--text); }
 .mark {
   width: 28px;
   height: 28px;
-  display: flex;
-  gap: 3px;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 5px;
+  flex-shrink: 0;
   border-radius: 7px;
-  background: var(--accent);
-  box-shadow: 0 2px 10px color-mix(in oklab, var(--accent) 30%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.25);
+  background-image: url("../images/brand/mafium-icon.png");
+  background-image: image-set(
+    url("../images/brand/mafium-icon.avif") type("image/avif") 1x,
+    url("../images/brand/mafium-icon-2x.avif") type("image/avif") 2x,
+    url("../images/brand/mafium-icon.webp") type("image/webp") 1x,
+    url("../images/brand/mafium-icon-2x.webp") type("image/webp") 2x,
+    url("../images/brand/mafium-icon.png") type("image/png") 1x,
+    url("../images/brand/mafium-icon-2x.png") type("image/png") 2x
+  );
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 2px 12px rgb(92 178 255 / 0.28);
 }
-.mark i { width: 4px; border-radius: 1.5px; background: var(--accent-ink); height: 9px; }
-.mark i:nth-child(2) { height: 17px; }
-.mark i:nth-child(3) { height: 12px; }
 
 .header-button {
   display: inline-flex;

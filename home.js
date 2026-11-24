@@ -419,7 +419,7 @@ function initZetaSpecimen() {
     }
     ctx.stroke();
 
-    ctx.font = '500 10.5px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.font = '500 10.5px "Lexend", system-ui, sans-serif';
     ctx.textAlign = 'center';
     for (const zero of KNOWN_ZEROS) {
       const x = toX(zero);
