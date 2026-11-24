@@ -205,18 +205,18 @@ select option { background: #191c24; color: var(--text); }
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-block-size: 34px;
-  padding: 6px 12px;
-  border-color: var(--line);
+  min-block-size: 32px;
+  padding: 6px 10px;
+  border-color: transparent;
   color: var(--muted);
   font-family: var(--mono);
   font-weight: 550;
-  font-size: .74rem;
+  font-size: .73rem;
   line-height: 1.1;
   background: transparent;
 }
 .header-button:not(:disabled):hover {
-  border-color: var(--line-control);
+  border-color: transparent;
   background: var(--surface);
   color: var(--text);
 }
@@ -236,12 +236,15 @@ select option { background: #191c24; color: var(--text); }
   mask: var(--drummer-mask) no-repeat center / contain;
 }
 .drummer-button[aria-pressed='true'] {
-  border-color: var(--line-control);
+  border-color: transparent;
   background: var(--surface);
   color: var(--text);
 }
 .drummer-button[aria-pressed='true']::before {
-  background-color: var(--text);
+  background-color: var(--accent);
+}
+.drummer-button[aria-pressed='true']:not(:disabled):hover {
+  background: var(--surface-hover);
 }
 .undo-button::before {
   -webkit-mask: var(--undo-mask) no-repeat center / contain;
@@ -256,7 +259,7 @@ select option { background: #191c24; color: var(--text); }
   mask: var(--ideas-mask) no-repeat center / contain;
 }
 .save-button[data-saved] {
-  border-color: color-mix(in oklab, var(--ok) 55%, var(--line));
+  border-color: transparent;
   background: var(--surface);
   color: var(--ok);
 }
@@ -266,10 +269,13 @@ select option { background: #191c24; color: var(--text); }
   mask: var(--check-mask) no-repeat center / contain;
 }
 .share-button {
-  min-inline-size: 82px;
-  border-color: var(--line-control);
-  background: var(--surface);
-  color: var(--text);
+  min-inline-size: 80px;
+  margin-inline-start: 4px;
+  padding: 6px 13px;
+  border-color: transparent;
+  background: #e5b949;
+  color: #14120e;
+  font-weight: 650;
 }
 .share-button::before {
   content: '';
@@ -281,27 +287,26 @@ select option { background: #191c24; color: var(--text); }
   mask: var(--share-mask) no-repeat center / contain;
 }
 .share-button:not(:disabled):hover {
-  border-color: var(--line-strong);
-  background: var(--surface-hover);
-  color: var(--text);
+  border-color: transparent;
+  background: #f0c75e;
+  color: #14120e;
 }
 .share-button[data-copied] {
-  border-color: color-mix(in oklab, var(--ok) 65%, var(--line));
-  background: var(--surface);
-  color: var(--ok);
+  border-color: transparent;
+  background: var(--ok);
+  color: #0b0a0d;
 }
 .share-button[data-copied]::before {
-  background-color: var(--ok);
+  background-color: #0b0a0d;
   -webkit-mask: var(--check-mask) no-repeat center / contain;
   mask: var(--check-mask) no-repeat center / contain;
 }
 .keep-button {
-  border-color: var(--line-control);
+  border-color: transparent;
   background: var(--surface);
   color: var(--text);
 }
 .keep-button:not(:disabled):hover {
-  border-color: var(--line-strong);
   background: var(--surface-hover);
 }
 
@@ -680,16 +685,16 @@ kbd {
 .live-beat {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-block-size: 26px;
-  padding: 2px 8px;
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--playhead);
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
   font-family: var(--mono);
   font-size: .72rem;
-  font-weight: 700;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
   white-space: nowrap;
@@ -1308,25 +1313,21 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 .ruler-playhead::before {
   content: '';
   position: absolute;
-  top: -2px;
-  right: -7px;
-  width: 14px;
-  height: 11px;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 7px;
   background: var(--playhead);
-  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
-  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--playhead-glow) 85%, transparent));
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 .ruler-playhead::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -1.5px;
-  width: 3px;
+  right: -1px;
+  width: 2px;
   background: var(--playhead);
-  box-shadow:
-    0 0 6px rgb(255 255 255 / 0.85),
-    0 0 14px color-mix(in oklab, var(--playhead-glow) 68%, transparent);
 }
 .console:is([data-playing], [data-count-in]) .ruler-playhead { display: block; }
 .beat-head:has(.beat-drag:focus-visible) {
@@ -1776,14 +1777,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   bottom: 0;
   left: var(--active-beat-start, 0%);
   width: var(--active-beat-width, 0%);
-  background: linear-gradient(
-    180deg,
-    var(--playhead-band) 0%,
-    color-mix(in oklab, var(--playhead-band) 65%, transparent) 55%,
-    var(--playhead-band) 100%
-  );
-  border-inline: 1px solid var(--playhead-band-edge);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--playhead-glow) 28%, transparent);
+  background: rgb(255 255 255 / 0.035);
   pointer-events: none;
   z-index: 0;
 }
@@ -1797,33 +1791,7 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   pointer-events: none;
   z-index: 2;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .console:is([data-playing], [data-count-in]) .playhead-clip { display: block; }
-}
-.playhead-trail {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -100%;
-  width: 100%;
-  transform: translate3d(var(--progress, 0%), 0, 0);
-  will-change: transform;
-}
-.playhead-trail::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: clamp(36px, 8%, 88px);
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in oklab, var(--playhead-glow) 10%, transparent) 48%,
-    color-mix(in oklab, var(--playhead-glow) 24%, transparent) 82%,
-    rgb(255 255 255 / 0.30) 100%
-  );
-}
+.playhead-trail { display: none; }
 .pulse-buttons { z-index: 3; }
 .beat-counts { z-index: 3; }
 .trim-tail {
@@ -2026,24 +1994,20 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   transform: rotate(-45deg);
 }
 .pulse:hover::after {
-  outline: 1.5px solid color-mix(in oklab, var(--pulse-color) 80%, transparent);
-  outline-offset: 3px;
+  border-color: var(--text);
   transform: scale(1.1);
 }
 .pulse:active::after { transform: scale(0.92); }
 .pulse[data-lit]::after {
-  outline: 2px solid #ffffff;
-  outline-offset: 3px;
   transition: none;
 }
 .pulse[data-lit]:not([data-sound='off'])::after {
-  background: var(--pulse-color);
-  box-shadow:
-    0 0 0 2px rgb(255 255 255 / 0.85),
-    0 0 18px color-mix(in oklab, var(--pulse-color) 85%, transparent);
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pulse[data-lit]:not([data-sound='off'])::after { transform: scale(1.22); }
+  .pulse[data-lit]:not([data-sound='off'])::after { transform: scale(1.18); }
 }
 .pulse[data-trimmed],
 .pulse[data-skipped] {
@@ -2103,14 +2067,9 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -1.5px;
-  width: 3px;
-  border-radius: 999px;
+  right: -1px;
+  width: 2px;
   background: var(--playhead);
-  box-shadow:
-    0 0 6px rgb(255 255 255 / 0.92),
-    0 0 14px color-mix(in oklab, var(--playhead-glow) 74%, transparent),
-    0 0 28px color-mix(in oklab, var(--playhead-glow) 36%, transparent);
 }
 .console:is([data-playing], [data-count-in]) .playhead { display: block; }
 
