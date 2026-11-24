@@ -17,6 +17,7 @@ export const titleStorageKey = 'oddmeter-title-v1';
 export const ideaLimits = { title: 60, authorName: 40, setup: 16384, list: 200 };
 
 const featuredIdeaRanks = new Map([
+  'Cw3kvhvdjH', // Trap: 808 bounce & hi-hat rolls
   'wFWJxvENEB', // Reggae: one drop
   '0x-v4zhgp3', // House: four on the floor
   'bwVVmL0Cax', // Pop-rock: straight eighths
