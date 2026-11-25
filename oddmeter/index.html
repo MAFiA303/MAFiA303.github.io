@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0c0c0f">
+  <meta name="theme-color" content="#0d0e11">
   <meta name="description" content="A practice metronome for beat subdivisions, polyrhythms, and odd meters.">
   <title>Oddmeter — Practice Metronome</title>
   <!-- Link previews. Crawlers do not run JS, so these stay generic for every
@@ -19,26 +19,20 @@
   <meta property="og:image:alt" content="Oddmeter: a pixel drummer above a three-row beat and subdivision grid.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="../images/brand/favicon-32.png?v=8" type="image/png" sizes="32x32">
-  <link rel="icon" href="../favicon.ico?v=8" sizes="48x48">
-  <link rel="apple-touch-icon" href="../images/brand/apple-touch-icon.png?v=8" sizes="180x180">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap">
+  <link rel="icon" href="./icon.svg?v=logo2" type="image/svg+xml">
   <script>
     if (new URLSearchParams(location.search).get('embed') === '1') {
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=drummer6-brand8">
-  <script type="module" src="./app.js?v=drummer9-brand8"></script>
+  <link rel="stylesheet" href="./styles.css?v=logo2">
+  <script type="module" src="./app.js?v=logo2"></script>
 </head>
 <body>
   <header class="site-header">
     <div class="shell header-inner">
       <div class="brand">
-        <a class="mark-link" href="../" target="_top" aria-label="Back to mafium.com"><span class="mark" aria-hidden="true"></span></a>
-        <h1 class="wordmark">ODDMETER<span class="visually-hidden"> practice metronome</span></h1>
+        <h1 class="wordmark"><span class="mark" id="brand-mark" aria-hidden="true"><span class="mark-emblem"></span></span>ODDMETER<span class="visually-hidden"> practice metronome</span></h1>
         <p id="idea-now" class="idea-now" hidden><span id="idea-now-title" class="idea-now-title"></span><span id="idea-now-author" class="idea-now-author"></span></p>
       </div>
       <div class="header-actions">

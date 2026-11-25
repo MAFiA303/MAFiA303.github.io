@@ -34,8 +34,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300..700&family=Metamorphous&display=swap">
-  <link rel="stylesheet" href="./home.css?v=21">
-  <script type="module" src="./home.js?v=15"></script>
+  <link rel="stylesheet" href="./home.css?v=22">
+  <script type="module" src="./home.js?v=16"></script>
 </head>
 <body>
   <div id="scroll-progress" class="scroll-progress" aria-hidden="true"></div>
@@ -43,8 +43,8 @@
 
   <header class="masthead-wrap">
     <div class="masthead">
-      <a class="wordmark" href="#top" aria-label="Saad MAFiA top">
-        <span class="wordmark-mark" aria-hidden="true"></span>
+      <a class="wordmark" id="wordmark-link" href="#top" aria-label="Saad MAFiA top">
+        <span class="wordmark-mark" id="wordmark-mark" aria-hidden="true"></span>
         <span>mafium</span>
       </a>
 
@@ -79,7 +79,7 @@
   <main id="top" class="frame">
     <section class="hero" aria-label="Profile">
       <div class="hero-copy">
-        <div class="hero-emblem-wrap">
+        <button type="button" class="hero-emblem-wrap" id="hero-emblem-wrap" aria-label="Mafium skull-octopus emblem">
           <picture>
             <source srcset="./images/brand/mafium-hero.avif?v=8 1x, ./images/brand/mafium-hero-2x.avif?v=8 2x" type="image/avif">
             <source srcset="./images/brand/mafium-hero.webp?v=8 1x, ./images/brand/mafium-hero-2x.webp?v=8 2x" type="image/webp">
@@ -87,13 +87,13 @@
               class="hero-emblem"
               src="./images/brand/mafium-hero.png?v=8"
               srcset="./images/brand/mafium-hero.png?v=8 1x, ./images/brand/mafium-hero-2x.png?v=8 2x"
-              alt="Mafium skull-octopus emblem"
+              alt=""
               width="240"
               height="240"
               fetchpriority="high"
             >
           </picture>
-        </div>
+        </button>
 
         <h1 class="hero-title">Saad MAFiA</h1>
         <p class="hero-roles">Digital Bedouin · Musician · Data Scientist · Photographer</p>

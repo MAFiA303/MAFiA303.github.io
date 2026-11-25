@@ -3,10 +3,12 @@ import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
 import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats } from './practice.js?v=delete1';
 import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
 import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, orderIdeasForDisplay, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas-order3';
-import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer9-brand8';
+import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer6';
+import { startLogoSwimIntro } from './logo.js?v=logo2';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
+  brandMark: byId('brand-mark'),
   console: document.querySelector('.console'),
   drummerToggle: byId('drummer-toggle'),
   drummerStage: byId('drummer-stage'),
@@ -4082,6 +4084,10 @@ renderVolume();
 let savedDrummerOpen = true;
 try { savedDrummerOpen = localStorage.getItem(drummerStorageKey) !== '0'; } catch { /* Storage is optional. */ }
 setDrummerOpen(savedDrummerOpen, { persist: false });
+startLogoSwimIntro({
+  container: ui.brandMark,
+  trigger: ui.brandMark?.closest('.wordmark') ?? ui.brandMark,
+});
 if (hasEmbedParam) {
   if (ui.embedMore) {
     ui.embedMore.hidden = false;

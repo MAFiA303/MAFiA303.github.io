@@ -11,7 +11,7 @@
 export const drummerStorageKey = 'oddmeter-drummer-v1';
 
 export const DRUM_VOICE_MAP = {
-  click:     { name: 'Click',     color: '#c92556', piece: 'tom',       hand: 'right' },
+  click:     { name: 'Click',     color: '#ff5d4f', piece: 'tom',       hand: 'right' },
   hat:       { name: 'Hi-hat',    color: '#e2e6f0', piece: 'hat',       hand: 'left'  },
   cowbell:   { name: 'Cowbell',   color: '#6cb4ff', piece: 'cowbell',   hand: 'right' },
   kick:      { name: 'Kick',      color: '#ffb04f', piece: 'kick',      hand: 'foot'  },
@@ -23,48 +23,6 @@ export const DRUM_VOICE_MAP = {
 
 const VH = 80;
 const MIN_KIT_VW = 172;
-
-// Mafium skull-octopus crest for the kick drum head: a 21x22 pixel silhouette
-// of the brand emblem. Eye sockets, dual nostrils and tentacle arches let the drumhead show through.
-const CREST_ROWS = [
-  '........#####........',
-  '......#########......',
-  '.....###########.....',
-  '....#############....',
-  '....#############....',
-  '....#############....',
-  '....#############....',
-  '....#..#######..#....',
-  '....#....###....#....',
-  '.....##..###..##.....',
-  '..###.###.#.###.###..',
-  '.###################.',
-  '.###..####.####..###.',
-  '.##..#####.#####..##.',
-  '..#..####...####..#..',
-  '....#####...#####....',
-  '...#####.....######..',
-  '..#####.......######.',
-  '..####.........#####.',
-  '..###....##.....####.',
-  '...#######.....####..',
-  '....#####......###...',
-];
-
-function drawCrest(ctx, cx, cy, color) {
-  const left = cx - (CREST_ROWS[0].length >> 1);
-  const top = cy - (CREST_ROWS.length >> 1);
-  ctx.fillStyle = color;
-  for (let r = 0; r < CREST_ROWS.length; r++) {
-    const row = CREST_ROWS[r];
-    for (let c = 0; c < row.length;) {
-      let end = c + 1;
-      while (end < row.length && row[end] === row[c]) end++;
-      if (row[c] === '#') ctx.fillRect(left + c, top + r, end - c, 1);
-      c = end;
-    }
-  }
-}
 
 export function computeStageViewport(cssW, cssH, dpr = 1) {
   const safeW = Math.max(1, Math.floor(cssW));
@@ -264,7 +222,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     crash:     { dx: -64, y: 24, r: 15, flash: 0, tilt: 0, color: '#fde047', sound: 'click',     accent: true  },
     hat:       { dx: -49, y: 42, r: 12, flash: 0, tilt: 0, color: '#e2e6f0', sound: 'hat',       accent: false },
     snare:     { dx: -31, y: 52, r: 13, flash: 0, tilt: 0, color: '#4ce3a8', sound: 'snare',     accent: false, rim: false },
-    tom:       { dx: -15, y: 39, r: 11, flash: 0, tilt: 0, color: '#c92556', sound: 'click',     accent: false },
+    tom:       { dx: -15, y: 39, r: 11, flash: 0, tilt: 0, color: '#ff5d4f', sound: 'click',     accent: false },
     kick:      { dx:   0, y: 57, r: 16, flash: 0, tilt: 0, color: '#ffb04f', sound: 'kick',      accent: true  },
     cowbell:   { dx:  17, y: 34, r:  9, flash: 0, tilt: 0, color: '#6cb4ff', sound: 'cowbell',   accent: false },
     woodblock: { dx:  35, y: 42, r:  9, flash: 0, tilt: 0, color: '#c98a5b', sound: 'woodblock', accent: false },
@@ -541,7 +499,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
 
     const spotAccent = music.countIn
       ? '#ffb04f'
-      : (music.inRepeat ? '#b18cff' : (downbeatFlash > 0.2 ? '#fde047' : '#c92556'));
+      : (music.inRepeat ? '#b18cff' : (downbeatFlash > 0.2 ? '#fde047' : '#ff5d4f'));
 
     // Sleek overhead metronome pendulum LED track embedded inside truss (zero overlap with drummer!)
     const railW = 68;
@@ -633,7 +591,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       g.fillStyle = '#131828';
       g.fillRect(rx + 2, y0 + 12, 14, 14);
       drawEllipse(g, rx + 9, y0 + 19, 5, 5, '#eab308', '#0b0e17');
-      drawEllipse(g, rx + 9, y0 + 19, 2, 2, '#c92556');
+      drawEllipse(g, rx + 9, y0 + 19, 2, 2, '#ff5d4f');
 
       // Framed studio waveform art (right)
       const wx = cx + 132;
@@ -643,7 +601,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       g.fillRect(wx + 1, y0 + 12, 24, 12);
       g.fillStyle = '#0e1424';
       g.fillRect(wx + 2, y0 + 13, 22, 10);
-      const waveCols = ['#c92556', '#e2e6f0', '#6cb4ff', '#4ce3a8'];
+      const waveCols = ['#ff5d4f', '#e2e6f0', '#6cb4ff', '#4ce3a8'];
       for (let i = 0; i < 6; i++) {
         const wh = 2 + ((i * 3 + 2) % 6);
         g.fillStyle = waveCols[i % waveCols.length];
@@ -660,7 +618,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       g.fillStyle = '#15192a';
       g.fillRect(sx + 2, y0 + 14, 36, 7);
       g.fillRect(sx + 2, y0 + 23, 36, 7);
-      const spines = ['#c92556', '#ffb04f', '#4ce3a8', '#6cb4ff', '#b18cff', '#e2e6f0', '#4fdce3'];
+      const spines = ['#ff5d4f', '#ffb04f', '#4ce3a8', '#6cb4ff', '#b18cff', '#e2e6f0', '#4fdce3'];
       for (let i = 0; i < 11; i++) {
         g.fillStyle = spines[i % spines.length];
         g.fillRect(sx + 3 + i * 3, y0 + 15, 2, 6);
@@ -735,8 +693,8 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       g.fillRect(gx + 6, y0 + 24, 4, 16);
       g.fillStyle = '#d97706';
       g.fillRect(gx + 7, y0 + 25, 2, 14);
-      drawEllipse(g, gx + 8, y0 + 46, 6, 7, '#c92556', '#0b0e17');
-      drawEllipse(g, gx + 8, y0 + 40, 4, 4, '#c92556', '#0b0e17');
+      drawEllipse(g, gx + 8, y0 + 46, 6, 7, '#ff5d4f', '#0b0e17');
+      drawEllipse(g, gx + 8, y0 + 40, 4, 4, '#ff5d4f', '#0b0e17');
       g.fillStyle = '#f8fafc';
       g.fillRect(gx + 6, y0 + 44, 4, 4);
       g.fillStyle = '#1e293b';
@@ -760,7 +718,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       g.fillStyle = '#0d1220';
       g.fillRect(deskX + 6, deskY - 10, 9, 8);
       drawEllipse(g, deskX + 10, deskY - 6, 3, 3, '#23304f', (!reduce && ampPump > 0.3) ? '#38bdf8' : '#475569');
-      const ledColors = ['#c92556', '#e2e6f0', '#6cb4ff', '#4ce3a8'];
+      const ledColors = ['#ff5d4f', '#e2e6f0', '#6cb4ff', '#4ce3a8'];
       for (let k = 0; k < 4; k++) {
         const lit = playing && !allMuted && (((Math.floor(tick / 8) + k) % 2) === 0);
         g.fillStyle = lit ? ledColors[k] : '#26314c';
@@ -804,7 +762,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       for (let r = 0; r < 4; r++) {
         g.fillStyle = '#0e1322';
         g.fillRect(tx + 3, y0 + 25 + r * 8, 20, 5);
-        g.fillStyle = r === 0 ? '#4ce3a8' : (r === 1 ? '#38bdf8' : (r === 2 ? '#ffb04f' : '#c92556'));
+        g.fillStyle = r === 0 ? '#4ce3a8' : (r === 1 ? '#38bdf8' : (r === 2 ? '#ffb04f' : '#ff5d4f'));
         g.fillRect(tx + 5, y0 + 27 + r * 8, 4 + ((r * 3 + (playing ? Math.floor(tick / 6) % 5 : 2)) % 8), 2);
         g.fillStyle = '#64748b';
         g.fillRect(tx + 19, y0 + 27 + r * 8, 2, 2);
@@ -838,7 +796,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     g.fillRect(riserX, y0 + 50, riserW, 21);
     g.fillStyle = '#3c2142';
     g.fillRect(cx - 75, y0 + 52, 150, 17);
-    g.fillStyle = downbeatFlash > 0.25 ? '#c92556' : '#5e315d';
+    g.fillStyle = downbeatFlash > 0.25 ? '#ff5d4f' : '#5e315d';
     g.fillRect(cx - 73, y0 + 53, 146, 1);
     g.fillRect(cx - 73, y0 + 67, 146, 1);
     g.fillRect(cx - 73, y0 + 53, 1, 15);
@@ -881,7 +839,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     g.fillStyle = '#cbd5e1';
     g.fillRect(cx - 3, 35 + dy, 1, 5);
     g.fillRect(cx + 2, 35 + dy, 1, 5);
-    g.fillStyle = downbeatFlash > 0.2 ? '#fde047' : '#c92556';
+    g.fillStyle = downbeatFlash > 0.2 ? '#fde047' : '#ff5d4f';
     g.fillRect(cx - 4, 41 + dy, 2, 4);
     g.fillStyle = '#38bdf8';
     g.fillRect(cx - 1, 39 + dy, 2, 6);
@@ -920,7 +878,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     g.fillRect(cx + 6, 24 + dy, 2, 1);
 
     // Over-Ear Headphone Cups
-    const cupLed = countInFlash > 0.2 ? '#ffb04f' : (downbeatFlash > 0.25 ? '#fde047' : '#c92556');
+    const cupLed = countInFlash > 0.2 ? '#ffb04f' : (downbeatFlash > 0.25 ? '#fde047' : '#ff5d4f');
     g.fillStyle = '#0b0e17';
     g.fillRect(cx - 13, 17 + dy, 4, 8);
     g.fillRect(cx + 9, 17 + dy, 4, 8);
@@ -1003,12 +961,12 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       4,
       9,
       KIT.tom.flash > 0.22 ? '#ffffff' : '#f1f5f9',
-      KIT.tom.flash > 0.22 ? '#ff6eb0' : '#c92556',
+      KIT.tom.flash > 0.22 ? '#ff857a' : '#ff5d4f',
       '#b83227',
       '#e2e6f0',
     );
     if (KIT.tom.flash > 0.22) {
-      drawEllipse(g, cx + KIT.tom.dx, y0 + KIT.tom.y + tomBounce, 7, 2, '#c92556');
+      drawEllipse(g, cx + KIT.tom.dx, y0 + KIT.tom.y + tomBounce, 7, 2, '#ff5d4f');
     }
 
     // Mounted Cowbell (blue steel bell)
@@ -1094,12 +1052,17 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     drawEllipse(g, cx, kickY + 1, kickR + 1, kickR, '#0b0e17');
     drawEllipse(g, cx, kickY, kickR, kickR, kickPunch ? '#ffb04f' : '#29324a', '#0b0e17');
     drawEllipse(g, cx, kickY, kickR - 2, kickR - 2, kickPunch ? '#fffbeb' : '#f2efe6', kickPunch ? '#fde047' : '#94a3b8');
+    g.fillStyle = kickPunch ? '#fde68a' : '#dcd7c8';
+    g.fillRect(cx - 9, kickY + 9, 18, 2);
     g.fillStyle = '#cbd5e1';
     for (const [lx, ly] of [[-13, -5], [12, -5], [-13, 4], [12, 4], [0, -14]]) {
       g.fillRect(cx + lx, kickY + ly, 2, 2);
     }
-    // Mafium skull-octopus crest on the kick drum head (black, flashes crimson on the hit)
-    drawCrest(g, cx, kickY, kickPunch ? '#c92556' : '#1b1a24');
+    drawEllipse(g, cx + 6, kickY + 5, 2, 2, '#0b0e17');
+    g.fillStyle = kickPunch ? '#ff5d4f' : '#1e2436';
+    g.fillRect(cx - 6, kickY - 2, 3, 6);
+    g.fillRect(cx - 1, kickY - 6, 3, 10);
+    g.fillRect(cx + 4, kickY - 4, 3, 8);
 
     // 9. ARTICULATED PIXEL ARMS + OUTLINED DRUMSTICKS + MOTION SMEAR ARCS
     const drawArm = (side, shoulderX, shoulderY) => {
@@ -1188,7 +1151,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
         g.fillStyle = '#1b1826';
         g.fillRect(bx, ledY + 1, bw, 2);
       } else if (active) {
-        g.fillStyle = music.countIn ? '#ffb04f' : (music.inRepeat ? '#b18cff' : (b === 0 ? '#fde047' : '#c92556'));
+        g.fillStyle = music.countIn ? '#ffb04f' : (music.inRepeat ? '#b18cff' : (b === 0 ? '#fde047' : '#ff5d4f'));
         g.fillRect(bx, ledY, bw, 4);
         g.fillStyle = '#ffffff';
         g.fillRect(bx + 1, ledY + 1, Math.max(1, bw - 2), 1);

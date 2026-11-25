@@ -1,3 +1,5 @@
+import { startLogoSwimIntro } from './js/logo-swim.js?v=1';
+
 // Dynamic single-page controller:
 // - Scrollspy (native scroll-target-group + IntersectionObserver fallback)
 // - Scroll progress hairline fallback
@@ -511,6 +513,35 @@ function initOddmeterEmbed() {
   window.addEventListener('hashchange', applyInitialHash);
 }
 
+// 8. Mafium skull-octopus 2s slow-mo underwater tentacle animation (on load + click)
+function initBrandLogoAnimation() {
+  const heroWrap = document.getElementById('hero-emblem-wrap');
+  const wordmarkMark = document.getElementById('wordmark-mark');
+  const wordmarkLink = document.getElementById('wordmark-link');
+
+  if (heroWrap) {
+    startLogoSwimIntro({
+      container: heroWrap,
+      trigger: heroWrap,
+      durationMs: 2000,
+      contentScale: 416 / 480,
+      clipToBox: true,
+      canvasClass: 'logo-swim-canvas',
+    });
+  }
+  if (wordmarkMark) {
+    startLogoSwimIntro({
+      container: wordmarkMark,
+      trigger: wordmarkLink ?? wordmarkMark,
+      durationMs: 2000,
+      contentScale: 416 / 480,
+      clipToBox: true,
+      canvasClass: 'logo-swim-canvas',
+    });
+  }
+}
+
+initBrandLogoAnimation();
 initZetaSpecimen();
 initOddmeterEmbed();
 
