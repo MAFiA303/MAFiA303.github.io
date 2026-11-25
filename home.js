@@ -1,4 +1,4 @@
-import { startLogoSwimIntro } from './js/logo-swim.js?v=6';
+import { startLogoSwimIntro } from './js/logo-swim.js?v=7';
 
 // Dynamic single-page controller:
 // - Scrollspy (native scroll-target-group + IntersectionObserver fallback)

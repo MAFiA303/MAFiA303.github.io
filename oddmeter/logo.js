@@ -413,7 +413,11 @@ function closestDistSqToSpine(px, py, poly) {
  * via flood-fill, leaving every interior skull and sucker pixel 100% unmodified truecolor.
  */
 function keyBackgroundInPlace(rgba, size, keyBg) {
-  const [br, bg, bb] = keyBg;
+  let [br, bg, bb] = keyBg;
+  // Adapt to actual decoded corner pixel when dark (handles AVIF/WebP/Display-P3 ±3 shifts on phones)
+  if (rgba[3] > 240 && Math.max(rgba[0], rgba[1], rgba[2]) < 40) {
+    br = rgba[0]; bg = rgba[1]; bb = rgba[2];
+  }
   const total = size * size;
   const dist = new Float32Array(total);
   const isBgSeed = new Uint8Array(total);
@@ -515,15 +519,15 @@ function getSegmentedRig(img, texSize, { sourceCrop = null, keyBg = null, cacheK
   try { wctx = work.getContext('2d', { willReadFrequently: true }); } catch { wctx = null; }
   if (!wctx) return null;
   wctx.clearRect(0, 0, texSize, texSize);
-  if (sourceCrop && img.naturalWidth > 0 && img.naturalHeight > 0) {
-    wctx.drawImage(
-      img,
-      sourceCrop.x * img.naturalWidth,
-      sourceCrop.y * img.naturalHeight,
-      sourceCrop.w * img.naturalWidth,
-      sourceCrop.h * img.naturalHeight,
-      0, 0, texSize, texSize,
-    );
+  if (sourceCrop) {
+    // Use 5-arg drawImage(img, dx, dy, dw, dh) rather than 9-arg source-rect cropping:
+    // on 2x/3x Retina phones, <picture>/<img srcset="... 2x"> reports density-corrected
+    // img.naturalWidth (e.g. 240 for a 480px bitmap), while 9-arg drawImage indexes raw
+    // bitmap pixels (480px), cropping only the top-left quarter. 5-arg drawImage always
+    // maps the full decoded bitmap cleanly across every browser and DPR.
+    const drawW = texSize / sourceCrop.w;
+    const drawH = texSize / sourceCrop.h;
+    wctx.drawImage(img, -sourceCrop.x * drawW, -sourceCrop.y * drawH, drawW, drawH);
   } else {
     wctx.drawImage(img, 0, 0, texSize, texSize);
   }
