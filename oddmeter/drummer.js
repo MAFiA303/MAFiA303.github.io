@@ -24,6 +24,48 @@ export const DRUM_VOICE_MAP = {
 const VH = 80;
 const MIN_KIT_VW = 172;
 
+// Mafium skull-octopus crest for the kick drum head: a 21x22 pixel silhouette
+// of the brand emblem. Eye sockets, nose and curl holes let the drumhead show through.
+const CREST_ROWS = [
+  '........#####........',
+  '......#########......',
+  '.....###########.....',
+  '....#############....',
+  '...###############...',
+  '...###############...',
+  '...###############...',
+  '...##..#######..##...',
+  '...##....###....##...',
+  '....##..#####..##....',
+  '.###.####...####.###.',
+  '###..#####.#####..###',
+  '###....#######....###',
+  '#####################',
+  '.######.#####.######.',
+  '...##..###.##...##...',
+  '....######.###.......',
+  '..#######..###...#...',
+  '..######..####.###...',
+  '..#####....########..',
+  '...##.......######...',
+  '....##.......####....',
+];
+
+function drawCrest(ctx, cx, cy, color) {
+  const left = cx - (CREST_ROWS[0].length >> 1);
+  const top = cy - (CREST_ROWS.length >> 1);
+  ctx.fillStyle = color;
+  for (let r = 0; r < CREST_ROWS.length; r++) {
+    const row = CREST_ROWS[r];
+    for (let c = 0; c < row.length;) {
+      let end = c + 1;
+      while (end < row.length && row[end] === row[c]) end++;
+      if (row[c] === '#') ctx.fillRect(left + c, top + r, end - c, 1);
+      c = end;
+    }
+  }
+}
+
 export function computeStageViewport(cssW, cssH, dpr = 1) {
   const safeW = Math.max(1, Math.floor(cssW));
   const safeH = Math.max(1, Math.floor(cssH));
@@ -1052,33 +1094,12 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     drawEllipse(g, cx, kickY + 1, kickR + 1, kickR, '#0b0e17');
     drawEllipse(g, cx, kickY, kickR, kickR, kickPunch ? '#ffb04f' : '#29324a', '#0b0e17');
     drawEllipse(g, cx, kickY, kickR - 2, kickR - 2, kickPunch ? '#fffbeb' : '#f2efe6', kickPunch ? '#fde047' : '#94a3b8');
-    g.fillStyle = kickPunch ? '#fde68a' : '#dcd7c8';
-    g.fillRect(cx - 9, kickY + 9, 18, 2);
     g.fillStyle = '#cbd5e1';
     for (const [lx, ly] of [[-13, -5], [12, -5], [-13, 4], [12, 4], [0, -14]]) {
       g.fillRect(cx + lx, kickY + ly, 2, 2);
     }
-    // Pixel skull-octopus crest on the kick drum head
-    const headCol = kickPunch ? '#fffbeb' : '#f2efe6';
-    g.fillStyle = kickPunch ? '#c92556' : '#1b1a24';
-    // Skull cranium
-    g.fillRect(cx - 4, kickY - 7, 9, 2);
-    g.fillRect(cx - 5, kickY - 5, 11, 5);
-    g.fillRect(cx - 4, kickY, 9, 2);
-    // 4 curling tentacles
-    g.fillRect(cx - 8, kickY - 1, 2, 2);
-    g.fillRect(cx - 7, kickY + 1, 4, 2);
-    g.fillRect(cx + 7, kickY - 1, 2, 2);
-    g.fillRect(cx + 4, kickY + 1, 4, 2);
-    g.fillRect(cx - 4, kickY + 2, 3, 4);
-    g.fillRect(cx - 6, kickY + 5, 3, 2);
-    g.fillRect(cx + 2, kickY + 2, 3, 4);
-    g.fillRect(cx + 4, kickY + 5, 3, 2);
-    // Eye sockets & nasal cavity punched out in drumhead cream
-    g.fillStyle = headCol;
-    g.fillRect(cx - 4, kickY - 3, 3, 2);
-    g.fillRect(cx + 2, kickY - 3, 3, 2);
-    g.fillRect(cx, kickY - 1, 1, 2);
+    // Mafium skull-octopus crest on the kick drum head (black, flashes crimson on the hit)
+    drawCrest(g, cx, kickY, kickPunch ? '#c92556' : '#1b1a24');
 
     // 9. ARTICULATED PIXEL ARMS + OUTLINED DRUMSTICKS + MOTION SMEAR ARCS
     const drawArm = (side, shoulderX, shoulderY) => {
