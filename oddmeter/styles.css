@@ -186,14 +186,14 @@ select option { background: #191c24; color: var(--text); }
   height: 28px;
   flex-shrink: 0;
   border-radius: 7px;
-  background-image: url("../images/brand/mafium-icon.png?v=7");
+  background-image: url("../images/brand/mafium-icon.png?v=8");
   background-image: image-set(
-    url("../images/brand/mafium-icon.avif?v=7") type("image/avif") 1x,
-    url("../images/brand/mafium-icon-2x.avif?v=7") type("image/avif") 2x,
-    url("../images/brand/mafium-icon.webp?v=7") type("image/webp") 1x,
-    url("../images/brand/mafium-icon-2x.webp?v=7") type("image/webp") 2x,
-    url("../images/brand/mafium-icon.png?v=7") type("image/png") 1x,
-    url("../images/brand/mafium-icon-2x.png?v=7") type("image/png") 2x
+    url("../images/brand/mafium-icon.avif?v=8") type("image/avif") 1x,
+    url("../images/brand/mafium-icon-2x.avif?v=8") type("image/avif") 2x,
+    url("../images/brand/mafium-icon.webp?v=8") type("image/webp") 1x,
+    url("../images/brand/mafium-icon-2x.webp?v=8") type("image/webp") 2x,
+    url("../images/brand/mafium-icon.png?v=8") type("image/png") 1x,
+    url("../images/brand/mafium-icon-2x.png?v=8") type("image/png") 2x
   );
   background-size: contain;
   background-repeat: no-repeat;
