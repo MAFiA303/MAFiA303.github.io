@@ -4,7 +4,7 @@ import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices,
 import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
 import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, orderIdeasForDisplay, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas-order3';
 import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer6';
-import { startLogoSwimIntro } from './logo.js?v=logo2';
+import { startLogoSwimIntro } from './logo.js?v=logo7';
 
 const byId = (id) => document.getElementById(id);
 const ui = {
@@ -4086,7 +4086,7 @@ try { savedDrummerOpen = localStorage.getItem(drummerStorageKey) !== '0'; } catc
 setDrummerOpen(savedDrummerOpen, { persist: false });
 startLogoSwimIntro({
   container: ui.brandMark,
-  trigger: ui.brandMark?.closest('.wordmark') ?? ui.brandMark,
+  trigger: ui.brandMark?.closest('.wordmark')?.querySelector('.wordmark-text') ?? null,
 });
 if (hasEmbedParam) {
   if (ui.embedMore) {

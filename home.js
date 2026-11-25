@@ -1,4 +1,4 @@
-import { startLogoSwimIntro } from './js/logo-swim.js?v=1';
+import { startLogoSwimIntro } from './js/logo-swim.js?v=6';
 
 // Dynamic single-page controller:
 // - Scrollspy (native scroll-target-group + IntersectionObserver fallback)
@@ -513,17 +513,26 @@ function initOddmeterEmbed() {
   window.addEventListener('hashchange', applyInitialHash);
 }
 
-// 8. Mafium skull-octopus 2s slow-mo underwater tentacle animation (on load + click)
+// 8. Mafium skull-octopus underwater tentacle animation (on load + click)
+// Samples directly from the live full-color mafium-hero <img> so skull & sucker
+// lighting match the original reference artwork bit-for-bit across the animation.
 function initBrandLogoAnimation() {
   const heroWrap = document.getElementById('hero-emblem-wrap');
+  const heroImg = heroWrap?.querySelector('img.hero-emblem') ?? null;
   const wordmarkMark = document.getElementById('wordmark-mark');
   const wordmarkLink = document.getElementById('wordmark-link');
+  const heroCrop = { x: 32 / 480, y: 32 / 480, w: 416 / 480, h: 416 / 480 };
+  const heroBg = [11, 10, 13];
 
   if (heroWrap) {
     startLogoSwimIntro({
       container: heroWrap,
       trigger: heroWrap,
-      durationMs: 2000,
+      sourceImg: heroImg,
+      sourceCrop: heroCrop,
+      keyBg: heroBg,
+      fillBg: '#0b0a0d',
+      cacheKey: 'mafium-hero',
       contentScale: 416 / 480,
       clipToBox: true,
       canvasClass: 'logo-swim-canvas',
@@ -533,8 +542,12 @@ function initBrandLogoAnimation() {
     startLogoSwimIntro({
       container: wordmarkMark,
       trigger: wordmarkLink ?? wordmarkMark,
-      durationMs: 2000,
-      contentScale: 416 / 480,
+      sourceImg: heroImg,
+      sourceCrop: heroCrop,
+      keyBg: heroBg,
+      fillBg: '#0b0a0d',
+      cacheKey: 'mafium-hero',
+      contentScale: 0.935,
       clipToBox: true,
       canvasClass: 'logo-swim-canvas',
     });

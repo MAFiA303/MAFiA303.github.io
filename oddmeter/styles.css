@@ -175,6 +175,8 @@ select option { background: #191c24; color: var(--text); }
   font-weight: 800;
   letter-spacing: .12em;
   color: var(--text);
+}
+.wordmark-text {
   cursor: pointer;
 }
 .mark {
@@ -183,12 +185,19 @@ select option { background: #191c24; color: var(--text); }
   height: 34px;
   flex: none;
   display: inline-block;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mark:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .mark-emblem {
   display: block;
   width: 100%;
   height: 100%;
-  background: url('./icon.svg?v=logo2') center / contain no-repeat;
+  background: url('./icon.svg?v=logo7') center / contain no-repeat;
   filter: drop-shadow(0 2px 8px rgb(228 28 118 / 0.28));
   forced-color-adjust: none;
 }
