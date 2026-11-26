@@ -24,6 +24,60 @@ export const DRUM_VOICE_MAP = {
 const VH = 80;
 const MIN_KIT_VW = 172;
 
+// Hand-crafted 21×20 pixel-art Mafium skull-octopus for the bass drumhead.
+// Every solid pixel sits strictly inside the idle cream head (dx² + dy² <= 130),
+// preserving transparent eye sockets, hollow nose cavity, and four curled tentacles.
+const KICK_LOGO_INK = '#111111';
+const KICK_LOGO_PALETTE = {
+  W: '#ffe4f6', // top-left glossy specular
+  H: '#ff549c', // bright hot-pink gloss
+  C: '#e61c5d', // vibrant crimson
+  R: '#c2124c', // mid crimson
+  D: '#7d0d36', // deep crimson shadow
+  M: '#b01872', // crimson-violet bridge
+  P: '#8222c4', // rich purple
+  B: '#c268ff', // violet rim highlight
+  V: '#6420d8', // electric violet
+  K: '#3e1068', // deep plum-violet shadow
+};
+const KICK_LOGO_ART = [
+  '........CCRMP........',
+  '......HHCCRMMPB......',
+  '.....WWHCCRMMPBK.....',
+  '.....WHCCRRMMPVK.....',
+  '.....HCCRRMMPVPK.....',
+  '.....DRCRDMKMVPK.....',
+  '.....D...DMK...K.....',
+  '......D...M...K......',
+  '......DRRM.MPPK......',
+  '..HHHR.RRM.MPK.PPBB..',
+  '.HHCRDDRRRMMPKPPBVKK.',
+  '.CR....DRR.MP.....VK.',
+  '.RD...HCRD.MPP....VK.',
+  '..D..HHRD...MPPB..K..',
+  '....HHRD.....MPPVB...',
+  '...HHRD.......MPVVK..',
+  '...CRD.........PVVVK.',
+  '...RD..H........KVVK.',
+  '....HRRD......K..VK..',
+  '.....DD........KVK...',
+];
+
+function drawKickLogo(ctx, cx, kickY, lit) {
+  const x0 = cx - Math.floor(KICK_LOGO_ART[0].length / 2);
+  const y0 = kickY - Math.floor(KICK_LOGO_ART.length / 2);
+  if (!lit) ctx.fillStyle = KICK_LOGO_INK;
+  for (let row = 0; row < KICK_LOGO_ART.length; row++) {
+    const line = KICK_LOGO_ART[row];
+    for (let col = 0; col < line.length; col++) {
+      const token = line[col];
+      if (token === '.') continue;
+      if (lit) ctx.fillStyle = KICK_LOGO_PALETTE[token];
+      ctx.fillRect(x0 + col, y0 + row, 1, 1);
+    }
+  }
+}
+
 export function computeStageViewport(cssW, cssH, dpr = 1) {
   const safeW = Math.max(1, Math.floor(cssW));
   const safeH = Math.max(1, Math.floor(cssH));
@@ -277,13 +331,14 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     }
   }
 
-  function spawnParticles(dx, y, color, count = 7) {
+  function spawnParticles(dx, y, color, count = 7, ringR = 0) {
     if (reducedMotion()) return;
     for (let i = 0; i < count; i++) {
       const a = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       const sp = 14 + Math.random() * 26;
       particles.push({
-        dx, y,
+        dx: dx + Math.cos(a) * ringR,
+        y: y + Math.sin(a) * ringR,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp - 12,
         life: 0.28 + Math.random() * 0.24,
@@ -294,9 +349,9 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     }
   }
 
-  function spawnWave(dx, y, maxR, color) {
+  function spawnWave(dx, y, maxR, color, startR = 3) {
     if (reducedMotion()) return;
-    shockwaves.push({ dx, y, r: 3, maxR, life: 0.26, max: 0.26, color });
+    shockwaves.push({ dx, y, r: startR, maxR, life: 0.26, max: 0.26, color });
   }
 
   function updateBadge() {
@@ -349,8 +404,9 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       piece.tilt = (Math.random() > 0.5 ? 1 : -1) * 1.0;
       piece.color = color;
       if (meta.piece === 'snare') piece.rim = Boolean(meta.rimshot);
-      spawnParticles(piece.dx, piece.y - 2, color, accented ? 10 : 6);
-      spawnWave(piece.dx, piece.y, accented ? 17 : 12, color);
+      const isKick = meta.piece === 'kick';
+      spawnParticles(piece.dx, isKick ? piece.y : piece.y - 2, color, accented ? 10 : 6, isKick ? 14 : 0);
+      spawnWave(piece.dx, piece.y, isKick ? 25 : (accented ? 17 : 12), color, isKick ? 15 : 3);
 
       if (meta.hand === 'foot') {
         ampPump = 1.0;
@@ -1043,8 +1099,9 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
       drawEllipse(g, cx + KIT.snare.dx, snY, 8, 2, KIT.snare.rim ? '#ff84be' : '#4ce3a8');
     }
 
-    // HERO CENTER BASS DRUM (front & center with Oddmeter 3-bar emblem!)
-    const kickPunch = !reduce && KIT.kick.flash > 0.3;
+    // Center bass drum with pixel-art Mafium skull-octopus printed on the head.
+    const kickLit = KIT.kick.flash > 0.3;
+    const kickPunch = !reduce && kickLit;
     const kickR = kickPunch ? 16 : 15;
     const kickY = y0 + KIT.kick.y;
     drawLine(g, cx - 14, kickY + 6, cx - 19, kickY + 13, '#94a3b8', 1);
@@ -1058,11 +1115,7 @@ export function createDrummerStage({ canvas, statusBadge = null, onTapPiece = nu
     for (const [lx, ly] of [[-13, -5], [12, -5], [-13, 4], [12, 4], [0, -14]]) {
       g.fillRect(cx + lx, kickY + ly, 2, 2);
     }
-    drawEllipse(g, cx + 6, kickY + 5, 2, 2, '#0b0e17');
-    g.fillStyle = kickPunch ? '#ff5d4f' : '#1e2436';
-    g.fillRect(cx - 6, kickY - 2, 3, 6);
-    g.fillRect(cx - 1, kickY - 6, 3, 10);
-    g.fillRect(cx + 4, kickY - 4, 3, 8);
+    drawKickLogo(g, cx, kickY, kickLit);
 
     // 9. ARTICULATED PIXEL ARMS + OUTLINED DRUMSTICKS + MOTION SMEAR ARCS
     const drawArm = (side, shoulderX, shoulderY) => {
