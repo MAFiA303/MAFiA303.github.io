@@ -1,4 +1,4 @@
-import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats } from './rhythm.js?v=repeat1';
+import { clampInt, limits, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, playbackSequence } from './rhythm.js?v=repeat1';
 import { soundOptions } from './sounds.js?v=audio1';
 
 // Tempo references are measured in quarter notes, independently of the meter.
@@ -418,4 +418,236 @@ export function deleteBeats(settings, beats) {
 
 export function deleteBeat(settings, beat) {
   return deleteBeats(settings, [beat]);
+}
+
+// Quad Cortex Tempo + Looper X (CorOS 3.2+) translation helper.
+// Uses exact BigInt rational cycle duration from playbackSequence() so exact
+// 0-drift matches are mathematically guaranteed without floating-point error.
+export const qcStorageKey = 'oddmeter-qc-v1';
+export const QC_LIMITS = {
+  bpm: [40, 240],
+  bars: [1, 32],
+  cycles: [1, 16],
+  maxSeconds: 284, // Looper X max recording time: 4m 44s
+  barBeats: [4, 3, 2, 5, 6, 7, 1],
+};
+
+function gcdBig(a, b) {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) [x, y] = [y, x % y];
+  return x;
+}
+
+function reduceBig(num, den) {
+  if (num === 0n) return [0n, 1n];
+  const d = gcdBig(num, den);
+  return [num / d, den / d];
+}
+
+export function formatLoopDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0.00s';
+  if (seconds >= 60) {
+    const mins = Math.floor(seconds / 60);
+    const rem = seconds - mins * 60;
+    const remText = rem < 10 ? `0${rem.toFixed(1)}` : rem.toFixed(1);
+    return `${mins}m ${remText}s`;
+  }
+  return seconds >= 10 ? `${seconds.toFixed(2)}s` : `${seconds.toFixed(2)}s`;
+}
+
+function scoreQcOption(opt, ctx) {
+  const meterPenalty = { 4: 0, 3: 4, 2: 8, 5: 14, 6: 16, 7: 18, 1: 58 }[opt.beatsPerBar] ?? 30;
+  let score = meterPenalty + opt.bars * 2.5;
+  const matchesQuarter = Math.abs(opt.bpm - ctx.oddQuarterBpm) < 1e-9;
+  const matchesDisplay = opt.bpm === ctx.displayBpm;
+  const matchesUnit = ctx.unit === 8 && Math.abs(opt.bpm - ctx.oddUnitBpm) < 1e-9;
+
+  if (ctx.tempoBeat !== 1 && matchesDisplay) {
+    score -= 125;
+  } else if (matchesQuarter) {
+    score -= 120;
+  } else if (matchesUnit) {
+    score -= 108;
+  } else if (matchesDisplay) {
+    score -= 100;
+  } else if (
+    Math.abs(opt.bpm - ctx.oddQuarterBpm * 2) < 1e-9 ||
+    Math.abs(opt.bpm * 2 - ctx.oddQuarterBpm) < 1e-9
+  ) {
+    score -= 48;
+  } else {
+    const refBpm = ctx.tempoBeat !== 1 ? ctx.displayBpm : ctx.oddQuarterBpm;
+    score += Math.abs(Math.log2(opt.bpm / Math.max(1, refBpm))) * 26;
+    if (opt.bpm < 55 || opt.bpm > 195) score += 16;
+  }
+
+  // Reward keeping the user's native bar feel (e.g. 3/4 -> 3/4, 7/8 -> 7/4 at 2x BPM).
+  if (ctx.preferredMeter && opt.beatsPerBar === ctx.preferredMeter && (matchesQuarter || matchesUnit || matchesDisplay)) {
+    score -= 54;
+  }
+  // Gently prefer clean divisors on re-scaled tempos to minimize hardware rounding.
+  if (60 % opt.bpm === 0 || opt.bpm % 10 === 0) score -= 1.2;
+  else if (opt.bpm % 5 === 0 || opt.bpm % 4 === 0) score -= 0.6;
+  return score;
+}
+
+function searchQcOptions({ qNum, qDen, bNum, bDen, cycles, targetSeconds, ctx }) {
+  const mBig = BigInt(cycles);
+  const den = mBig * qNum * bDen;
+  const exact = [];
+  let bestApprox = null;
+  let bestApproxScore = Infinity;
+
+  for (const beatsPerBar of QC_LIMITS.barBeats) {
+    for (let bars = QC_LIMITS.bars[0]; bars <= QC_LIMITS.bars[1]; bars++) {
+      const totalBeats = beatsPerBar * bars;
+      const num = BigInt(totalBeats) * bNum * qDen;
+      if (num % den === 0n) {
+        const bpm = Number(num / den);
+        if (bpm >= QC_LIMITS.bpm[0] && bpm <= QC_LIMITS.bpm[1]) {
+          const opt = {
+            key: `${bpm}:${beatsPerBar}:${bars}`,
+            bpm,
+            beatsPerBar,
+            timeSig: `${beatsPerBar}/4`,
+            bars,
+            quantize: beatsPerBar,
+            totalBeats,
+            seconds: (totalBeats * 60) / bpm,
+            driftMs: 0,
+            exact: true,
+          };
+          opt.score = scoreQcOption(opt, ctx);
+          exact.push(opt);
+          continue;
+        }
+      }
+      if (exact.length > 0) continue;
+      const ideal = Number(num) / Number(den);
+      const candidates = new Set([
+        clampInt(Math.floor(ideal), QC_LIMITS.bpm, QC_LIMITS.bpm[0]),
+        clampInt(Math.ceil(ideal), QC_LIMITS.bpm, QC_LIMITS.bpm[0]),
+      ]);
+      for (const bpm of candidates) {
+        const seconds = (totalBeats * 60) / bpm;
+        const driftMs = (seconds - targetSeconds) * 1000;
+        const absDrift = Math.abs(driftMs);
+        const opt = {
+          key: `${bpm}:${beatsPerBar}:${bars}`,
+          bpm,
+          beatsPerBar,
+          timeSig: `${beatsPerBar}/4`,
+          bars,
+          quantize: beatsPerBar,
+          totalBeats,
+          seconds,
+          driftMs,
+          exact: false,
+        };
+        // Prioritize minimal drift first, then musical simplicity on close ties (< 1 ms).
+        const approxScore = absDrift * 100 + scoreQcOption(opt, ctx) * 0.08;
+        if (approxScore < bestApproxScore) {
+          bestApproxScore = approxScore;
+          bestApprox = opt;
+        }
+      }
+    }
+  }
+
+  exact.sort((a, b) => a.score - b.score || a.bars - b.bars || a.bpm - b.bpm);
+  return { exact, bestApprox };
+}
+
+function pickAlternatives(exactList, best) {
+  if (!best || exactList.length <= 1) return [];
+  const alts = [];
+  const seenSig = new Set([best.timeSig]);
+  const seenBpm = new Set([best.bpm]);
+  for (const item of exactList) {
+    if (item.key === best.key) continue;
+    // Skip trivial 1/4 alternatives when cleaner meters already work, unless nothing else exists.
+    if (item.beatsPerBar === 1 && best.beatsPerBar !== 1) continue;
+    // Prefer meaningfully distinct alternatives (different meter or distinct tempo feel).
+    if (!seenSig.has(item.timeSig) || (!seenBpm.has(item.bpm) && item.bars <= 16)) {
+      alts.push(item);
+      seenSig.add(item.timeSig);
+      seenBpm.add(item.bpm);
+      if (alts.length >= 2) break;
+    }
+  }
+  return alts;
+}
+
+export function computeQuadCortexPlan(settings, { cycles = 1 } = {}) {
+  const safeCycles = clampInt(cycles, QC_LIMITS.cycles, 1);
+  const bpm = clampInt(settings?.bpm, limits.bpm, 70);
+  const beats = clampInt(settings?.beats, limits.meter, 4);
+  const unit = [2, 4, 8, 16].includes(settings?.unit) ? settings.unit : 4;
+  const tempoBeat = [0.5, 1, 1.5, 2].includes(settings?.tempoBeat) ? settings.tempoBeat : 1;
+
+  const seq = playbackSequence(beats, settings?.beatEnds ?? null, settings?.beatEnabled ?? null, settings?.beatRepeats ?? null);
+  const [qNum, qDen] = reduceBig(seq.total[0] * 4n, seq.total[1] * BigInt(unit));
+  const [tbNum, tbDen] = reduceBig(BigInt(Math.round(tempoBeat * 2)), 2n);
+  const [bNum, bDen] = reduceBig(BigInt(bpm) * tbNum, tbDen);
+
+  const oddQuarterBpm = Number(bNum) / Number(bDen);
+  const oddUnitBpm = oddQuarterBpm * (unit / 4);
+  const cycleSeconds = (60 * Number(qNum) * Number(bDen)) / (Number(qDen) * Number(bNum));
+  const targetSeconds = cycleSeconds * safeCycles;
+  const overMax = targetSeconds > QC_LIMITS.maxSeconds;
+  const plainUnshortened = !seq.hasRepeats && !seq.layout.shortened;
+  const preferredMeter = plainUnshortened && beats <= 7 ? beats : 0;
+
+  const ctx = { oddQuarterBpm, oddUnitBpm, displayBpm: bpm, unit, tempoBeat, preferredMeter };
+  const { exact, bestApprox } = searchQcOptions({ qNum, qDen, bNum, bDen, cycles: safeCycles, targetSeconds, ctx });
+
+  const best = exact[0] ?? bestApprox;
+  const alternatives = exact.length > 1 ? pickAlternatives(exact, best) : [];
+
+  let exactCyclesOption = null;
+  let exactBpmNudge = null;
+  if (!best?.exact) {
+    for (const altCycles of [2, 3, 4]) {
+      if (altCycles === safeCycles || cycleSeconds * altCycles > QC_LIMITS.maxSeconds) continue;
+      const alt = searchQcOptions({ qNum, qDen, bNum, bDen, cycles: altCycles, targetSeconds: cycleSeconds * altCycles, ctx });
+      if (alt.exact.length > 0) {
+        exactCyclesOption = { cycles: altCycles, option: alt.exact[0] };
+        break;
+      }
+    }
+    for (const delta of [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]) {
+      const nudgedBpm = bpm + delta;
+      if (nudgedBpm < limits.bpm[0] || nudgedBpm > limits.bpm[1]) continue;
+      const [nbNum, nbDen] = reduceBig(BigInt(nudgedBpm) * tbNum, tbDen);
+      const nQuarterBpm = Number(nbNum) / Number(nbDen);
+      const nTarget = (60 * Number(qNum) * Number(nbDen) * safeCycles) / (Number(qDen) * Number(nbNum));
+      if (nTarget > QC_LIMITS.maxSeconds) continue;
+      const alt = searchQcOptions({
+        qNum,
+        qDen,
+        bNum: nbNum,
+        bDen: nbDen,
+        cycles: safeCycles,
+        targetSeconds: nTarget,
+        ctx: { ...ctx, oddQuarterBpm: nQuarterBpm, oddUnitBpm: nQuarterBpm * (unit / 4), displayBpm: nudgedBpm },
+      });
+      if (alt.exact.length > 0) {
+        exactBpmNudge = { oddBpm: nudgedBpm, delta, option: alt.exact[0] };
+        break;
+      }
+    }
+  }
+
+  return {
+    cycles: safeCycles,
+    cycleSeconds,
+    targetSeconds,
+    overMax,
+    exact: Boolean(best?.exact),
+    best,
+    alternatives,
+    exactCyclesOption,
+    exactBpmNudge,
+  };
 }

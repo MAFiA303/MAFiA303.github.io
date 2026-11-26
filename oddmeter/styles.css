@@ -49,6 +49,7 @@
   --ideas-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.2 2.8h9.6a1 1 0 0 1 1 1v10.2l-5.8-3.4-5.8 3.4V3.8a1 1 0 0 1 1-1Z' stroke='black' stroke-width='1.55' stroke-linejoin='round'/%3E%3C/svg%3E");
   --options-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M2.5 5h11M2.5 11h11' stroke='black' stroke-width='1.55' stroke-linecap='round'/%3E%3Ccircle cx='5.5' cy='5' r='1.8' fill='black'/%3E%3Ccircle cx='10.5' cy='11' r='1.8' fill='black'/%3E%3C/svg%3E");
   --drummer-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cellipse cx='8' cy='6.8' rx='5.8' ry='2.3' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M2.2 6.8v4.6c0 1.3 2.6 2.3 5.8 2.3s5.8-1 5.8-2.3V6.8M5.2 9v4.2M10.8 9v4.2M3.2 2.4l4.5 3.6M12.8 2.4 8.3 6' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  --qc-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.2 7.5A4.6 4.6 0 0 1 11.4 4.7M12.8 8.5a4.6 4.6 0 0 1-8.2 2.8' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M11.6 2.3v2.6H9M4.4 13.7v-2.6H7' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --grip-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12' fill='none'%3E%3Ccircle cx='2' cy='2' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='2' r='1.1' fill='black'/%3E%3Ccircle cx='2' cy='6' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='6' r='1.1' fill='black'/%3E%3Ccircle cx='2' cy='10' r='1.1' fill='black'/%3E%3Ccircle cx='6' cy='10' r='1.1' fill='black'/%3E%3C/svg%3E");
 }
 
@@ -2501,6 +2502,187 @@ html.beat-dragging[data-drag-mode='copy'], html.beat-dragging[data-drag-mode='co
 }
 .footer-options-button[data-active]::before { background-color: var(--accent-hover); }
 
+.footer-qc-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--well);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.footer-qc-button::before {
+  content: '';
+  inline-size: 13px;
+  block-size: 13px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--qc-mask) no-repeat center / contain;
+  mask: var(--qc-mask) no-repeat center / contain;
+}
+.footer-qc-button:not(:disabled):hover {
+  background: var(--surface);
+  border-color: var(--line-control);
+  color: var(--text);
+}
+.footer-qc-button[aria-pressed='true'] {
+  background: color-mix(in oklab, var(--ok) 12%, var(--well));
+  border-color: color-mix(in oklab, var(--ok) 52%, var(--line-control));
+  color: var(--text);
+}
+.footer-qc-button[aria-pressed='true']::before { background-color: var(--ok); }
+
+/* Toggleable live Quad Cortex Looper X readout bar */
+.qc-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 8px 20px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in oklab, var(--well) 72%, var(--panel));
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.qc-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.qc-brand {
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.qc-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--ok) 48%, var(--line));
+  background: color-mix(in oklab, var(--ok) 13%, var(--well));
+  color: var(--ok);
+  font-size: .68rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.qc-badge[data-state='approx'] {
+  border-color: color-mix(in oklab, var(--trim) 54%, var(--line));
+  background: color-mix(in oklab, var(--trim) 14%, var(--well));
+  color: var(--trim);
+}
+.qc-badge[data-state='over'] {
+  border-color: color-mix(in oklab, var(--accent) 56%, var(--line));
+  background: color-mix(in oklab, var(--accent) 14%, var(--well));
+  color: var(--accent-hover);
+}
+.qc-cycles {
+  display: inline-grid;
+  grid-template-columns: 22px minmax(28px, auto) 22px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--well);
+  overflow: hidden;
+}
+.qc-step {
+  min-inline-size: 22px;
+  min-block-size: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: .88rem;
+  line-height: 1;
+}
+.qc-step:not(:disabled):hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.qc-cycles-value {
+  padding-inline: 4px;
+  color: var(--text);
+  font-size: .74rem;
+  font-weight: 700;
+  text-align: center;
+}
+.qc-readouts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.qc-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+.qc-k {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.qc-v {
+  color: var(--text);
+  font-size: .82rem;
+  font-weight: 700;
+}
+.qc-extras {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-inline-start: auto;
+  min-width: 0;
+}
+.qc-chip {
+  min-block-size: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .69rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.qc-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--line-control);
+  color: var(--text);
+}
+.qc-chip[aria-pressed='true'] {
+  border-color: color-mix(in oklab, var(--ok) 58%, var(--line-control));
+  background: color-mix(in oklab, var(--ok) 14%, var(--surface));
+  color: var(--text);
+}
+.qc-chip[data-kind='action'] {
+  border-color: color-mix(in oklab, var(--trim) 52%, var(--line-control));
+  color: var(--trim);
+}
+.qc-chip[data-kind='action']:hover {
+  background: color-mix(in oklab, var(--trim) 14%, var(--surface));
+  color: var(--text);
+}
+
 /* Floating popovers (Tempo beat & Grid options) */
 .floating-popover {
   padding: 12px;
@@ -3386,6 +3568,8 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .lane[data-empty] .beat-counts { bottom: 6px; transform: none; }
   .beat-stepper { grid-template-columns: 20px 26px 20px; }
   .console-footer { padding: 10px 14px; flex-wrap: wrap; }
+  .qc-bar { padding: 8px 14px; gap: 6px 10px; }
+  .qc-extras { margin-inline-start: 0; }
   .volume-control { width: min(100%, 212px); }
   .ideas-panel { margin-top: 10px; border-inline: 0; border-radius: 0; }
   .ideas-toolbar { padding: 10px 14px; }
@@ -3416,11 +3600,13 @@ button:not(:disabled):hover > .speaker { color: var(--text); }
   .lane-stepper { flex: 0 0 88px; grid-template-columns: 22px minmax(0, 1fr) 22px; }
   .lane-b .lane-sound, .lane-c .lane-sound { min-width: 64px; padding-inline: 6px 18px; font-size: .68rem; }
   .console-footer { padding: 10px; }
+  .qc-bar { padding: 8px 10px; }
   .play, .message { left: 10px; right: 10px; }
 }
 
 @media (pointer: coarse) {
-  .header-button, .tap-button, .tempo-step, .grouping-choice, .footer-options-button, .tempo-beat-option { min-block-size: 40px; }
+  .header-button, .tap-button, .tempo-step, .grouping-choice, .footer-options-button, .footer-qc-button, .tempo-beat-option { min-block-size: 40px; }
+  .qc-step, .qc-chip { min-block-size: 30px; }
   .sound-chip, .beat-menu-item, .sound-menu-item { min-block-size: 40px; }
   .ruler-action { min-block-size: 32px; }
   .ruler-row[data-pasting] .ruler-stage { --paste-strip: 34px; }
@@ -3507,6 +3693,8 @@ html.oddmeter-embed .rhythm-panel[data-extended] { --beat-min-width: 220px; }
 html.oddmeter-embed .ideas-panel,
 html.oddmeter-embed .save-button,
 html.oddmeter-embed .footer-options-button,
+html.oddmeter-embed .footer-qc-button,
+html.oddmeter-embed .qc-bar,
 html.oddmeter-embed .footer-count-in {
   display: none;
 }

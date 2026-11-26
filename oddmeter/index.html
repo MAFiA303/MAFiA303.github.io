@@ -25,8 +25,8 @@
       document.documentElement.classList.add('oddmeter-embed');
     }
   </script>
-  <link rel="stylesheet" href="./styles.css?v=logo9">
-  <script type="module" src="./app.js?v=drummer7"></script>
+  <link rel="stylesheet" href="./styles.css?v=qc1">
+  <script type="module" src="./app.js?v=qc1"></script>
 </head>
 <body>
   <header class="site-header">
@@ -137,6 +137,26 @@
         <output id="pulse-feedback" class="visually-hidden" role="status"></output>
       </section>
 
+      <section id="qc-bar" class="qc-bar" aria-label="Quad Cortex Looper X settings" hidden>
+        <div class="qc-head">
+          <span class="qc-brand" title="Quad Cortex Tempo + Looper X (CorOS 3.2+)">QC Looper X</span>
+          <span id="qc-badge" class="qc-badge" data-state="exact">Exact</span>
+          <div class="qc-cycles" role="group" aria-label="Oddmeter cycles per Quad Cortex loop">
+            <button type="button" id="qc-cycles-down" class="step qc-step" aria-label="Fewer Oddmeter cycles per Quad Cortex loop">‹</button>
+            <span id="qc-cycles-value" class="qc-cycles-value" title="Number of Oddmeter loops inside one Quad Cortex loop">×1</span>
+            <button type="button" id="qc-cycles-up" class="step qc-step" aria-label="More Oddmeter cycles per Quad Cortex loop">›</button>
+          </div>
+        </div>
+        <div class="qc-readouts" aria-live="polite">
+          <span class="qc-stat" title="Quad Cortex Tempo menu (integer 40–240 BPM)"><span class="qc-k">BPM</span><strong id="qc-bpm" class="qc-v">70</strong></span>
+          <span class="qc-stat" title="Quad Cortex Tempo T/Signature"><span class="qc-k">T/Sig</span><strong id="qc-sig" class="qc-v">3/4</strong></span>
+          <span class="qc-stat" title="Looper X Recording Length (1–32 bars)"><span class="qc-k">Bars</span><strong id="qc-bars" class="qc-v">1</strong></span>
+          <span class="qc-stat" title="Looper X Quantize beats"><span class="qc-k">Quant</span><strong id="qc-quant" class="qc-v">3</strong></span>
+          <span class="qc-stat" title="Exact total loop duration (Looper X max 4m 44s)"><span class="qc-k">Time</span><strong id="qc-time" class="qc-v">2.57s</strong></span>
+        </div>
+        <div id="qc-extras" class="qc-extras" hidden></div>
+      </section>
+
       <div class="console-footer">
         <div class="footer-controls">
           <label class="count-control footer-count-in" for="count-in" title="One bar of clicks in the time signature’s denominator unit">
@@ -145,6 +165,7 @@
             <span>Count-in</span>
           </label>
           <button type="button" id="options-button" class="footer-options-button" aria-expanded="false" commandfor="options-popover" command="toggle-popover" title="Starter, subdivision fit, offbeats, and custom grouping">Options</button>
+          <button type="button" id="qc-toggle" class="footer-qc-button" aria-pressed="false" aria-controls="qc-bar" title="Show or hide live Quad Cortex Looper X settings">QC</button>
           <div id="options-popover" class="floating-popover options-popover" popover="auto" aria-labelledby="options-popover-title">
             <div class="popover-header">
               <span id="options-popover-title" class="popover-title">Options</span>

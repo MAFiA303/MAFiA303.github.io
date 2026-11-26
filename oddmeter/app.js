@@ -1,7 +1,7 @@
 import { beatLayout, beatUnits, clampInt, compareFractions, formatBeatTrim, formatTotalBeats, hasBeatRepeats, hasBeatSkip, hasBeatTrim, isPulseActiveInBeat, limits, makeBeatSnapPoints, makeLaneCyclePhases, makeLanePulses, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, playbackSequence, pulseBeatFraction, subdivisionName } from './rhythm.js?v=repeat1';
 import { pulseSoundOptions, soundOptions } from './sounds.js?v=audio1';
-import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats } from './practice.js?v=delete1';
-import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=delete1';
+import { tempoBeats, rhythmPresets, parseGrouping, groupStarts, groupingChoices, editRhythmLane, snapshotBeat, pasteBeat, pasteBeats, moveBeat, insertBeat, insertBeats, deleteBeats, QC_LIMITS, qcStorageKey, computeQuadCortexPlan, formatLoopDuration } from './practice.js?v=qc1';
+import { readSettings, storageKey, defaultVolume, setupLinkPrefix, encodeSetupSnapshot, decodeSetupSnapshot, makeSetupLink, readSetupLink, makeIdeaLink, readIdeaParam } from './settings.js?v=qc1';
 import { authorNameFromUser, createFirebaseCloudAdapter, createIdeaStore, defaultGuestName, isDefaultIdeaTitle, orderIdeasForDisplay, readSavedAuthor, readSavedTitle, writeSavedAuthor, writeSavedTitle } from './ideas.js?v=ideas-order3';
 import { createDrummerStage, drummerStorageKey } from './drummer.js?v=drummer7';
 import { startLogoSwimIntro } from './logo.js?v=logo9';
@@ -31,6 +31,10 @@ const ui = {
   beats: byId('meter-beats'), unit: byId('meter-unit'), ruler: byId('ruler'), groupingChoice: byId('grouping-choice'),
   grouping: byId('grouping'), groupingHelp: byId('grouping-help'), groupingError: byId('grouping-error'), applyGrouping: byId('apply-grouping'),
   optionsButton: byId('options-button'), optionsPopover: byId('options-popover'), optionsClose: byId('options-close'),
+  qcToggle: byId('qc-toggle'), qcBar: byId('qc-bar'), qcBadge: byId('qc-badge'),
+  qcCyclesDown: byId('qc-cycles-down'), qcCyclesUp: byId('qc-cycles-up'), qcCyclesValue: byId('qc-cycles-value'),
+  qcBpm: byId('qc-bpm'), qcSig: byId('qc-sig'), qcBars: byId('qc-bars'), qcQuant: byId('qc-quant'), qcTime: byId('qc-time'),
+  qcExtras: byId('qc-extras'),
   pulseHint: byId('pulse-hint'), pulseFeedback: byId('pulse-feedback'), embedMore: byId('embed-more'),
   markerMenu: byId('marker-menu'), markerMenuTitle: byId('marker-menu-title'), markerMenuClose: byId('marker-menu-close'), markerSounds: document.querySelector('.marker-sounds'), markerAccent: byId('marker-accent'), markerTrim: byId('marker-trim'),
   beatMenu: byId('beat-menu'), beatMenuTitle: byId('beat-menu-title'), beatMenuClose: byId('beat-menu-close'),
@@ -551,6 +555,134 @@ function setDrummerOpen(open, { persist = true } = {}) {
 }
 ui.drummerToggle?.addEventListener('click', () => setDrummerOpen(!drummerStage.isEnabled));
 
+let qcOpen = false;
+let qcCycles = 1;
+let qcSelectedKey = '';
+let qcLastSignature = '';
+
+function formatDriftLabel(driftMs) {
+  const rounded = Math.round(driftMs * 10) / 10;
+  const sign = rounded > 0 ? '+' : '';
+  return `${sign}${rounded.toFixed(1)} ms/loop`;
+}
+
+function renderQcBar() {
+  if (!ui.qcBar || !qcOpen) return;
+  const sig = `${settings.bpm}|${settings.tempoBeat}|${settings.beats}|${settings.unit}|${qcCycles}|${JSON.stringify(settings.beatEnds?.slice(0, settings.beats))}|${JSON.stringify(settings.beatEnabled?.slice(0, settings.beats))}|${JSON.stringify(settings.beatRepeats)}`;
+  if (sig !== qcLastSignature) {
+    qcLastSignature = sig;
+    qcSelectedKey = '';
+  }
+  const plan = computeQuadCortexPlan(settings, { cycles: qcCycles });
+  const options = plan.best ? [plan.best, ...plan.alternatives] : [];
+  const active = options.find((opt) => opt.key === qcSelectedKey) ?? plan.best;
+
+  if (ui.qcCyclesValue) ui.qcCyclesValue.textContent = `×${plan.cycles}`;
+  if (ui.qcCyclesDown) ui.qcCyclesDown.disabled = plan.cycles <= QC_LIMITS.cycles[0];
+  if (ui.qcCyclesUp) ui.qcCyclesUp.disabled = plan.cycles >= QC_LIMITS.cycles[1];
+
+  if (active) {
+    if (ui.qcBpm) ui.qcBpm.textContent = String(active.bpm);
+    if (ui.qcSig) ui.qcSig.textContent = active.timeSig;
+    if (ui.qcBars) ui.qcBars.textContent = String(active.bars);
+    if (ui.qcQuant) ui.qcQuant.textContent = String(active.quantize);
+    if (ui.qcTime) ui.qcTime.textContent = formatLoopDuration(plan.targetSeconds);
+  }
+
+  if (ui.qcBadge) {
+    if (plan.overMax) {
+      ui.qcBadge.textContent = '> 4m44s max';
+      ui.qcBadge.dataset.state = 'over';
+      ui.qcBadge.title = 'Exceeds Quad Cortex Looper X 4m 44s recording limit';
+    } else if (active?.exact) {
+      ui.qcBadge.textContent = 'Exact';
+      ui.qcBadge.dataset.state = 'exact';
+      ui.qcBadge.title = 'Exact 0 ms drift against Oddmeter';
+    } else if (active) {
+      ui.qcBadge.textContent = formatDriftLabel(active.driftMs);
+      ui.qcBadge.dataset.state = 'approx';
+      ui.qcBadge.title = `Closest integer QC BPM (${formatLoopDuration(active.seconds)} vs ${formatLoopDuration(plan.targetSeconds)})`;
+    }
+  }
+
+  if (ui.qcExtras) {
+    const chips = [];
+    if (plan.exact && options.length > 1) {
+      for (const opt of options) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'qc-chip';
+        chip.dataset.kind = 'alt';
+        chip.dataset.qcKey = opt.key;
+        const selected = active?.key === opt.key;
+        chip.setAttribute('aria-pressed', String(selected));
+        chip.textContent = `${opt.bpm} · ${opt.timeSig} · ${opt.bars}b`;
+        chip.title = `Use ${opt.bpm} BPM, ${opt.timeSig}, ${opt.bars} ${opt.bars === 1 ? 'bar' : 'bars'} (Quantize ${opt.quantize})`;
+        chip.addEventListener('click', () => {
+          qcSelectedKey = opt.key;
+          renderQcBar();
+        });
+        chips.push(chip);
+      }
+    }
+    if (!plan.exact && plan.exactCyclesOption) {
+      const { cycles: targetCycles, option } = plan.exactCyclesOption;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'qc-chip';
+      chip.dataset.kind = 'action';
+      chip.dataset.qcAction = 'cycles';
+      chip.textContent = `Exact ×${targetCycles}: ${option.bpm} · ${option.timeSig} · ${option.bars}b`;
+      chip.title = `Loop ${targetCycles} Oddmeter cycles for exact 0 ms drift on Quad Cortex`;
+      chip.addEventListener('click', () => {
+        qcCycles = targetCycles;
+        qcSelectedKey = '';
+        renderQcBar();
+      });
+      chips.push(chip);
+    }
+    if (!plan.exact && plan.exactBpmNudge) {
+      const { oddBpm, delta, option } = plan.exactBpmNudge;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'qc-chip';
+      chip.dataset.kind = 'action';
+      chip.dataset.qcAction = 'bpm';
+      const sign = delta > 0 ? '+' : '';
+      chip.textContent = `0-drift at ${oddBpm} BPM (${sign}${delta})`;
+      chip.title = `Set Oddmeter to ${oddBpm} BPM for exact QC match (${option.bpm} BPM · ${option.timeSig} · ${option.bars}b)`;
+      chip.addEventListener('click', () => {
+        setTempo(oddBpm);
+      });
+      chips.push(chip);
+    }
+    ui.qcExtras.replaceChildren(...chips);
+    ui.qcExtras.hidden = chips.length === 0;
+  }
+}
+
+function setQcOpen(open, { persist = true } = {}) {
+  qcOpen = Boolean(open);
+  if (ui.qcBar) ui.qcBar.hidden = !qcOpen;
+  if (ui.qcToggle) ui.qcToggle.setAttribute('aria-pressed', String(qcOpen));
+  if (qcOpen) renderQcBar();
+  if (persist) {
+    try { localStorage.setItem(qcStorageKey, qcOpen ? '1' : '0'); } catch { /* Storage is optional. */ }
+  }
+}
+
+ui.qcToggle?.addEventListener('click', () => setQcOpen(!qcOpen));
+ui.qcCyclesDown?.addEventListener('click', () => {
+  if (qcCycles <= QC_LIMITS.cycles[0]) return;
+  qcCycles -= 1;
+  renderQcBar();
+});
+ui.qcCyclesUp?.addEventListener('click', () => {
+  if (qcCycles >= QC_LIMITS.cycles[1]) return;
+  qcCycles += 1;
+  renderQcBar();
+});
+
 // Keep the screen on while playing so the beat stays visible. A request that
 // resolves after Stop or a newer request releases itself.
 async function keepAwake() {
@@ -1036,6 +1168,7 @@ function timingChanged({ meter = false, rhythm = false, restart = meter } = {}) 
   if (meter || rhythm) ui.pulseFeedback.textContent = '';
   if (meter) renderMeter();
   if (meter || rhythm) renderRhythms();
+  renderQcBar();
   renderPreset();
   save();
   if (playing) sendTiming(false, restart);
@@ -1069,6 +1202,7 @@ function renderTempoUnit() {
   ui.tempoBeatList?.querySelectorAll('.tempo-beat-option').forEach((button) => {
     button.setAttribute('aria-pressed', String(Number(button.dataset.tempoBeat) === settings.tempoBeat));
   });
+  renderQcBar();
 }
 function setTempo(value, fromTap = false) {
   if (!fromTap) taps = [];
@@ -2613,6 +2747,7 @@ function renderTrim() {
   }
   updateTrimPreview();
   renderRepeatBrackets();
+  renderQcBar();
   lanes.forEach((lane, index) => {
     const profile = settings.lanes[index];
     lane.activeEvents = makeLaneCyclePhases(profile, settings.beats, layout.ends, layout.enabled, settings.beatRepeats);
@@ -3009,6 +3144,7 @@ function renderMix() {
   });
   renderMarkerMenu();
   syncDrummerConfig();
+  renderQcBar();
 }
 function presetLanes(preset) {
   return preset.lanes.map((lane) => {
@@ -4084,6 +4220,9 @@ renderVolume();
 let savedDrummerOpen = true;
 try { savedDrummerOpen = localStorage.getItem(drummerStorageKey) !== '0'; } catch { /* Storage is optional. */ }
 setDrummerOpen(savedDrummerOpen, { persist: false });
+let savedQcOpen = false;
+try { savedQcOpen = localStorage.getItem(qcStorageKey) === '1'; } catch { /* Storage is optional. */ }
+setQcOpen(!hasEmbedParam && savedQcOpen, { persist: false });
 startLogoSwimIntro({
   container: ui.brandMark,
   trigger: ui.brandMark?.closest('.wordmark')?.querySelector('.wordmark-text') ?? null,

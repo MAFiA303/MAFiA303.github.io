@@ -1,5 +1,5 @@
 import { beatUnits, clampInt, hasBeatSkip, limits, normalizeBeatEnabled, normalizeBeatEnd, normalizeBeatEnds, normalizeBeatRepeats, presets } from './rhythm.js?v=repeat1';
-import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=delete1';
+import { tempoBeats, parseGrouping, readMarkerMemory } from './practice.js?v=qc1';
 import { defaultSounds, soundOptions } from './sounds.js?v=audio1';
 
 export const storageKey = 'oddmeter-settings-v1';
